@@ -38,6 +38,15 @@ class AppI18n {
   String get filePickerFailed => isZh ? '选择文件失败，请检查文件权限' : 'Failed to pick file. Please check permissions';
   String get defaultUserNickname => isZh ? '影视爱好者' : 'Cinema Fan';
   String get userNickname => isZh ? '我的设备' : 'My Device';
+  String get checkUpdate => isZh ? '检查更新' : 'Check for Updates';
+  String get checkingUpdate => isZh ? '正在检查更新...' : 'Checking for updates...';
+  String get currentVersion => isZh ? '当前版本' : 'Current Version';
+  String get latestVersionAlready => isZh ? '当前已是最新版本' : 'You are on the latest version';
+  String get updateAvailable => isZh ? '发现新版本' : 'New Version Available';
+  String get updateChangelog => isZh ? '更新内容' : 'Release Notes';
+  String get updateDownloadNow => isZh ? '立即下载' : 'Download Now';
+  String get updateLater => isZh ? '稍后再说' : 'Later';
+  String get updateCheckFailed => isZh ? '检查更新失败，请稍后重试' : 'Failed to check updates';
   String get close => isZh ? '关闭' : 'Close';
   String get done => isZh ? '完成' : 'Done';
   String get cancel => isZh ? '取消' : 'Cancel';

@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../models.dart';
+import '../core/update_service.dart';
 import 'settings_dialog.dart';
 
 class AvatarPreset {
@@ -244,6 +245,7 @@ class _ProfileViewState extends State<ProfileView> {
   late final TextEditingController _nicknameController;
   bool _isEditingNickname = false;
   bool _isCleaningCache = false;
+  bool _isCheckingUpdate = false;
   String? _statusFeedback;
   Timer? _feedbackTimer;
 
@@ -455,6 +457,26 @@ class _ProfileViewState extends State<ProfileView> {
       }
     } catch (_) {
       if (mounted) setState(() => _isCleaningCache = false);
+    }
+  }
+
+  void _handleCheckUpdate() async {
+    if (_isCheckingUpdate) return;
+    setState(() => _isCheckingUpdate = true);
+    try {
+      final update = await UpdateService.checkUpdate();
+      if (!mounted) return;
+      setState(() => _isCheckingUpdate = false);
+      if (update != null && update.hasUpdate) {
+        UpdateDialog.show(context, update);
+      } else {
+        _showFeedback(AppI18n.of(context).latestVersionAlready);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isCheckingUpdate = false);
+        _showFeedback(AppI18n.of(context).updateCheckFailed);
+      }
     }
   }
 
@@ -709,6 +731,25 @@ class _ProfileViewState extends State<ProfileView> {
                                   : tc.textTertiary,
                             ),
                           ),
+                        ),
+                        Divider(height: 1, color: tc.glassBorderSubtle),
+
+                        // Check Update Tile
+                        _buildActionRow(
+                          icon: Icons.system_update_rounded,
+                          iconColor: const Color(0xFF007AFF),
+                          title: i18n.checkUpdate,
+                          subtitle: _isCheckingUpdate
+                              ? i18n.checkingUpdate
+                              : '${i18n.currentVersion} v${UpdateService.currentVersionName} (${UpdateService.currentPlatform})',
+                          onTap: _isCheckingUpdate ? null : _handleCheckUpdate,
+                          trailing: _isCheckingUpdate
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(Icons.chevron_right_rounded, color: tc.textTertiary, size: 20),
                         ),
                       ],
                     ),
