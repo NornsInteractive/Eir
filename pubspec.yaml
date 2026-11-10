@@ -48,6 +48,8 @@ dependencies:
   cross_file: ^0.3.5+2
   path_provider: ^2.1.6
   url_launcher: ^6.3.1
+  package_info_plus: ^9.0.1
+  wakelock_plus: ^1.5.2
   flutter_secure_storage: ^10.3.4
   shelf: ^1.4.2
   shelf_web_socket: ^3.0.0
