@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io' show Platform, HttpClient;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app_localization.dart';
@@ -66,10 +67,28 @@ class UpdateInfo {
 /// Service connecting to Yggdrasil Distribution Gateway (https://ygg.norns.cc.cd)
 class UpdateService {
   static const String appId = 'com.norns.eir';
-  static const int currentVersionCode = 1;
-  static const String currentVersionName = '1.0.0';
+  static int _runtimeVersionCode = 2;
+  static String _runtimeVersionName = '1.0.1';
+
+  static int get currentVersionCode => _runtimeVersionCode;
+  static String get currentVersionName => _runtimeVersionName;
+
   static const String defaultEndpoint =
       'https://ygg.norns.cc.cd/api/v1/app/latest';
+
+  /// Asynchronously loads platform package info to dynamically reflect version from pubspec.
+  static Future<void> ensureInitialized() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final code = int.tryParse(info.buildNumber);
+      if (code != null && code > 0) {
+        _runtimeVersionCode = code;
+      }
+      if (info.version.isNotEmpty) {
+        _runtimeVersionName = info.version;
+      }
+    } catch (_) {}
+  }
 
   static String get currentPlatform {
     if (kIsWeb) return 'web';
