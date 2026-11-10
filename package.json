@@ -2,7 +2,7 @@
   "name": "eir",
   "private": true,
   "scripts": {
-    "build": "flutter build web --release",
+    "build": "bash tool/build_cloudflare.sh",
     "deploy": "npx wrangler deploy",
     "dev": "npx wrangler dev"
   },
