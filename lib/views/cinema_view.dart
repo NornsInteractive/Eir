@@ -7,6 +7,7 @@ import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../models.dart';
 import 'settings_dialog.dart';
+import 'profile_view.dart';
 
 class CinemaView extends StatefulWidget {
   final RoomSession session;
@@ -348,9 +349,21 @@ class _CinemaViewState extends State<CinemaView> {
                                       key: const ValueKey('add-item-local-btn'),
                                       height: isShortWindow ? 38 : 42,
                                       onTap: () async {
+                                        final messenger = ScaffoldMessenger.maybeOf(context);
                                         Navigator.of(ctx).pop();
                                         _lastReportedCinemaError = null;
-                                        await widget.session.pickAndAddLocalFile();
+                                        try {
+                                          await widget.session.pickAndAddLocalFile();
+                                        } catch (e) {
+                                          if (mounted) {
+                                            messenger?.showSnackBar(
+                                              SnackBar(
+                                                content: Text(i18n.filePickerFailed),
+                                                duration: const Duration(seconds: 2),
+                                              ),
+                                            );
+                                          }
+                                        }
                                       },
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.center,
@@ -1729,22 +1742,35 @@ class _CinemaViewState extends State<CinemaView> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 14,
-                      backgroundColor: isMemberOwner
-                          ? tc.warning.withValues(alpha: 0.2)
-                          : (isMemberAdmin
-                              ? tc.primary.withValues(alpha: 0.2)
-                              : tc.textSecondary.withValues(alpha: 0.15)),
-                      child: Icon(
-                        isMemberOwner
-                            ? Icons.star_rounded
-                            : (isMemberAdmin ? Icons.shield_rounded : Icons.person_rounded),
-                        size: 15,
-                        color: isMemberOwner
-                            ? tc.warning
-                            : (isMemberAdmin ? tc.primary : tc.textSecondary),
-                      ),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        UserAvatar(
+                          avatarKey: member.avatar.isNotEmpty
+                              ? member.avatar
+                              : (isMe ? AppSettings.instance.avatar : null),
+                          size: 28,
+                        ),
+                        if (isMemberOwner || isMemberAdmin)
+                          Positioned(
+                            right: -2,
+                            bottom: -2,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: isMemberOwner ? tc.warning : tc.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: tc.background, width: 1.5),
+                              ),
+                              child: Icon(
+                                isMemberOwner ? Icons.star_rounded : Icons.shield_rounded,
+                                size: 7,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(width: 10),
                     Expanded(

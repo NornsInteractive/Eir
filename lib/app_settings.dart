@@ -18,11 +18,15 @@ class AppSettings extends ChangeNotifier {
   static const String _kLightColorKey = 'eir_setting_light_theme_color';
   static const String _kDarkColorKey = 'eir_setting_dark_theme_color';
   static const String _kSignalingUrlKey = 'eir_setting_signaling_url';
+  static const String _kNicknameKey = 'eir_user_nickname';
+  static const String _kAvatarKey = 'eir_user_avatar';
 
   // Defaults
   static const Color defaultLightColor = Color(0xFF007AFF); // Apple Blue Light
   static const Color defaultDarkColor = Color(0xFF0A84FF);  // Apple Blue Dark
   static const String defaultSignalingUrl = 'ws://127.0.0.1:8080/ws';
+  static const String defaultAvatar = 'preset:aurora';
+  static const String defaultNickname = '';
 
   /// Dynamically resolved default signaling URL:
   /// On Web, automatically matches current origin (wss:// for HTTPS, ws:// for HTTP) and appends /ws.
@@ -63,6 +67,16 @@ class AppSettings extends ChangeNotifier {
   // Configurable Signaling URL
   String _signalingUrl = defaultSignalingUrl;
   String get signalingUrl => _signalingUrl;
+
+  // User Profile: Nickname & Avatar
+  String _nickname = defaultNickname;
+  String get nickname => _nickname;
+
+  String _avatar = defaultAvatar;
+  String get avatar => _avatar;
+
+  /// Effective display name: returns trimmed nickname if non-empty, otherwise empty
+  String get effectiveDisplayName => _nickname.trim();
 
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
@@ -152,6 +166,28 @@ class AppSettings extends ChangeNotifier {
         _signalingUrl = effectiveDefaultSignalingUrl;
         debugPrint('[AppSettings] Reset corrupted signalingUrl setting: $e');
       }
+
+      // 6. User Nickname (Isolated try-catch)
+      try {
+        final nick = prefs.getString(_kNicknameKey);
+        if (nick != null) {
+          _nickname = nick;
+        }
+      } catch (e) {
+        _nickname = defaultNickname;
+        debugPrint('[AppSettings] Reset corrupted nickname setting: $e');
+      }
+
+      // 7. User Avatar (Isolated try-catch)
+      try {
+        final av = prefs.getString(_kAvatarKey);
+        if (av != null && av.trim().isNotEmpty) {
+          _avatar = av.trim();
+        }
+      } catch (e) {
+        _avatar = defaultAvatar;
+        debugPrint('[AppSettings] Reset corrupted avatar setting: $e');
+      }
     }
 
     _isInitialized = true;
@@ -210,6 +246,34 @@ class AppSettings extends ChangeNotifier {
       await _saveString(_kSignalingUrlKey, clean);
       _signalingUrl = clean;
       notifyListeners();
+    }
+  }
+
+  Future<void> setNickname(String name) async {
+    final clean = name.trim();
+    if (_nickname != clean) {
+      _nickname = clean;
+      notifyListeners();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_kNicknameKey, clean);
+      } catch (e) {
+        debugPrint('[AppSettings] Failed to persist nickname: $e');
+      }
+    }
+  }
+
+  Future<void> setAvatar(String avatarKeyOrPath) async {
+    final clean = avatarKeyOrPath.trim();
+    if (_avatar != clean) {
+      _avatar = clean;
+      notifyListeners();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_kAvatarKey, clean);
+      } catch (e) {
+        debugPrint('[AppSettings] Failed to persist avatar: $e');
+      }
     }
   }
 

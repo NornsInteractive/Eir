@@ -8,7 +8,9 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:uuid/uuid.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:file_picker/file_picker.dart';
 
+import '../app_settings.dart';
 import '../media/local_media_service.dart';
 import '../media/media_limits.dart' show kMediaMaxMessageBytes, MediaException;
 import '../media/media_manifest.dart' show isHex64;
@@ -53,17 +55,26 @@ class RoomMember {
     required this.displayName,
     required this.role,
     this.online = true,
+    this.avatar = '',
   });
   final String deviceId;
   final String displayName;
   final RoomRole role;
   final bool online;
+  final String avatar;
 
-  RoomMember copyWith({RoomRole? role, bool? online}) => RoomMember(
+  RoomMember copyWith({
+    String? displayName,
+    RoomRole? role,
+    bool? online,
+    String? avatar,
+  }) =>
+      RoomMember(
         deviceId: deviceId,
-        displayName: displayName,
+        displayName: displayName ?? this.displayName,
         role: role ?? this.role,
         online: online ?? this.online,
+        avatar: avatar ?? this.avatar,
       );
 }
 
@@ -407,6 +418,22 @@ class RoomSession extends ChangeNotifier {
     _mediaErrorSub = _player!.stream.error.listen(_onPlayerError);
     _signaling.messages.listen(_onSignalingMessage);
     _signaling.connection.listen(_onConnectionState);
+    AppSettings.instance.addListener(updateLocalProfile);
+  }
+
+  void updateLocalProfile() {
+    final self = _selfId ?? _keyPair?.identity.deviceId;
+    if (self == null) return;
+    final localName = AppSettings.instance.effectiveDisplayName;
+    final localAvatar = AppSettings.instance.avatar;
+    final idx = _members.indexWhere((m) => m.deviceId == self);
+    if (idx >= 0) {
+      _members[idx] = _members[idx].copyWith(
+        displayName: localName.isNotEmpty ? localName : _shortId(self),
+        avatar: localAvatar,
+      );
+      notifyListeners();
+    }
   }
 
   Future<void> setSignalingUrl(String url) async {
@@ -495,10 +522,14 @@ class RoomSession extends ChangeNotifier {
       return; // Preserve the server's rejection code.
     }
 
+    final localName = AppSettings.instance.effectiveDisplayName;
     _members.add(RoomMember(
       deviceId: _keyPair!.identity.deviceId,
-      displayName: _shortId(_keyPair!.identity.deviceId),
+      displayName: localName.isNotEmpty
+          ? localName
+          : _shortId(_keyPair!.identity.deviceId),
       role: RoomRole.owner,
+      avatar: AppSettings.instance.avatar,
     ));
     _clock.forceOffset(Duration.zero);
     final invite = InviteData(
@@ -2729,19 +2760,27 @@ class RoomSession extends ChangeNotifier {
   }
 
   void _upsertMember(String deviceId, {required bool online}) {
+    final isMe = _selfId == deviceId ||
+        (_keyPair != null && _keyPair!.identity.deviceId == deviceId);
+    final localName = isMe ? AppSettings.instance.effectiveDisplayName : '';
+    final localAvatar = isMe ? AppSettings.instance.avatar : '';
     final idx = _members.indexWhere((m) => m.deviceId == deviceId);
     if (idx >= 0) {
       _members[idx] = _members[idx].copyWith(
         online: online,
         role: _roleFor(deviceId),
+        displayName: (isMe && localName.isNotEmpty) ? localName : null,
+        avatar: (isMe && localAvatar.isNotEmpty) ? localAvatar : null,
       );
       return;
     }
     _members.add(RoomMember(
       deviceId: deviceId,
-      displayName: _shortId(deviceId),
+      displayName:
+          (isMe && localName.isNotEmpty) ? localName : _shortId(deviceId),
       role: _roleFor(deviceId),
       online: online,
+      avatar: localAvatar,
     ));
   }
 
@@ -3325,21 +3364,29 @@ class RoomSession extends ChangeNotifier {
           final id = entry['deviceId'];
           final role = _parseRole(entry['role']);
           if (id is String && kDeviceIdPattern.hasMatch(id)) {
+            final isMe = id == _selfId;
+            final localName = isMe ? AppSettings.instance.effectiveDisplayName : '';
+            final localAvatar = isMe ? AppSettings.instance.avatar : '';
             _members.add(RoomMember(
               deviceId: id,
-              displayName: _shortId(id),
+              displayName:
+                  (isMe && localName.isNotEmpty) ? localName : _shortId(id),
               role: role,
               online: entry['online'] == true,
+              avatar: localAvatar,
             ));
           }
         }
       }
     }
     if (!_members.any((m) => m.deviceId == _selfId) && _selfId != null) {
+      final localName = AppSettings.instance.effectiveDisplayName;
       _members.add(RoomMember(
         deviceId: _selfId!,
-        displayName: _shortId(_selfId!),
+        displayName:
+            localName.isNotEmpty ? localName : _shortId(_selfId!),
         role: RoomRole.member,
+        avatar: AppSettings.instance.avatar,
       ));
     }
     _refreshMemberRoles();
@@ -3558,12 +3605,31 @@ class RoomSession extends ChangeNotifier {
   }
 
   Future<void> pickAndAddLocalFile() async {
-    // No picker-level format filter: any file may be chosen, and the media
-    // layer decides from the file's MIME (declared type or extension) whether
-    // the container is supported, reporting `unsupported_media` otherwise.
-    final file = await openFile();
-    if (file == null) return; // user cancelled
-    await addLocalFile(file);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+      if (result == null || result.files.isEmpty) return; // user cancelled
+      final picked = result.files.first;
+      final XFile file;
+      if (kIsWeb) {
+        if (picked.bytes == null) return;
+        file = XFile.fromData(picked.bytes!, name: picked.name);
+      } else {
+        final path = picked.path;
+        if (path == null || path.isEmpty) return;
+        file = XFile(path, name: picked.name);
+      }
+      await addLocalFile(file);
+    } on MediaException catch (e) {
+      _lastErrorCode = _mapMediaCode(e.code);
+      notifyListeners();
+    } catch (e, st) {
+      debugPrint('[RoomSession] pickAndAddLocalFile error: $e\n$st');
+      _lastErrorCode = 'media_unavailable';
+      notifyListeners();
+    }
   }
 
   /// Registers [file] as shared P2P media: streams it chunk-by-chunk into
@@ -3867,6 +3933,7 @@ class RoomSession extends ChangeNotifier {
 
   @override
   void dispose() {
+    AppSettings.instance.removeListener(updateLocalProfile);
     _closing = true;
     _reconnectTimer?.cancel();
     _handshakeTimer?.cancel();

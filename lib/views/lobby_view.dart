@@ -4,6 +4,7 @@ import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../models.dart';
 import 'settings_dialog.dart';
+import 'profile_view.dart';
 
 class LobbyView extends StatefulWidget {
   final RoomSession session;
@@ -313,6 +314,32 @@ class _LobbyViewState extends State<LobbyView> {
                   ),
                 ),
 
+              // Profile Button (Avatar)
+              Semantics(
+                button: true,
+                enabled: true,
+                label: i18n.profileTitle,
+                child: Tooltip(
+                  message: i18n.profileTitle,
+                  child: GestureDetector(
+                    onTap: () {
+                      if (showBottomBar) {
+                        setState(() => _mobileNavIndex = 1);
+                      } else {
+                        ProfileView.show(context, session: session);
+                      }
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: UserAvatar(
+                        avatarKey: AppSettings.instance.avatar,
+                        size: 28,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
               // Settings Button
               Semantics(
                 button: true,
@@ -335,20 +362,29 @@ class _LobbyViewState extends State<LobbyView> {
                   selectedIndex: _mobileNavIndex,
                   onTabSelected: (index) {
                     setState(() => _mobileNavIndex = index);
-                    if (index == 1) {
-                      SettingsDialog.show(context, session: session);
-                    }
                   },
                   tabs: [
-                    GlassTab(icon: const Icon(Icons.meeting_room_outlined), label: i18n.mobileNavLobby),
-                    GlassTab(icon: const Icon(Icons.settings_outlined), label: i18n.mobileNavSettings),
+                    GlassTab(
+                      icon: const Icon(Icons.meeting_room_outlined),
+                      label: i18n.mobileNavLobby,
+                    ),
+                    GlassTab(
+                      icon: const Icon(Icons.person_outline_rounded),
+                      label: i18n.mobileNavProfile,
+                    ),
                   ],
                 )
               : null,
-          body: SafeArea(
-            top: false,
-            bottom: !showBottomBar,
-            child: SingleChildScrollView(
+          body: _mobileNavIndex == 1
+              ? SafeArea(
+                  top: false,
+                  bottom: !showBottomBar,
+                  child: ProfileView(session: session),
+                )
+              : SafeArea(
+                  top: false,
+                  bottom: !showBottomBar,
+                  child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(
                 horizontal: isMobile ? 18 : 36,
                 vertical: isShortWindow ? 10 : (isMobile ? 16 : 28),

@@ -74,6 +74,9 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
   @override
   Future<int> clearUnprotectedCache() async => 0;
 
+  @override
+  void updateLocalProfile() {}
+
   // F4 manual retry() added by core; fake records the call (no network side-effects).
   int retryCalls = 0;
   @override
