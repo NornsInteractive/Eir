@@ -44,14 +44,24 @@ class UpdateInfo {
     required this.releaseTime,
   });
 
-  factory UpdateInfo.fromJson(Map<String, dynamic> json) {
+  factory UpdateInfo.fromJson(
+    Map<String, dynamic> json, {
+    int? activeVersionCode,
+  }) {
+    final latestCode = (json['latest_version_code'] as num?)?.toInt() ?? 0;
+    final currentCode = activeVersionCode ??
+        (json['current_version_code'] as num?)?.toInt() ??
+        UpdateService.currentVersionCode;
+    final serverHasUpdate = json['has_update'] == true;
+    final hasUpdate = serverHasUpdate && (latestCode > currentCode);
+
     return UpdateInfo(
-      hasUpdate: json['has_update'] == true,
-      isForce: json['is_force'] == true,
+      hasUpdate: hasUpdate,
+      isForce: hasUpdate && (json['is_force'] == true),
       appId: json['app_id'] as String? ?? '',
       appName: json['app_name'] as String? ?? 'Eir',
-      currentVersionCode: (json['current_version_code'] as num?)?.toInt() ?? 0,
-      latestVersionCode: (json['latest_version_code'] as num?)?.toInt() ?? 0,
+      currentVersionCode: currentCode,
+      latestVersionCode: latestCode,
       latestVersionName: json['latest_version_name'] as String? ?? '',
       changelog: json['changelog'] as String? ?? '',
       downloadUrl: json['download_url'] as String? ?? '',
@@ -122,12 +132,18 @@ class UpdateService {
 
       // Yggdrasil returns { code: 0, message: "success", data: { has_update: true, ... } }
       if (jsonMap['code'] == 0 && jsonMap['data'] is Map<String, dynamic>) {
-        return UpdateInfo.fromJson(jsonMap['data'] as Map<String, dynamic>);
+        return UpdateInfo.fromJson(
+          jsonMap['data'] as Map<String, dynamic>,
+          activeVersionCode: currentVersionCode,
+        );
       }
 
       // Or direct object
       if (jsonMap.containsKey('has_update')) {
-        return UpdateInfo.fromJson(jsonMap);
+        return UpdateInfo.fromJson(
+          jsonMap,
+          activeVersionCode: currentVersionCode,
+        );
       }
 
       return null;
