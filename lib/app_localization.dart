@@ -45,6 +45,12 @@ class AppI18n {
   String get updateAvailable => isZh ? '发现新版本' : 'New Version Available';
   String get updateChangelog => isZh ? '更新内容' : 'Release Notes';
   String get updateDownloadNow => isZh ? '立即下载' : 'Download Now';
+  String get updateDownloading => isZh ? '正在下载更新...' : 'Downloading update...';
+  String get updateDownloadComplete => isZh ? '下载完成，正在准备安装' : 'Download complete, preparing install';
+  String get updateInstallNow => isZh ? '立即安装' : 'Install Now';
+  String get updateDownloadFailed => isZh ? '下载失败，请稍后重试' : 'Download failed, please retry';
+  String get updateOpenInBrowser => isZh ? '在浏览器中打开' : 'Open in Browser';
+  String get updateRetry => isZh ? '重试下载' : 'Retry Download';
   String get updateLater => isZh ? '稍后再说' : 'Later';
   String get updateCheckFailed => isZh ? '检查更新失败，请稍后重试' : 'Failed to check updates';
   String get close => isZh ? '关闭' : 'Close';
@@ -54,16 +60,21 @@ class AppI18n {
 
   // Hero & Lobby
   String get heroBadge =>
-      isZh ? 'Eir P2P Sync Engine · 真实双人直连' : 'Eir P2P Sync Engine · Two-Peer Direct';
+      isZh ? '双人同步放映室 · 异地同屏观影' : 'Two-Peer Synchronized Cinema';
   String get heroTitle =>
       isZh ? '跨越距离，同频共赏' : 'Synchronized Cinema Across Distances';
   String get heroSubtitle => isZh
-      ? '端对端 Ed25519 鉴权，P2P DataChannel 单调时钟调节同步。异地相隔，亦如促膝同席。'
-      : 'Ed25519 peer auth, monotonic clock rate-trimming sync over WebRTC DataChannel.';
+      ? '专属私密直连，毫秒级帧同步播放。相隔千里，亦如促膝同席。'
+      : 'Private peer-to-peer connection with frame-accurate sync. Watch together, anywhere.';
   String get createRoom => isZh ? '创建专属放映室' : 'Create Cinema Room';
   String get inputPlaceholder =>
-      isZh ? '输入或粘贴邀请凭据 (signaling|room|token|genesis)...' : 'Paste invite payload (signaling|room|token|genesis)...';
-  String get pasteJoin => isZh ? '粘贴加入' : 'Paste Join';
+      isZh ? '输入 6 位房间码或粘贴邀请链接' : 'Enter 6-digit code or paste invite';
+  String get roomCodeLabel => isZh ? '6 位房间码' : '6-Digit Room Code';
+  String get roomCodeHint => isZh ? '请输入 6 位数字房间码' : 'Enter 6-digit room code';
+  String get enterRoomCode => isZh ? '输入房间码' : 'Room Code';
+  String get shareRoomCode => isZh ? '房间码已生成，点击复制' : 'Room code generated, tap to copy';
+  String get shuffleNickname => isZh ? '随机换名' : 'Shuffle';
+  String get pasteJoin => isZh ? '快捷加入' : 'Quick Join';
   String get joinRoom => isZh ? '加入放映室' : 'Join Cinema';
   String get signalingUrl => isZh ? '信令服务器地址' : 'Signaling Server URL';
   String get signalingUrlHint => isZh ? '默认 ws://127.0.0.1:8080/ws' : 'Default ws://127.0.0.1:8080/ws';
@@ -82,61 +93,71 @@ class AppI18n {
       : 'Changes take effect for future connections; active session is not interrupted';
 
   // Root & Initialization
-  String get initializingEngine => isZh ? '正在初始化安全身份与引擎...' : 'Initializing identity & engine...';
+  String get initializingEngine => isZh ? '正在准备放映环境...' : 'Preparing cinema...';
   String get initFailed => isZh ? '客户端初始化失败' : 'Client initialization failed';
   String get retryInit => isZh ? '重试初始化' : 'Retry Init';
 
   // Connection & Room Status
   String get stateDisconnected => isZh ? '未连接' : 'Disconnected';
-  String get stateConnecting => isZh ? '正在连接信令与对端...' : 'Connecting...';
-  String get stateConnected => isZh ? 'P2P 已直连' : 'P2P Connected';
-  String get stateReconnecting => isZh ? '网络中断，正在重连 (1/2/4s)...' : 'Reconnecting...';
+  String get stateConnecting => isZh ? '正在进入房间...' : 'Joining room...';
+  String get stateConnected => isZh ? '已就绪 · 观影中' : 'Connected · Ready';
+  String get stateReconnecting => isZh ? '网络波动，正在重新连线...' : 'Reconnecting...';
   String get retryConnection => isZh ? '重试连接' : 'Retry Connection';
   String get retryingConnection => isZh ? '正在重试连接...' : 'Retrying Connection...';
   String get disconnectedBannerText => isZh
-      ? '放映室连接已断开，自动重连已停止，可点击重试恢复连接'
-      : 'Room connection lost and auto-reconnect ended. Tap retry to reconnect.';
+      ? '放映室连接已断开，可点击重试恢复连接'
+      : 'Room connection lost. Tap retry to reconnect.';
 
   // Roles & ACL
   String get roleOwner => isZh ? '房主' : 'HOST';
   String get roleAdmin => isZh ? '管理员' : 'ADMIN';
   String get roleMember => isZh ? '成员' : 'MEMBER';
   String get hostBadge => isZh ? 'HOST 房主' : 'HOST';
-  String get grantAdmin => isZh ? '提升为管理员' : 'Grant Admin';
-  String get revokeAdmin => isZh ? '撤销管理员' : 'Revoke Admin';
+  String get grantAdmin => isZh ? '设为管理员' : 'Grant Admin';
+  String get revokeAdmin => isZh ? '取消管理员' : 'Revoke Admin';
   String get peerYou => isZh ? '(你)' : '(You)';
   String get readOnlyControlTooltip =>
-      isZh ? '只读模式：仅房主或管理员有权控制共享播放' : 'Read-only: Only Host or Admin can control shared playback';
+      isZh ? '仅房主或管理员可以控制播放' : 'Only Host or Admin can control playback';
 
   // Cinema View Header & HUD
   String peersConnected(int count) =>
-      isZh ? '$count 人在线' : '$count Peers Online';
+      isZh ? '$count 人同看' : '$count Watching';
   String get copyInvite => isZh ? '复制邀请' : 'Copy Invite';
-  String get inviteRoomTitle => isZh ? '放映室邀请凭据' : 'Room Invitation';
+  String get copyRoomCode => isZh ? '复制房间码' : 'Copy Room Code';
+  String get roomCodeCopied => isZh ? '已复制房间码到剪贴板' : 'Room code copied to clipboard';
+  String get inviteRoomTitle => isZh ? '放映室邀请' : 'Room Invitation';
   String get inviteCopied => isZh ? '已复制邀请凭据到剪贴板' : 'Invite payload copied to clipboard';
   String get leaveRoom => isZh ? '离开房间' : 'Leave Room';
   String get disbandRoom => isZh ? '解散房间' : 'Disband Room';
   String get disbandPendingNotice => isZh
-      ? '核心待接线：当前底层尚未提供 closeRoom 解散接口，已作为离开房间处理'
-      : 'Core API pending: closeRoom interface not yet exposed by core, treated as leaveRoom.';
-  String get playTooltip => isZh ? '播放 (共享)' : 'Play (Shared)';
-  String get pauseTooltip => isZh ? '暂停 (共享)' : 'Pause (Shared)';
-  String get muteTooltip => isZh ? '静音 (本机)' : 'Mute (Local)';
-  String get unmuteTooltip => isZh ? '取消静音 (本机)' : 'Unmute (Local)';
-  String get fullscreenTooltip => isZh ? '全屏 (本机)' : 'Fullscreen (Local)';
-  String get exitFullscreenTooltip => isZh ? '退出全屏 (本机)' : 'Exit Fullscreen (Local)';
+      ? '正在解散放映室...'
+      : 'Disbanding room...';
+  String get playTooltip => isZh ? '播放 (全员同步)' : 'Play (Synced)';
+  String get pauseTooltip => isZh ? '暂停 (全员同步)' : 'Pause (Synced)';
+  String get muteTooltip => isZh ? '静音' : 'Mute';
+  String get unmuteTooltip => isZh ? '取消静音' : 'Unmute';
+  String get fullscreenTooltip => isZh ? '全屏' : 'Fullscreen';
+  String get exitFullscreenTooltip => isZh ? '退出全屏' : 'Exit Fullscreen';
   String get volumeLabel => isZh ? '音量' : 'Volume';
+  String get brightnessLabel => isZh ? '亮度' : 'Brightness';
   String get playbackRate => isZh ? '倍速' : 'Rate';
   String get timelineLabel => isZh ? '播放进度' : 'Playback Progress';
-  String get timelineSeekHint => isZh ? '可拖拽或使用方向键调节播放进度' : 'Drag or use arrow keys to adjust position';
+  String get timelineSeekHint => isZh ? '拖动滑块调节进度' : 'Drag to adjust position';
   String get timelineEmptyHint => isZh ? '未加载媒体' : 'No media loaded';
   String get rateChangeHint => isZh ? '切换播放倍速' : 'Cycle playback rate';
   String get selected => isZh ? '已选择' : 'Selected';
+  String get lockScreen => isZh ? '锁定控制' : 'Lock Screen';
+  String get unlockScreen => isZh ? '解锁控制' : 'Unlock Screen';
+  String get screenLocked => isZh ? '屏幕已锁定' : 'Screen locked';
+  String get screenUnlocked => isZh ? '屏幕已解锁' : 'Screen unlocked';
+  String get aspectRatio => isZh ? '比例' : 'Aspect';
+  String get fastForward10 => isZh ? '+10秒' : '+10s';
+  String get rewind10 => isZh ? '-10秒' : '-10s';
 
   // Dock Tabs
   String get tabPlaylist => isZh ? '播放列表' : 'Playlist';
-  String get tabMembers => isZh ? '成员与权限' : 'Peers & ACL';
-  String get tabSession => isZh ? '会话信息' : 'Session Info';
+  String get tabMembers => isZh ? '同看好友' : 'Friends';
+  String get tabSession => isZh ? '放映详情' : 'Room Info';
 
   // Playlist & Media
   String get addMedia => isZh ? '添加媒体' : 'Add Media';

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +21,28 @@ class AppSettings extends ChangeNotifier {
   static const String _kSignalingUrlKey = 'eir_setting_signaling_url';
   static const String _kNicknameKey = 'eir_user_nickname';
   static const String _kAvatarKey = 'eir_user_avatar';
+
+  static const List<String> _adjectives = [
+    'Starlight', 'Velvet', 'Neon', 'Cosmic', 'Solar', 'Lunar', 'Silent',
+    'Crystal', 'Breeze', 'Midnight', 'Echo', 'Glacier', 'Golden', 'Cyber',
+    'Radiant', 'Astral', 'Amber', 'Frosty', 'Emerald', 'Wandering',
+    'Shadow', 'Ocean', 'Serene', 'Mystic', 'Brisk', 'Cobalt'
+  ];
+
+  static const List<String> _nouns = [
+    'Otter', 'Falcon', 'Fox', 'Panda', 'Dolphin', 'Raven', 'Voyager',
+    'Seeker', 'Drifter', 'Phoenix', 'Dreamer', 'Scout', 'Nomad', 'Pilot',
+    'Stalker', 'Surfer', 'Explorer', 'Ranger', 'Specter', 'Chaser',
+    'Lynx', 'Badger', 'Sparrow', 'Wolf'
+  ];
+
+  /// Generates a fresh random English nickname, e.g., 'StarlightOtter', 'NeonFalcon'.
+  static String generateRandomEnglishNickname({Random? random}) {
+    final r = random ?? Random();
+    final adj = _adjectives[r.nextInt(_adjectives.length)];
+    final noun = _nouns[r.nextInt(_nouns.length)];
+    return '$adj$noun';
+  }
 
   // Defaults
   static const Color defaultLightColor = Color(0xFF007AFF); // Apple Blue Light
@@ -170,11 +193,14 @@ class AppSettings extends ChangeNotifier {
       // 6. User Nickname (Isolated try-catch)
       try {
         final nick = prefs.getString(_kNicknameKey);
-        if (nick != null) {
-          _nickname = nick;
+        if (nick != null && nick.trim().isNotEmpty) {
+          _nickname = nick.trim();
+        } else {
+          _nickname = generateRandomEnglishNickname();
+          _saveString(_kNicknameKey, _nickname).catchError((_) => null);
         }
       } catch (e) {
-        _nickname = defaultNickname;
+        _nickname = generateRandomEnglishNickname();
         debugPrint('[AppSettings] Reset corrupted nickname setting: $e');
       }
 
@@ -261,6 +287,13 @@ class AppSettings extends ChangeNotifier {
         debugPrint('[AppSettings] Failed to persist nickname: $e');
       }
     }
+  }
+
+  /// Randomizes and updates the nickname with a new English name.
+  Future<String> randomizeNickname() async {
+    final newNick = generateRandomEnglishNickname();
+    await setNickname(newNick);
+    return newNick;
   }
 
   Future<void> setAvatar(String avatarKeyOrPath) async {

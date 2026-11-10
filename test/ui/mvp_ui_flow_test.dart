@@ -30,6 +30,9 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
   String? inviteText;
 
   @override
+  String? roomCode = '839201';
+
+  @override
   RoomRole role = RoomRole.member;
 
   @override
@@ -148,6 +151,11 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
     role = RoomRole.member;
     connectionState = RoomConnectionState.connected;
     notifyListeners();
+  }
+
+  @override
+  Future<void> joinRoomByCode(String code) async {
+    await joinRoom(code);
   }
 
   @override
@@ -396,7 +404,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('正在初始化安全身份与引擎...'), findsOneWidget);
+    final i18n = AppI18n(const Locale('zh', 'CN'));
+    expect(find.text(i18n.initializingEngine), findsOneWidget);
 
     // Tapping create when not initialized should NOT trigger createRoom
     await tester.tap(find.text('创建专属放映室'));
@@ -471,7 +480,7 @@ void main() {
     expect(find.text('沙丘 2 · 杜比全景声特别放映'), findsNothing);
 
     // Verify honest non-marketing feature card title
-    expect(find.text('单调时钟同步调节'), findsOneWidget);
+    expect(find.text('毫秒级同频播放'), findsOneWidget);
   });
 
   testWidgets('CinemaView enforces member read-only mode vs Admin/Host shared controls',
@@ -491,10 +500,11 @@ void main() {
     await tester.pumpAndSettle();
 
     // Member has read-only indicator
-    expect(find.text('只读模式：仅房主或管理员有权控制共享播放'), findsOneWidget);
+    final i18n = AppI18n(const Locale('zh', 'CN'));
+    expect(find.text(i18n.readOnlyControlTooltip), findsOneWidget);
 
     // Tapping play button in read-only mode should not dispatch play
-    final playBtnFinder = find.byTooltip('只读模式：仅房主或管理员有权控制共享播放');
+    final playBtnFinder = find.byTooltip(i18n.readOnlyControlTooltip);
     expect(playBtnFinder, findsOneWidget);
     await tester.tap(playBtnFinder);
     await tester.pumpAndSettle();
@@ -507,7 +517,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Now play button tooltip indicates shared play
-    final adminPlayBtn = find.byTooltip('播放 (共享)');
+    final adminPlayBtn = find.byTooltip(i18n.playTooltip);
     expect(adminPlayBtn, findsOneWidget);
     await tester.tap(adminPlayBtn);
     await tester.pumpAndSettle();
@@ -515,7 +525,7 @@ void main() {
     expect(session.playback.mode, PlaybackMode.playing);
 
     // Tapping pause button dispatches pause
-    final adminPauseBtn = find.byTooltip('暂停 (共享)');
+    final adminPauseBtn = find.byTooltip(i18n.pauseTooltip);
     expect(adminPauseBtn, findsOneWidget);
     await tester.tap(adminPauseBtn);
     await tester.pumpAndSettle();
@@ -652,7 +662,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // Switch to Peers tab
-    await tester.tap(find.text('成员与权限'));
+    final i18n = AppI18n(const Locale('zh', 'CN'));
+    await tester.tap(find.text(i18n.tabMembers));
     await tester.pumpAndSettle();
 
     // F08: Without telemetry, both members display '进度: 未知' and no fake timestamps
@@ -685,20 +696,20 @@ void main() {
     expect(find.text('01:08'), findsOneWidget);
     expect(find.byKey(const ValueKey('member-telemetry-peer-user-device-456')), findsOneWidget);
 
-    expect(find.text('提升为管理员'), findsOneWidget);
+    expect(find.text(i18n.grantAdmin), findsOneWidget);
     // Rev3 layout pushes member controls below the default 800x600 surface; scroll them into view.
-    await tester.ensureVisible(find.text('提升为管理员'));
+    await tester.ensureVisible(find.text(i18n.grantAdmin));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('提升为管理员'));
+    await tester.tap(find.text(i18n.grantAdmin));
     await tester.pumpAndSettle();
     expect(session.grantAdminCalls, 1);
     expect(session.lastGrantedMemberId, 'peer-user-device-456');
 
     // After grant, button changes to revoke
-    expect(find.text('撤销管理员'), findsOneWidget);
-    await tester.ensureVisible(find.text('撤销管理员'));
+    expect(find.text(i18n.revokeAdmin), findsOneWidget);
+    await tester.ensureVisible(find.text(i18n.revokeAdmin));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('撤销管理员'));
+    await tester.tap(find.text(i18n.revokeAdmin));
     await tester.pumpAndSettle();
     expect(session.revokeAdminCalls, 1);
     expect(session.lastRevokedMemberId, 'peer-user-device-456');

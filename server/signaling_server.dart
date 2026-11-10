@@ -23,6 +23,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart' as crypto;
 
@@ -47,11 +48,24 @@ final RegExp _deviceIdPattern = RegExp(r'^[0-9a-f]{64}$');
 class SignalingServer {
   HttpServer? _http;
   final Map<String, _Room> _rooms = <String, _Room>{};
+  final Map<String, String> _codeToRoomId = <String, String>{};
+  final Map<String, String> _roomIdToCode = <String, String>{};
   bool _stopping = false;
   String? webRoot;
 
   int get port => _http?.port ?? 0;
   int get roomCount => _rooms.length;
+
+  String _generateRoomCode() {
+    final rnd = math.Random();
+    for (var i = 0; i < 10000; i++) {
+      final code = (100000 + rnd.nextInt(900000)).toString();
+      if (!_codeToRoomId.containsKey(code)) {
+        return code;
+      }
+    }
+    return (100000 + rnd.nextInt(900000)).toString();
+  }
 
   static final Map<String, String> _mimeTypes = <String, String>{
     '.html': 'text/html; charset=utf-8',
@@ -261,6 +275,7 @@ class SignalingServer {
         conn.send(<String, Object?>{
           'type': 'room_created',
           'roomId': roomId,
+          'roomCode': existing.roomCode ?? _roomIdToCode[roomId],
           'sessionId': existing.sessionId,
           'inviteEpoch': existing.inviteEpoch,
           'rejoined': true,
@@ -275,6 +290,10 @@ class SignalingServer {
       return;
     }
     final digest = _sha256Hex(token);
+    final roomCode = _generateRoomCode();
+    _codeToRoomId[roomCode] = roomId;
+    _roomIdToCode[roomId] = roomCode;
+
     final room = _Room(
       roomId: roomId,
       tokenDigest: digest,
@@ -283,6 +302,8 @@ class SignalingServer {
       sessionId: msg['sessionId']! as String,
       genesisHash: msg['genesisHash']! as String,
       inviteEpoch: (msg['inviteEpoch'] as int?) ?? 1,
+      roomCode: roomCode,
+      rawToken: token,
     );
     _rooms[roomId] = room;
     room.attach(conn, deviceId);
@@ -291,17 +312,53 @@ class SignalingServer {
     conn.send(<String, Object?>{
       'type': 'room_created',
       'roomId': roomId,
+      'roomCode': roomCode,
       'sessionId': room.sessionId,
       'inviteEpoch': room.inviteEpoch,
     });
   }
 
+  void _handleQueryRoomCode(_PeerConnection conn, Map<String, Object?> msg) {
+    final code = (msg['roomCode'] as String?)?.trim();
+    if (code == null || code.isEmpty) {
+      conn.sendError('invalid_message');
+      return;
+    }
+    final roomId = _codeToRoomId[code];
+    if (roomId == null) {
+      conn.sendError('room_not_found');
+      return;
+    }
+    final room = _rooms[roomId];
+    if (room == null) {
+      conn.sendError('room_not_found');
+      return;
+    }
+    conn.send(<String, Object?>{
+      'type': 'room_code_info',
+      'roomCode': code,
+      'roomId': roomId,
+      'sessionId': room.sessionId,
+      'ownerPublicKey': room.ownerPublicKey,
+      'genesisHash': room.genesisHash,
+      'inviteEpoch': room.inviteEpoch,
+      'token': room.rawToken,
+    });
+  }
+
   void _handleJoinRoom(_PeerConnection conn, Map<String, Object?> msg) {
-    final roomId = msg['roomId'] as String?;
-    final token = msg['token'] as String?;
+    var roomId = msg['roomId'] as String?;
+    if ((roomId == null || roomId.isEmpty) && msg['roomCode'] is String) {
+      final code = (msg['roomCode'] as String).trim();
+      roomId = _codeToRoomId[code];
+    }
+    var token = msg['token'] as String?;
+    if (token == null && roomId != null && _rooms.containsKey(roomId)) {
+      token = _rooms[roomId]?.rawToken;
+    }
     final deviceId = msg['deviceId'] as String?;
     final publicKey = msg['publicKey'] as String?;
-    final epoch = msg['inviteEpoch'] as int?;
+    final epoch = (msg['inviteEpoch'] as int?) ?? (roomId != null ? _rooms[roomId]?.inviteEpoch : 1);
     final protocolVersion = msg['protocolVersion'] as int?;
     if (protocolVersion != kProtocolVersion) {
       conn.sendError('protocol_version');
@@ -504,14 +561,20 @@ class SignalingServer {
     return _rooms[id];
   }
 
+  void _removeRoom(String roomId) {
+    _rooms.remove(roomId);
+    final code = _roomIdToCode.remove(roomId);
+    if (code != null) _codeToRoomId.remove(code);
+  }
+
   void _maybeReapRoom(_Room room) {
     if (room.peers.isEmpty) {
-      _rooms.remove(room.roomId);
+      _removeRoom(room.roomId);
     }
   }
 
   Future<void> _closeRoom(_Room room, String reason) async {
-    _rooms.remove(room.roomId);
+    _removeRoom(room.roomId);
     for (final peer in room.peers.values.toList()) {
       try {
         peer.conn.send(<String, Object?>{
@@ -605,6 +668,8 @@ class _Room {
     required this.sessionId,
     required this.genesisHash,
     this.inviteEpoch = 1,
+    this.roomCode,
+    this.rawToken,
   });
 
   final String roomId;
@@ -614,6 +679,8 @@ class _Room {
   final String sessionId;
   final String genesisHash;
   int inviteEpoch;
+  String? roomCode;
+  String? rawToken;
   /// Identity that consumed the single-use invite, if any.
   String? inviteConsumedBy;
   final Map<String, _RoomPeer> peers = <String, _RoomPeer>{};
@@ -714,6 +781,9 @@ class _PeerConnection {
     switch (type) {
       case 'create_room':
         server._handleCreateRoom(this, msg);
+        break;
+      case 'query_room_code':
+        server._handleQueryRoomCode(this, msg);
         break;
       case 'join_room':
         server._handleJoinRoom(this, msg);

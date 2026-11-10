@@ -549,32 +549,70 @@ class _ProfileViewState extends State<ProfileView> {
 
                         // Nickname Display / Editor
                         if (!_isEditingNickname)
-                          GestureDetector(
-                            onTap: () {
-                              _nicknameController.text = settings.nickname;
-                              setState(() => _isEditingNickname = true);
-                            },
-                            behavior: HitTestBehavior.opaque,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    currentNick,
-                                    style: TextStyle(
-                                      fontSize: 19,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: -0.4,
-                                      color: tc.textPrimary,
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  _nicknameController.text = settings.nickname;
+                                  setState(() => _isEditingNickname = true);
+                                },
+                                behavior: HitTestBehavior.opaque,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        currentNick,
+                                        style: TextStyle(
+                                          fontSize: 19,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: -0.4,
+                                          color: tc.textPrimary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                    const SizedBox(width: 8),
+                                    Icon(Icons.edit_outlined, size: 16, color: tc.textTertiary),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              // Shuffle / Randomize button
+                              Tooltip(
+                                message: i18n.shuffleNickname,
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    await AppSettings.instance.randomizeNickname();
+                                    _showFeedback(i18n.nicknameSaved);
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: tc.primary.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.shuffle_rounded, size: 14, color: tc.primary),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          i18n.shuffleNickname,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: tc.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Icon(Icons.edit_outlined, size: 16, color: tc.textTertiary),
-                              ],
-                            ),
+                              ),
+                            ],
                           )
                         else
                           Row(

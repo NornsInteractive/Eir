@@ -145,6 +145,7 @@ abstract class BaseLocalMediaService {
   final Map<String, _SourceFile> _sources = <String, _SourceFile>{};
   final Map<String, MediaManifest> _remotes = <String, MediaManifest>{};
   final Map<String, MediaChunkCache> _caches = <String, MediaChunkCache>{};
+  final Map<String, String> _aliases = <String, String>{};
   final Map<int, _PendingFetch> _pending = <int, _PendingFetch>{};
   final Map<String, int> _activeChunkReads = <String, int>{};
   final Map<String, Future<Uint8List>> _chunkFetches = <String, Future<Uint8List>>{};
@@ -179,7 +180,17 @@ abstract class BaseLocalMediaService {
     _onStorageError?.call(code);
   }
 
-  MediaManifest? manifestFor(String mediaId) => _remotes[mediaId] ?? _sources[mediaId]?.manifest;
+  void registerAlias(String aliasId, String targetId) {
+    _aliases[aliasId] = targetId;
+  }
+
+  String resolveMediaId(String mediaId) => _aliases[mediaId] ?? mediaId;
+  String _resolveMediaId(String mediaId) => _aliases[mediaId] ?? mediaId;
+
+  MediaManifest? manifestFor(String mediaId) {
+    final id = _aliases[mediaId] ?? mediaId;
+    return _remotes[id] ?? _sources[id]?.manifest;
+  }
 
   Future<void> start() async {
     if (_started) return;
@@ -477,7 +488,7 @@ abstract class BaseLocalMediaService {
       _sendControl(<String, dynamic>{'type': 'media_error', 'requestId': rid, 'code': 'source_offline'});
       return;
     }
-    final source = _sources[mediaId];
+    final source = _sources[_resolveMediaId(mediaId)];
     if (source == null) {
       _sendControl(<String, dynamic>{'type': 'media_error', 'requestId': rid, 'code': 'source_offline'});
       return;
@@ -514,7 +525,7 @@ abstract class BaseLocalMediaService {
 
   Future<void> _serveAsync(_PendingFetch f) async {
     try {
-      final source = _sources[f.mediaId]!;
+      final source = _sources[_resolveMediaId(f.mediaId)]!;
       final manifest = source.manifest;
       var offset = f.start;
       while (offset < f.end) {
@@ -571,7 +582,7 @@ abstract class BaseLocalMediaService {
       final expected = manifest.chunkHashes[chunkIndex];
       final cached = await cache.getChunk(chunkIndex, expectedSha256: expected);
       if (cached != null) return cached;
-      final source = _sources[mediaId];
+      final source = _sources[_resolveMediaId(mediaId)];
       if (source != null) {
         final start = chunkIndex * manifest.chunkSize;
         final bytes = await _readExact(source.file, start, start + manifest.chunkLength(chunkIndex));

@@ -726,19 +726,25 @@ class _LobbyViewState extends State<LobbyView> {
   Widget _buildFeatureGrid(BuildContext context, bool isMobile) {
     final features = [
       {
-        'icon': Icons.security_rounded,
-        'title': isZh(context) ? '端对端 Ed25519 鉴权' : 'End-to-End Ed25519 Auth',
-        'desc': isZh(context) ? '设备公钥签名控制指令，防重放防伪造，零中心化账户依赖' : 'Signed control envelopes, replay protection, zero account dependency',
+        'icon': Icons.shield_outlined,
+        'title': isZh(context) ? '私密安全直连' : 'Private & Secure',
+        'desc': isZh(context)
+            ? '全流程端对端加密保护，专属私密通道，让异地同看更安心'
+            : 'End-to-end encrypted connection ensuring completely private shared moments',
       },
       {
-        'icon': Icons.stream_rounded,
-        'title': isZh(context) ? 'P2P DataChannel 直连' : 'P2P DataChannel Mesh',
-        'desc': isZh(context) ? 'WebRTC 点对点直连传输，音画数据不经过云端中转服务器' : 'Direct peer-to-peer data channel, zero cloud media relay',
+        'icon': Icons.offline_bolt_rounded,
+        'title': isZh(context) ? '双人点对点连线' : 'Direct Peer-to-Peer',
+        'desc': isZh(context)
+            ? '视频在双方设备间直接传输，不经第三方云端转存，画质无损更流畅'
+            : 'Direct stream between devices without cloud relays, keeping full quality',
       },
       {
         'icon': Icons.sync_rounded,
-        'title': isZh(context) ? '单调时钟同步调节' : 'Monotonic Clock Rate Sync',
-        'desc': isZh(context) ? '房主单调时基锚点，自适应倍速调节追赶' : 'Host monotonic clock anchor with adaptive rate trimming',
+        'title': isZh(context) ? '毫秒级同频播放' : 'Frame-Accurate Sync',
+        'desc': isZh(context)
+            ? '智能自适应调节时钟，无论是暂停、快进还是换片，两端画面时刻同步'
+            : 'Adaptive synchronization keeps playback aligned across all actions',
       },
     ];
 

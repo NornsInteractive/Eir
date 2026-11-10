@@ -257,6 +257,9 @@ class RoomSession extends ChangeNotifier {
   String? _roomId;
   String? get roomId => _roomId;
 
+  String? _roomCode;
+  String? get roomCode => _roomCode;
+
   String? _inviteText;
   String? get inviteText => _inviteText;
 
@@ -347,6 +350,7 @@ class RoomSession extends ChangeNotifier {
 
   Completer<void>? _roomCreated;
   Completer<void>? _joinAccepted;
+  Completer<Map<String, dynamic>>? _roomCodeQuery;
   /// Single-flight publisher pipeline: every commit creation is serialized
   /// through this future chain so overlapping callers never observe the
   /// same (seq, prevHash) pair and a revocation is visible to any request
@@ -561,7 +565,131 @@ class RoomSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> joinRoomByCode(String code) async {
+    final cleanCode = code.replaceAll(RegExp(r'\s+'), '').trim();
+    if (_keyPair == null) {
+      _lastErrorCode = 'signaling_unavailable';
+      notifyListeners();
+      return;
+    }
+    _signalingUrl = _configuredSignalingUrl ?? _signalingUrl ?? AppSettings.instance.signalingUrl;
+    if (_signalingUrl == null || _signalingUrl!.isEmpty) {
+      _lastErrorCode = 'signaling_unavailable';
+      notifyListeners();
+      return;
+    }
+    _resetRoomState(full: true);
+    _connectionState = RoomConnectionState.connecting;
+    notifyListeners();
+
+    try {
+      await _signaling.connect(_signalingUrl!);
+    } catch (_) {
+      _lastErrorCode = 'signaling_unavailable';
+      _connectionState = RoomConnectionState.disconnected;
+      _resetRoomState(full: true);
+      notifyListeners();
+      return;
+    }
+
+    _roomCodeQuery = Completer<Map<String, dynamic>>();
+    await _signaling.send({
+      'type': 'query_room_code',
+      'roomCode': cleanCode,
+    });
+
+    final Map<String, dynamic> info;
+    try {
+      info = await _roomCodeQuery!.future.timeout(const Duration(seconds: 10));
+    } on TimeoutException {
+      _lastErrorCode = 'room_not_found';
+      _connectionState = RoomConnectionState.disconnected;
+      await _signaling.disconnect();
+      _resetRoomState(full: true);
+      notifyListeners();
+      return;
+    } catch (_) {
+      _lastErrorCode = 'room_not_found';
+      _connectionState = RoomConnectionState.disconnected;
+      await _signaling.disconnect();
+      _resetRoomState(full: true);
+      notifyListeners();
+      return;
+    }
+
+    final roomId = info['roomId'] as String?;
+    final token = info['token'] as String?;
+    final ownerPublicKey = info['ownerPublicKey'] as String?;
+    final sessionId = info['sessionId'] as String?;
+    final genesisHash = info['genesisHash'] as String?;
+    final inviteEpoch = (info['inviteEpoch'] as int?) ?? 1;
+
+    if (roomId == null || token == null || ownerPublicKey == null || sessionId == null || genesisHash == null) {
+      _lastErrorCode = 'invalid_invite';
+      _connectionState = RoomConnectionState.disconnected;
+      await _signaling.disconnect();
+      _resetRoomState(full: true);
+      notifyListeners();
+      return;
+    }
+
+    _roomCode = cleanCode;
+    _cachedToken = token;
+    _peerDeviceId = deviceIdFromPublicKey(ownerPublicKey);
+    _roomId = roomId;
+    _sessionId = sessionId;
+    _genesisHash = genesisHash;
+    _genesis = null;
+    _inviteEpoch = inviteEpoch;
+    _ownerPublicKey = ownerPublicKey;
+    _chain = CommitChain(genesisHash: genesisHash);
+    _acl = RoomAcl(ownerDeviceId: _peerDeviceId!);
+
+    _joinAccepted = Completer<void>();
+    await _signaling.send({
+      'type': 'join_room',
+      'protocolVersion': kProtocolVersion,
+      'roomId': roomId,
+      'token': token,
+      'deviceId': _keyPair!.identity.deviceId,
+      'publicKey': _keyPair!.identity.publicKeyBase64,
+      'inviteEpoch': inviteEpoch,
+    });
+
+    try {
+      await _joinAccepted!.future.timeout(const Duration(seconds: 10));
+    } on TimeoutException {
+      _lastErrorCode = 'signaling_unavailable';
+      _connectionState = RoomConnectionState.disconnected;
+      await _signaling.disconnect();
+      _resetRoomState(full: true);
+      notifyListeners();
+      return;
+    } catch (_) {
+      await _signaling.disconnect();
+      await _teardownPeer();
+      _resetRoomState(full: true);
+      _connectionState = RoomConnectionState.disconnected;
+      notifyListeners();
+      return;
+    }
+
+    _connectionState = RoomConnectionState.connected;
+    _lastErrorCode = null;
+    notifyListeners();
+  }
+
   Future<void> joinRoom(String inviteText) async {
+    final trimmed = inviteText.trim();
+    final digitsOnly = trimmed.replaceAll(RegExp(r'\s+'), '');
+    if (RegExp(r'^\d{6}$').hasMatch(digitsOnly)) {
+      return joinRoomByCode(digitsOnly);
+    }
+    final codeUriMatch = RegExp(r'[?&]code=(\d{6})').firstMatch(trimmed);
+    if (codeUriMatch != null) {
+      return joinRoomByCode(codeUriMatch.group(1)!);
+    }
+
     if (_keyPair == null) {
       _lastErrorCode = 'signaling_unavailable';
       notifyListeners();
@@ -732,6 +860,7 @@ class RoomSession extends ChangeNotifier {
         unawaited(media.dispose());
       }
       _inviteText = null;
+      _roomCode = null;
       _roomId = null;
       _sessionId = null;
       _genesis = null;
@@ -908,6 +1037,10 @@ class RoomSession extends ChangeNotifier {
       case 'room_created':
         final rejoined = msg['rejoined'] == true;
         final serverEpoch = msg['inviteEpoch'] as int?;
+        final serverCode = msg['roomCode'] as String?;
+        if (serverCode != null && serverCode.isNotEmpty) {
+          _roomCode = serverCode;
+        }
         if (rejoined) {
           // Idempotent re-registration to a still-alive room: no epoch change.
           _reconnecting = false;
@@ -928,6 +1061,12 @@ class RoomSession extends ChangeNotifier {
         final created = _roomCreated;
         if (created != null && !created.isCompleted) {
           created.complete();
+        }
+        return;
+      case 'room_code_info':
+        final query = _roomCodeQuery;
+        if (query != null && !query.isCompleted) {
+          query.complete(msg);
         }
         return;
       case 'join_accepted':
@@ -1013,6 +1152,10 @@ class RoomSession extends ChangeNotifier {
     }[code] ??
         'signaling_unavailable';
     _lastErrorCode = mapped;
+    final query = _roomCodeQuery;
+    if (query != null && !query.isCompleted) {
+      query.completeError(StateError(mapped));
+    }
     final created = _roomCreated;
     if (created != null && !created.isCompleted) {
       created.completeError(StateError(mapped));
@@ -2728,15 +2871,22 @@ class RoomSession extends ChangeNotifier {
       return Media(item.url!);
     }
     if (item.sourceType == 'local') {
-      // 1. Direct path / URI reference (zero-copy original file or Android content:// URI)
-      final localRef = item.localPath ??
-          _localMediaPaths[item.itemId] ??
-          (item.localMediaId != null ? _localMediaPaths[item.localMediaId!] : null);
-      if (localRef != null && localRef.isNotEmpty) {
-        return Media(localRef);
+      // 1. Direct path / URI reference: ONLY if this device actually possesses the file locally!
+      final hasLocalPath = _localMediaPaths.containsKey(item.itemId) ||
+          (item.localMediaId != null && _localMediaPaths.containsKey(item.localMediaId!));
+      final source = item.localMediaId != null ? _knownLocalMediaSources[item.localMediaId!] : null;
+      final isLocalSource = source != null && _keyPair != null && source == _keyPair!.identity.deviceId;
+
+      if (hasLocalPath || isLocalSource) {
+        final localRef = _localMediaPaths[item.itemId] ??
+            (item.localMediaId != null ? _localMediaPaths[item.localMediaId!] : null) ??
+            item.localPath;
+        if (localRef != null && localRef.isNotEmpty) {
+          return Media(localRef);
+        }
       }
 
-      // 2. Fallback to local media service Range bridge
+      // 2. Remote peer: NEVER open host's localPath directly! Stream via P2P local media service
       if (item.localMediaId != null) {
         final service = await _ensureMediaService();
         try {
@@ -3732,7 +3882,7 @@ class RoomSession extends ChangeNotifier {
       'sourceType': 'local',
       'localMediaId': fastMediaId,
       'localPath': ?path,
-      'url': ?path,
+      'url': null,
       'sizeBytes': ?sizeBytes,
       'manifestSource': _keyPair!.identity.deviceId,
     };
@@ -3745,6 +3895,7 @@ class RoomSession extends ChangeNotifier {
     if (file != null) {
       _ensureMediaService().then((service) {
         service.registerFile(file, title: effectiveTitle).then((manifest) {
+          service.registerAlias(fastMediaId, manifest.mediaId);
           _knownLocalMediaIds.add(manifest.mediaId);
           _knownLocalMediaSources[manifest.mediaId] = _keyPair!.identity.deviceId;
           if (path != null && path.isNotEmpty) {
