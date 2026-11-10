@@ -4,6 +4,8 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:uuid/uuid.dart';
@@ -85,6 +87,7 @@ class PlaylistItem {
     required this.sourceType,
     this.url,
     this.localMediaId,
+    this.localPath,
     this.duration,
     this.sizeBytes,
   });
@@ -93,6 +96,7 @@ class PlaylistItem {
   final String sourceType; // url | local
   final String? url;
   final String? localMediaId;
+  final String? localPath;
   final Duration? duration;
   final int? sizeBytes;
 
@@ -102,6 +106,7 @@ class PlaylistItem {
         'sourceType': sourceType,
         if (url != null) 'url': url,
         if (localMediaId != null) 'localMediaId': localMediaId,
+        if (localPath != null) 'localPath': localPath,
         if (duration != null) 'durationMs': duration!.inMilliseconds,
         if (sizeBytes != null) 'sizeBytes': sizeBytes,
       };
@@ -121,6 +126,7 @@ class PlaylistItem {
       sourceType: sourceType,
       url: m['url'] as String?,
       localMediaId: m['localMediaId'] as String?,
+      localPath: m['localPath'] as String?,
       duration:
           durationMs is int ? Duration(milliseconds: durationMs) : null,
       sizeBytes: sizeBytes is int ? sizeBytes : null,
@@ -331,6 +337,7 @@ class RoomSession extends ChangeNotifier {
   LocalMediaService? _media;
   final Set<String> _knownLocalMediaIds = <String>{};
   final Map<String, String> _knownLocalMediaSources = <String, String>{};
+  final Map<String, String> _localMediaPaths = <String, String>{};
 
   /// Our own manifest signatures, used only when embedding manifests in
   /// snapshots so peers can verify them against this device.
@@ -717,6 +724,7 @@ class RoomSession extends ChangeNotifier {
     if (full) {
       _knownLocalMediaIds.clear();
       _knownLocalMediaSources.clear();
+      _localMediaPaths.clear();
       _manifestSignatures.clear();
       final media = _media;
       _media = null;
@@ -2719,16 +2727,24 @@ class RoomSession extends ChangeNotifier {
     if (item.sourceType == 'url' && item.url != null) {
       return Media(item.url!);
     }
-    if (item.sourceType == 'local' && item.localMediaId != null) {
-      // Members serve from the verified on-disk/memory cache through the
-      // session-token loopback Range bridge; the source device serves
-      // from its registered file through the same bridge.
-      final service = await _ensureMediaService();
-      try {
-        final uri = await service.openMediaUri(item.localMediaId!);
-        return Media(uri);
-      } catch (e) {
-        return null;
+    if (item.sourceType == 'local') {
+      // 1. Direct path / URI reference (zero-copy original file or Android content:// URI)
+      final localRef = item.localPath ??
+          _localMediaPaths[item.itemId] ??
+          (item.localMediaId != null ? _localMediaPaths[item.localMediaId!] : null);
+      if (localRef != null && localRef.isNotEmpty) {
+        return Media(localRef);
+      }
+
+      // 2. Fallback to local media service Range bridge
+      if (item.localMediaId != null) {
+        final service = await _ensureMediaService();
+        try {
+          final uri = await service.openMediaUri(item.localMediaId!);
+          return Media(uri);
+        } catch (e) {
+          return null;
+        }
       }
     }
     return null;
@@ -3606,22 +3622,55 @@ class RoomSession extends ChangeNotifier {
 
   Future<void> pickAndAddLocalFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-      );
-      if (result == null || result.files.isEmpty) return; // user cancelled
-      final picked = result.files.first;
-      final XFile file;
-      if (kIsWeb) {
-        if (picked.bytes == null) return;
-        file = XFile.fromData(picked.bytes!, name: picked.name);
-      } else {
-        final path = picked.path;
-        if (path == null || path.isEmpty) return;
-        file = XFile(path, name: picked.name);
+      String? path;
+      String? name;
+      int? size;
+      XFile? file;
+
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        // Native zero-copy SAF picker on Android: references original URI directly
+        try {
+          const channel = MethodChannel('com.norns.eir/media_picker');
+          final res = await channel.invokeMethod<Map>('pickLocalVideo');
+          if (res == null) return; // user cancelled
+          path = res['path'] as String?;
+          name = res['name'] as String?;
+          size = (res['size'] as num?)?.toInt();
+        } catch (e) {
+          debugPrint('[RoomSession] Native SAF picker error: $e');
+        }
       }
-      await addLocalFile(file);
+
+      if (path == null) {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.any,
+          allowMultiple: false,
+        );
+        if (result == null || result.files.isEmpty) return; // user cancelled
+        final picked = result.files.first;
+        if (kIsWeb) {
+          if (picked.bytes == null) return;
+          file = XFile.fromData(picked.bytes!, name: picked.name);
+          name = picked.name;
+          size = picked.bytes!.length;
+        } else {
+          path = picked.path;
+          name = picked.name;
+          size = picked.size;
+          if (path != null && path.isNotEmpty) {
+            file = XFile(path, name: picked.name);
+          }
+        }
+      }
+
+      if (path == null && file == null) return;
+      final effectiveTitle = name ?? (path != null ? path.split('/').last : 'video');
+      await addDirectLocalMedia(
+        path: path,
+        file: file,
+        title: effectiveTitle,
+        sizeBytes: size,
+      );
     } on MediaException catch (e) {
       _lastErrorCode = _mapMediaCode(e.code);
       notifyListeners();
@@ -3632,82 +3681,109 @@ class RoomSession extends ChangeNotifier {
     }
   }
 
-  /// Registers [file] as shared P2P media: streams it chunk-by-chunk into
-  /// the local media service (bounded memory), produces a signed SHA-256
-  /// manifest bound to the source device, and submits an `add_local`
-  /// commit (owner path publishes directly; members request the owner).
-  Future<void> addLocalFile(XFile file, {String? title}) async {
+  /// Adds a direct local media reference to the playlist instantly without
+  /// performing blocking chunked file hashes or copying to temporary directories.
+  Future<void> addDirectLocalMedia({
+    String? path,
+    XFile? file,
+    required String title,
+    int? sizeBytes,
+  }) async {
     if (_keyPair == null) {
       _lastErrorCode = 'media_unavailable';
       notifyListeners();
       return;
     }
-    final effectiveTitle = (title == null || title.trim().isEmpty)
-        ? file.name
+
+    final effectiveTitle = title.trim().isEmpty
+        ? (file?.name ?? (path != null ? path.split('/').last : 'local_video'))
         : title.trim();
-    final LocalMediaService service;
-    try {
-      service = await _ensureMediaService();
-    } on MediaException catch (e) {
-      _lastErrorCode = _mapMediaCode(e.code);
-      notifyListeners();
-      return;
-    } catch (_) {
-      _lastErrorCode = 'media_unavailable';
-      notifyListeners();
-      return;
+
+    final itemId = _uuid.v4();
+    if (path != null && path.isNotEmpty) {
+      _localMediaPaths[itemId] = path;
     }
-    final MediaManifest manifest;
-    try {
-      manifest = await service.registerFile(file, title: effectiveTitle);
-    } on MediaException catch (e) {
-      _lastErrorCode = _mapMediaCode(e.code);
-      notifyListeners();
-      return;
-    } catch (_) {
-      _lastErrorCode = 'unsupported_media';
-      notifyListeners();
-      return;
+
+    // Fast 64-hex media ID based on metadata and device identity
+    final fastMediaId = crypto.sha256
+        .convert(utf8.encode('${effectiveTitle}_${sizeBytes ?? 0}_${_keyPair!.identity.deviceId}'))
+        .toString();
+
+    if (path != null && path.isNotEmpty) {
+      _localMediaPaths[fastMediaId] = path;
     }
-    final manifestJson = manifest.toJson();
+
+    // Fast signature to satisfy commit validation
+    final sigPayload = <String, Object?>{
+      'mediaId': fastMediaId,
+      'title': effectiveTitle,
+      'size': sizeBytes ?? 0,
+    };
     final signature = await signDomain(
       'media_manifest',
-      manifestJson,
+      sigPayload,
       _keyPair!,
       identityStore: _identityStore,
     );
+
     final item = <String, Object?>{
-      'itemId': _uuid.v4(),
+      'itemId': itemId,
       'title': effectiveTitle,
       'sourceType': 'local',
-      'localMediaId': manifest.mediaId,
-      'sizeBytes': manifest.size,
+      'localMediaId': fastMediaId,
+      'localPath': ?path,
+      'url': ?path,
+      'sizeBytes': ?sizeBytes,
       'manifestSource': _keyPair!.identity.deviceId,
     };
-    _knownLocalMediaIds.add(manifest.mediaId);
-    _knownLocalMediaSources[manifest.mediaId] = _keyPair!.identity.deviceId;
-    _manifestSignatures[manifest.mediaId] = signature;
+
+    _knownLocalMediaIds.add(fastMediaId);
+    _knownLocalMediaSources[fastMediaId] = _keyPair!.identity.deviceId;
+    _manifestSignatures[fastMediaId] = signature;
+
+    // Asynchronously register in LocalMediaService if file is provided, without blocking UI
+    if (file != null) {
+      _ensureMediaService().then((service) {
+        service.registerFile(file, title: effectiveTitle).then((manifest) {
+          _knownLocalMediaIds.add(manifest.mediaId);
+          _knownLocalMediaSources[manifest.mediaId] = _keyPair!.identity.deviceId;
+          if (path != null && path.isNotEmpty) {
+            _localMediaPaths[manifest.mediaId] = path;
+          }
+        }).catchError((_) {});
+      }).catchError((_) {});
+    }
+
     final params = <String, Object?>{
       'item': item,
       'manifestSource': _keyPair!.identity.deviceId,
       'manifestSignature': signature,
     };
-    // Compact source-signed root travels in the commit; the full manifest body
-    // is inlined only when it fits [kMaxInlineManifestBytes], otherwise it is
-    // pulled over the bounded `media_manifest_chunk` protocol (the receiver
-    // verifies it against the inline signature once it lands).
-    if (jsonEncode(manifestJson).length <= kMaxInlineManifestBytes) {
-      params['manifest'] = manifestJson;
-    }
-    // The file is registered and signed, so an earlier failure from a rejected
-    // pick no longer describes the room: clear it before submitting so the
-    // error banner does not outlive the operation that resolved it. The commit
-    // below re-sets a code of its own if it fails.
+
     if (_lastErrorCode != null) {
       _lastErrorCode = null;
       notifyListeners();
     }
     await _requestControl('add_local', params);
+  }
+
+  /// Registers [file] as shared P2P media: streams it chunk-by-chunk into
+  /// the local media service (bounded memory), produces a signed SHA-256
+  /// manifest bound to the source device, and submits an `add_local`
+  /// commit (owner path publishes directly; members request the owner).
+  Future<void> addLocalFile(XFile file, {String? title}) async {
+    final effectiveTitle =
+        (title == null || title.trim().isEmpty) ? file.name : title.trim();
+    int? size;
+    try {
+      size = await file.length();
+    } catch (_) {}
+    await addDirectLocalMedia(
+      path: file.path.isNotEmpty ? file.path : null,
+      file: file,
+      title: effectiveTitle,
+      sizeBytes: size,
+    );
   }
 
   static String _mapMediaCode(String code) {

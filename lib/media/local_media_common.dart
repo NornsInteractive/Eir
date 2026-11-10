@@ -257,9 +257,19 @@ abstract class BaseLocalMediaService {
     final hashes = <String>[];
     final digestCollector = _DigestCollector();
     final fileHasher = crypto.sha256.startChunkedConversion(digestCollector);
-    for (var offset = 0; offset < size; offset += kMediaChunkSize) {
-      final end = (offset + kMediaChunkSize).clamp(0, size);
-      final chunk = await _readExact(file, offset, end);
+    final chunkBuffer = <int>[];
+    await for (final block in file.openRead()) {
+      chunkBuffer.addAll(block);
+      while (chunkBuffer.length >= kMediaChunkSize) {
+        final chunk = Uint8List.fromList(chunkBuffer.sublist(0, kMediaChunkSize));
+        chunkBuffer.removeRange(0, kMediaChunkSize);
+        hashes.add(crypto.sha256.convert(chunk).toString());
+        fileHasher.add(chunk);
+      }
+    }
+    if (chunkBuffer.isNotEmpty) {
+      final chunk = Uint8List.fromList(chunkBuffer);
+      chunkBuffer.clear();
       hashes.add(crypto.sha256.convert(chunk).toString());
       fileHasher.add(chunk);
     }

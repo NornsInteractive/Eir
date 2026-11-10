@@ -4,22 +4,31 @@ set -e
 echo "==> [Cloudflare Build] Checking Flutter environment..."
 
 if ! command -v flutter >/dev/null 2>&1; then
-  echo "==> [Cloudflare Build] Flutter not detected. Downloading Flutter 3.24.5..."
   FLUTTER_INSTALL_DIR="/tmp/flutter"
-  if [ ! -x "$FLUTTER_INSTALL_DIR/bin/flutter" ]; then
-    mkdir -p /tmp
-    curl -fsSL "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.24.5-stable.tar.xz" | tar -xJ -C /tmp
+  if [ -x "$FLUTTER_INSTALL_DIR/bin/flutter" ]; then
+    export PATH="$FLUTTER_INSTALL_DIR/bin:$PATH"
+  elif [ -f "build/web/index.html" ]; then
+    echo "==> [Cloudflare Build] Prebuilt build/web found. Proceeding with existing assets."
+  else
+    echo "==> [Cloudflare Build] Cloning Flutter stable (shallow depth 1)..."
+    git clone --depth 1 -b stable https://github.com/flutter/flutter.git "$FLUTTER_INSTALL_DIR"
+    export PATH="$FLUTTER_INSTALL_DIR/bin:$PATH"
+    flutter config --no-analytics
   fi
-  export PATH="$FLUTTER_INSTALL_DIR/bin:$PATH"
 fi
 
-echo "==> [Cloudflare Build] Using Flutter:"
-flutter --version
+if command -v flutter >/dev/null 2>&1; then
+  echo "==> [Cloudflare Build] Flutter version:"
+  flutter --version
+  echo "==> [Cloudflare Build] Getting packages..."
+  flutter pub get
+  echo "==> [Cloudflare Build] Compiling Flutter Web..."
+  flutter build web --release
+fi
 
-echo "==> [Cloudflare Build] Fetching dependencies..."
-flutter pub get
+if [ ! -f "build/web/index.html" ]; then
+  echo "==> [Cloudflare Build] Error: build/web/index.html was not generated!"
+  exit 1
+fi
 
-echo "==> [Cloudflare Build] Compiling Flutter Web Release..."
-flutter build web --release
-
-echo "==> [Cloudflare Build] Web build finished successfully in build/web!"
+echo "==> [Cloudflare Build] Web build ready in build/web!"

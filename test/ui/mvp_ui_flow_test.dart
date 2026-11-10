@@ -237,6 +237,14 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
   Future<void> addLocalFile(dynamic file, {String? title}) async {}
 
   @override
+  Future<void> addDirectLocalMedia({
+    String? path,
+    dynamic file,
+    required String title,
+    int? sizeBytes,
+  }) async {}
+
+  @override
   Future<void> removeItem(String itemId) async {
     removeItemCalls++;
     lastRemovedItemId = itemId;
