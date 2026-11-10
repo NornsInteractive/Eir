@@ -1,0 +1,5 @@
+# Release keystore configuration example
+# Copy this file to `key.properties` and specify your credentials
+storeFile=/path/to/your/android-release.p12
+keyAlias=eir
+passwordFile=/path/to/your/android-release.password

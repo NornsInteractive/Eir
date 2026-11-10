@@ -1,0 +1,114 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# Core dumps
+core.[0-9]*
+core
+vgcore.*
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+**/build/
+/coverage/
+
+# Linux/Windows/macOS ephemeral build files
+**/linux/flutter/ephemeral/
+**/windows/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/ios/Flutter/ephemeral/
+.plugin_symlinks/
+
+# Android build and signing
+.gradle/
+**/android/.gradle/
+**/android/app/build/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/android/local.properties
+**/android/key.properties
+**/android/.cxx/
+*.apk
+*.aab
+*.ap_
+
+# Keystores, certificates and private keys
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+*.crt
+*.cer
+*.der
+*.password
+*secret*
+*credential*
+.env
+.env.*
+
+# Native artifacts and libraries
+*.so
+*.dll
+*.dylib
+*.exe
+/artifacts/
+/flutter-apk/
+
+# iOS / macOS build files
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/macos/Pods/
+**/macos/.symlinks/
+**/macos/Flutter/Flutter-Generated.xcconfig
+**/macos/Flutter/Generated.xcconfig
+**/Pods/
+**/*.xcworkspace/xcuserdata/
+**/*.xcuserdatad/
+
+# Web build & cache
+/web/canvaskit/
+*.map.json
+app.*.symbols
+
+# Cloudflare Wrangler cache
+.wrangler/
+
+# Temporary / Scratch files
+scratch/
+.system_generated/

@@ -1,0 +1,2097 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Eir · 同频共赏 P2P 同步影厅</title>
+  
+  <!-- Apple & Inter Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "apple-blue": "var(--theme-color, #0A84FF)",
+            "apple-blue-hover": "var(--theme-color-hover, #0071E3)",
+            "apple-green": "#30D158",
+            "apple-orange": "#FF9F0A",
+            "apple-indigo": "#5E5CE6",
+            "apple-purple": "#BF5AF2",
+            "apple-cyan": "#64D2FF",
+            "apple-red": "#FF453A",
+          },
+          fontFamily: {
+            sans: [
+              "-apple-system",
+              "BlinkMacSystemFont",
+              "SF Pro Display",
+              "SF Pro Text",
+              "Inter",
+              "PingFang SC",
+              "Hiragino Sans GB",
+              "sans-serif"
+            ],
+            mono: [
+              "JetBrains Mono",
+              "SF Mono",
+              "ui-monospace",
+              "monospace"
+            ]
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    :root {
+      --theme-color: #0A84FF;
+      --theme-color-rgb: 10, 132, 255;
+      --theme-color-hover: #0071E3;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      overflow-x: hidden;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* DARK MODE LIQUID GLASS (macOS Sequoia / iOS 18) */
+    html.dark body {
+      background-color: #060608;
+      color: #EDEDEF;
+    }
+
+    html.dark .liquid-glass-surface {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+      backdrop-filter: blur(28px) saturate(210%);
+      -webkit-backdrop-filter: blur(28px) saturate(210%);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.28),
+                  0 16px 40px -8px rgba(0, 0, 0, 0.65);
+    }
+
+    html.dark .liquid-glass-card {
+      background: linear-gradient(175deg, rgba(26, 26, 32, 0.72) 0%, rgba(13, 13, 17, 0.82) 100%);
+      backdrop-filter: blur(32px) saturate(190%);
+      -webkit-backdrop-filter: blur(32px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+                  0 20px 48px -12px rgba(0, 0, 0, 0.75);
+    }
+
+    html.dark .liquid-glass-subtle {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.18);
+    }
+
+    html.dark .specular-top {
+      position: relative;
+    }
+    html.dark .specular-top::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 8%;
+      right: 8%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.5) 50%, transparent 100%);
+      pointer-events: none;
+    }
+
+    /* LIGHT MODE LIQUID GLASS (macOS Sequoia / iOS 18 Light) */
+    html:not(.dark) body {
+      background-color: #F5F5F7;
+      color: #1D1D1F;
+    }
+
+    html:not(.dark) .liquid-glass-surface {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.62) 100%);
+      backdrop-filter: blur(28px) saturate(200%);
+      -webkit-backdrop-filter: blur(28px) saturate(200%);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 1),
+                  0 8px 32px -4px rgba(0, 0, 0, 0.06),
+                  0 2px 8px -2px rgba(0, 0, 0, 0.04);
+    }
+
+    html:not(.dark) .liquid-glass-card {
+      background: linear-gradient(175deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0.72) 100%);
+      backdrop-filter: blur(32px) saturate(190%);
+      -webkit-backdrop-filter: blur(32px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.92);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 1),
+                  0 12px 30px -6px rgba(0, 0, 0, 0.06),
+                  0 4px 12px -2px rgba(0, 0, 0, 0.03);
+    }
+
+    html:not(.dark) .liquid-glass-subtle {
+      background: rgba(255, 255, 255, 0.65);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+                  0 4px 16px -2px rgba(0, 0, 0, 0.04);
+    }
+
+    html:not(.dark) .specular-top {
+      position: relative;
+    }
+    html:not(.dark) .specular-top::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 8%;
+      right: 8%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.95) 50%, transparent 100%);
+      pointer-events: none;
+    }
+
+    /* Spring-feel Micro-interactions */
+    .btn-spring {
+      transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.18s ease;
+    }
+    .btn-spring:active {
+      transform: scale(0.965);
+    }
+
+    /* Tabular figures for time/ping/stats */
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(150, 150, 150, 0.25);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(150, 150, 150, 0.45);
+    }
+
+    /* Apple Toast Notification */
+    .toast-anim {
+      animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes toastIn {
+      0% { opacity: 0; transform: translate(-50%, -20px) scale(0.95); }
+      100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    }
+  </style>
+</head>
+
+<body class="antialiased min-h-screen flex flex-col selection:bg-apple-blue selection:text-white relative">
+
+  <!-- ================= AMBIENT MULTI-LAYERED REFRACTIVE BACKDROP ================= -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden -z-10 transition-opacity duration-700">
+    <!-- Dark Mode Halos -->
+    <div class="dark:block hidden">
+      <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[760px] h-[500px] bg-gradient-to-b from-apple-blue/20 via-[#5E5CE6]/15 to-transparent blur-[140px] rounded-full"></div>
+      <div class="absolute top-[28%] -left-32 w-[520px] h-[520px] bg-[#30D158]/10 blur-[130px] rounded-full"></div>
+      <div class="absolute top-[35%] -right-32 w-[600px] h-[600px] bg-[#5E5CE6]/12 blur-[150px] rounded-full"></div>
+      <div class="absolute bottom-10 left-1/3 w-[560px] h-[420px] bg-apple-blue/10 blur-[140px] rounded-full"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.035)_1px,transparent_1px)] [background-size:24px_24px] opacity-40"></div>
+    </div>
+    <!-- Light Mode Halos -->
+    <div class="dark:hidden block">
+      <div class="absolute -top-36 left-1/2 -translate-x-1/2 w-[820px] h-[520px] bg-gradient-to-b from-[#BAE6FD]/70 via-[#E0E7FF]/50 to-transparent blur-[140px] rounded-full"></div>
+      <div class="absolute top-[24%] -left-28 w-[580px] h-[580px] bg-[#CCFBF1]/60 blur-[140px] rounded-full"></div>
+      <div class="absolute top-[32%] -right-28 w-[640px] h-[640px] bg-[#E0E7FF]/55 blur-[150px] rounded-full"></div>
+      <div class="absolute bottom-16 left-1/3 w-[620px] h-[460px] bg-[#BAE6FD]/45 blur-[140px] rounded-full"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.025)_1px,transparent_1px)] [background-size:24px_24px] opacity-70"></div>
+    </div>
+  </div>
+
+  <!-- ================= TOAST NOTIFICATION CONTAINER ================= -->
+  <div id="toast-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center pointer-events-none"></div>
+
+  <!-- ================= GLOBAL TOP DOCK HEADER ================= -->
+  <header class="sticky top-3.5 z-50 px-4 md:px-8 max-w-7xl mx-auto w-full transition-all">
+    <div class="liquid-glass-surface rounded-full px-4 sm:px-5 py-2.5 flex items-center justify-between specular-top transition-all duration-300">
+      
+      <!-- Brand & Live Connection -->
+      <div class="flex items-center gap-3">
+        <a href="javascript:void(0)" onclick="app.navigate('lobby')" class="flex items-center gap-2.5 group cursor-pointer btn-spring">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-b from-white/30 to-white/10 dark:from-white/20 dark:to-white/5 border border-white/40 dark:border-white/25 flex items-center justify-center shadow-sm group-hover:scale-105 active:scale-95 transition-all">
+            <span class="text-xs font-bold tracking-tighter text-neutral-800 dark:text-white font-mono">E</span>
+          </div>
+          <span class="text-[17px] font-semibold tracking-[-0.03em] text-neutral-900 dark:text-white">Eir</span>
+          
+          <!-- Live Mesh Ping Indicator -->
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-apple-green/15 border border-apple-green/30 text-[11px] font-medium text-apple-green tabular-nums">
+            <span class="relative flex h-1.5 w-1.5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-apple-green opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-apple-green shadow-[0_0_6px_#30D158]"></span>
+            </span>
+            <span data-i18n="nav.sync">Sync</span>
+          </span>
+        </a>
+      </div>
+
+      <!-- Segmented Nav (Lobby vs Room vs Queue) -->
+      <nav class="hidden md:flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-black/40 border border-black/[0.06] dark:border-white/10 shadow-inner text-[13px]">
+        <button id="nav-btn-lobby" onclick="app.navigate('lobby')" class="px-4 py-1 rounded-full bg-white dark:bg-white/15 text-neutral-900 dark:text-white font-medium shadow-sm border border-black/[0.04] dark:border-white/15 transition-all btn-spring" data-i18n="nav.lobby">
+          大厅探索
+        </button>
+        <button id="nav-btn-room" onclick="app.navigate('room')" class="px-4 py-1 rounded-full text-neutral-500 dark:text-[#98989F] hover:text-neutral-900 dark:hover:text-white transition-all font-medium btn-spring" data-i18n="nav.room">
+          放映室
+        </button>
+        <button onclick="app.showToast(app.t('toast.queueEmpty'))" class="px-4 py-1 rounded-full text-neutral-500 dark:text-[#98989F] hover:text-neutral-900 dark:hover:text-white transition-all font-medium btn-spring" data-i18n="nav.queue">
+          同步队列
+        </button>
+      </nav>
+
+      <!-- Right Action Tools: Language, Theme Color, Theme Mode, Settings, Profile -->
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <!-- Direct P2P Latency Capsule -->
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-black/[0.03] dark:bg-white/[0.07] border border-black/[0.06] dark:border-white/15 text-xs text-neutral-600 dark:text-[#98989F]">
+          <span class="w-1.5 h-1.5 rounded-full bg-apple-green shadow-[0_0_6px_#30D158]"></span>
+          <span class="font-mono text-[11px] text-neutral-800 dark:text-white/90 font-medium tabular-nums" data-i18n="telemetry.directP2p">直连 12ms</span>
+        </div>
+
+        <!-- Language Quick Switcher -->
+        <button onclick="app.toggleLanguage()" class="px-2.5 py-1 rounded-full text-xs font-medium bg-black/[0.04] dark:bg-white/[0.07] hover:bg-black/[0.08] dark:hover:bg-white/15 border border-black/[0.06] dark:border-white/15 text-neutral-700 dark:text-white transition-all btn-spring" title="Switch Language / 切换语言">
+          <span id="current-lang-label" class="font-mono text-[11px]">中 / EN</span>
+        </button>
+
+        <!-- Settings Modal Trigger -->
+        <button onclick="app.openSettingsModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-neutral-600 dark:text-[#98989F] hover:text-neutral-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/10 border border-transparent hover:border-black/[0.05] dark:hover:border-white/10 btn-spring" title="设置 / Settings">
+          <span class="material-symbols-outlined text-[19px]">settings</span>
+        </button>
+
+        <div class="h-4 w-[1px] bg-black/10 dark:bg-white/15 mx-0.5 hidden sm:block"></div>
+
+        <!-- User Profile Pill -->
+        <div onclick="app.showToast(app.t('toast.profileInfo'))" class="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/[0.06] dark:border-white/15 cursor-pointer btn-spring shadow-sm">
+          <div class="w-5 h-5 rounded-full bg-gradient-to-tr from-apple-blue to-apple-cyan text-white flex items-center justify-center text-[10px] font-bold shadow-sm font-mono">
+            E
+          </div>
+          <span class="text-xs font-medium text-neutral-800 dark:text-white tracking-tight hidden sm:inline" data-i18n="user.nickname">埃里克</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= VIEW 1: LOBBY VIEW (探索大厅) ================= -->
+  <main id="view-lobby" class="flex-1 w-full max-w-7xl mx-auto px-5 md:px-8 py-8 md:py-10 flex flex-col gap-12 transition-opacity duration-300">
+    
+    <!-- Hero Section -->
+    <section class="flex flex-col items-center text-center pt-4 md:pt-8 pb-3 max-w-4xl mx-auto">
+      <!-- Apple HIG Capsule Badge -->
+      <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/70 dark:bg-white/[0.07] border border-black/[0.06] dark:border-white/20 shadow-sm mb-6 backdrop-blur-xl">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-apple-blue opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-apple-blue shadow-[0_0_8px_var(--theme-color)]"></span>
+        </span>
+        <span class="font-mono text-[11px] font-medium text-neutral-700 dark:text-white/90 tracking-tight" data-i18n="hero.badge">
+          macOS Sequoia · Eir Sync Engine 2.14
+        </span>
+      </div>
+
+      <!-- Keynote Title -->
+      <h1 class="text-3xl sm:text-5xl md:text-6xl font-bold tracking-[-0.04em] text-neutral-900 dark:text-white mb-4 leading-tight" data-i18n="hero.title">
+        跨越距离，同频共赏
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="text-base sm:text-lg text-neutral-600 dark:text-[#98989F] max-w-2xl text-balance font-normal leading-relaxed mb-8 tracking-[-0.015em]" data-i18n="hero.subtitle">
+        毫秒级点对点画面精准对齐，无感时钟修正。异地相隔，亦如促膝同席。
+      </p>
+
+      <!-- Action Bar (Create Room & Join Room) -->
+      <div class="w-full max-w-2xl p-2 rounded-2xl liquid-glass-surface specular-top flex flex-col sm:flex-row items-center gap-2.5">
+        <!-- Primary Action Button -->
+        <button onclick="app.openCreateRoomModal()" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-apple-blue hover:bg-apple-blue-hover text-white font-medium text-[14px] shadow-md border-t border-white/30 flex items-center justify-center gap-2 whitespace-nowrap btn-spring">
+          <span class="material-symbols-outlined text-[18px]">add_circle</span>
+          <span data-i18n="hero.createRoom">创建专属放映室</span>
+        </button>
+
+        <!-- Search / Paste Join Field -->
+        <div class="relative flex-1 w-full flex items-center">
+          <span class="material-symbols-outlined absolute left-3.5 text-neutral-400 dark:text-[#86868B] text-[18px]">link</span>
+          <input id="room-code-input" type="text" placeholder="输入 6 位房间码或粘贴邀请链接..." data-i18n-placeholder="hero.inputPlaceholder" class="w-full pl-10 pr-24 py-2 bg-white/70 dark:bg-black/45 border border-black/[0.08] dark:border-white/10 rounded-xl text-[13px] text-neutral-900 dark:text-white placeholder-neutral-400 dark:placeholder-[#86868B] focus:outline-none focus:border-apple-blue focus:ring-2 focus:ring-apple-blue/20 transition-all shadow-inner"/>
+          <div class="absolute right-1.5 flex items-center">
+            <button onclick="app.pasteJoinRoom()" class="px-2.5 py-1 rounded-lg bg-black/[0.05] dark:bg-white/10 hover:bg-black/[0.08] dark:hover:bg-white/20 text-[12px] font-medium text-neutral-800 dark:text-white/90 border border-black/[0.06] dark:border-white/15 btn-spring flex items-center gap-1.5 shadow-sm">
+              <span class="text-[11px] font-mono tracking-wider font-semibold text-neutral-400 dark:text-white/70">⌘V</span>
+              <span data-i18n="hero.pasteJoin">粘贴加入</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HIG Feature Pills -->
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 max-w-4xl mx-auto w-full">
+      <div class="liquid-glass-subtle rounded-2xl p-4 flex items-center gap-3.5 hover:border-black/[0.1] dark:hover:border-white/25 transition-all">
+        <div class="w-10 h-10 rounded-xl bg-apple-blue/15 border border-apple-blue/30 flex items-center justify-center text-apple-blue shadow-inner">
+          <span class="material-symbols-outlined text-[20px]">lock</span>
+        </div>
+        <div>
+          <h4 class="text-[13px] font-semibold text-neutral-900 dark:text-white tracking-tight" data-i18n="features.cryptoTitle">端对端密码学签名</h4>
+          <p class="font-mono text-[11px] text-neutral-500 dark:text-[#86868B] mt-0.5" data-i18n="features.cryptoDesc">Ed25519 鉴权 · 零中心化托管</p>
+        </div>
+      </div>
+
+      <div class="liquid-glass-subtle rounded-2xl p-4 flex items-center gap-3.5 hover:border-black/[0.1] dark:hover:border-white/25 transition-all">
+        <div class="w-10 h-10 rounded-xl bg-apple-green/15 border border-apple-green/30 flex items-center justify-center text-apple-green shadow-inner">
+          <span class="material-symbols-outlined text-[20px]">bolt</span>
+        </div>
+        <div>
+          <h4 class="text-[13px] font-semibold text-neutral-900 dark:text-white tracking-tight" data-i18n="features.p2pTitle">零转码分片传输</h4>
+          <p class="font-mono text-[11px] text-neutral-500 dark:text-[#86868B] mt-0.5" data-i18n="features.p2pDesc">WebRTC DataChannel · 毫秒级直连</p>
+        </div>
+      </div>
+
+      <div class="liquid-glass-subtle rounded-2xl p-4 flex items-center gap-3.5 hover:border-black/[0.1] dark:hover:border-white/25 transition-all">
+        <div class="w-10 h-10 rounded-xl bg-apple-orange/15 border border-apple-orange/30 flex items-center justify-center text-apple-orange shadow-inner">
+          <span class="material-symbols-outlined text-[20px]">sync</span>
+        </div>
+        <div>
+          <h4 class="text-[13px] font-semibold text-neutral-900 dark:text-white tracking-tight" data-i18n="features.syncTitle">自适应单调时钟同步</h4>
+          <p class="font-mono text-[11px] text-neutral-500 dark:text-[#86868B] mt-0.5" data-i18n="features.syncDesc">微阶倍速调节 · 零顿挫追赶</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Active Rooms Section -->
+    <section class="flex flex-col gap-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-2.5">
+          <h2 class="text-xl font-bold tracking-tight text-neutral-900 dark:text-white" data-i18n="rooms.title">最近活跃的放映室</h2>
+          <span class="px-2 py-0.5 rounded-full bg-black/[0.05] dark:bg-white/10 text-neutral-700 dark:text-white/80 font-mono text-[11px] font-medium border border-black/[0.06] dark:border-white/10 tabular-nums">
+            3 <span data-i18n="rooms.activeCount">活跃</span>
+          </span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="p-1 rounded-full bg-black/[0.04] dark:bg-black/40 border border-black/[0.06] dark:border-white/15 flex items-center gap-1 backdrop-blur-xl shadow-inner text-xs">
+            <button class="px-3.5 py-1 rounded-full bg-white dark:bg-white/15 text-neutral-900 dark:text-white font-medium shadow-sm border border-black/[0.04] dark:border-white/15 btn-spring" data-i18n="rooms.tabAll">
+              全部放映室 (3)
+            </button>
+            <button class="px-3.5 py-1 rounded-full text-neutral-500 dark:text-[#98989F] hover:text-neutral-900 dark:hover:text-white font-medium transition-colors btn-spring" data-i18n="rooms.tabHosted">
+              我主持的
+            </button>
+          </div>
+          <button onclick="app.showToast(app.t('toast.roomsRefreshed'))" class="w-8 h-8 rounded-full bg-white/70 dark:bg-white/[0.07] border border-black/[0.06] dark:border-white/15 text-neutral-500 dark:text-[#98989F] hover:text-neutral-900 dark:hover:text-white flex items-center justify-center btn-spring shadow-sm" title="刷新列表">
+            <span class="material-symbols-outlined text-[17px]">refresh</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Room Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Card 1: 星际穿越 (Active Master) -->
+        <div class="group flex flex-col rounded-3xl liquid-glass-card hover:-translate-y-1 transition-all duration-300 overflow-hidden shadow-lg border border-black/[0.06] dark:border-white/10">
+          <div class="relative w-full aspect-video bg-black/90 overflow-hidden">
+            <img class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" src="https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=1200&auto=format&fit=crop" alt="Interstellar Widescreen"/>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/40"></div>
+            
+            <div class="absolute top-3 left-3 flex items-center gap-1.5">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 text-[11px] font-mono text-apple-green tabular-nums shadow-sm">
+                <span class="w-1.5 h-1.5 rounded-full bg-apple-green shadow-[0_0_6px_#30D158]"></span>
+                直连 12ms
+              </span>
+              <span class="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 text-[11px] font-medium text-white/90">
+                4K HDR
+              </span>
+            </div>
+            <div class="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 text-[11px] font-medium text-white/90 tabular-nums">
+              4/8 成员
+            </div>
+            <!-- Progress Line -->
+            <div class="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+              <div class="h-full bg-apple-blue rounded-r-full w-[60.4%] shadow-[0_0_8px_var(--theme-color)]"></div>
+            </div>
+          </div>
+
+          <div class="p-5 flex flex-col flex-1 justify-between gap-4">
+            <div>
+              <h3 class="text-[16px] font-semibold text-neutral-900 dark:text-white tracking-tight group-hover:text-apple-blue transition-colors truncate">
+                周末影会 · 星际穿越 (4K HDR)
+              </h3>
+              <div class="flex items-center gap-2.5 mt-2">
+                <div class="flex items-center gap-1 px-2 py-0.5 rounded-md bg-apple-orange/15 border border-apple-orange/30 text-apple-orange text-[11px] font-medium">
+                  <span class="material-symbols-outlined text-[13px]">verified</span>
+                  <span data-i18n="rooms.hostYou">房主 埃里克 (你)</span>
+                </div>
+                <span class="font-mono text-xs text-neutral-500 dark:text-[#86868B] tabular-nums">01:42:18 / 02:49:03</span>
+              </div>
+            </div>
+
+            <div class="pt-3 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between">
+              <div class="flex -space-x-2">
+                <div class="w-6 h-6 rounded-full bg-apple-blue text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white dark:ring-[#0e0e12]">E</div>
+                <div class="w-6 h-6 rounded-full bg-apple-indigo text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white dark:ring-[#0e0e12]">S</div>
+                <div class="w-6 h-6 rounded-full bg-apple-purple text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white dark:ring-[#0e0e12]">L</div>
+                <div class="w-6 h-6 rounded-full bg-neutral-300 dark:bg-white/20 text-[10px] font-mono font-semibold text-neutral-700 dark:text-white flex items-center justify-center ring-2 ring-white dark:ring-[#0e0e12]">+1</div>
+              </div>
+              <button onclick="app.enterRoom('interstellar')" class="px-3.5 py-1.5 rounded-full bg-apple-blue text-white text-[13px] font-medium shadow-md flex items-center gap-1 btn-spring">
+                <span data-i18n="rooms.enterRoom">进入放映室</span>
+                <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: 葬送的芙莉莲 -->
+        <div class="group flex flex-col rounded-3xl liquid-glass-card hover:-translate-y-1 transition-all duration-300 overflow-hidden shadow-lg border border-black/[0.06] dark:border-white/10">
+          <div class="relative w-full aspect-video bg-black/90 overflow-hidden">
+            <img class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" src="https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1200&auto=format&fit=crop" alt="Frieren Anime Frame"/>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/40"></div>
+            
+            <div class="absolute top-3 left-3 flex items-center gap-1.5">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 text-[11px] font-mono text-apple-green tabular-nums shadow-sm">
+                <span class="w-1.5 h-1.5 rounded-full bg-apple-green shadow-[0_0_6px_#30D158]"></span>
+                直连 19ms
+              </span>
+              <span class="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 text-[11px] font-medium text-white/90">
+                1080P 60fps
+              </span>
+            </div>
+            <div class="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 text-[11px] font-medium text-white/90 tabular-nums">
+              3 在线
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+              <div class="h-full bg-apple-blue rounded-r-full w-[42%] shadow-[0_0_8px_var(--theme-color)]"></div>
+            </div>
+          </div>
+
+          <div class="p-5 flex flex-col flex-1 justify-between gap-4">
+            <div>
+              <h3 class="text-[16px] font-semibold text-neutral-900 dark:text-white tracking-tight group-hover:text-apple-blue transition-colors truncate">
+                葬送的芙莉莲 · 第 28 话
+              </h3>
+              <div class="flex items-center gap-2.5 mt-2">
+                <div class="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/[0.05] dark:bg-white/10 border border-black/[0.06] dark:border-white/15 text-neutral-700 dark:text-white/90 text-[11px] font-medium">
+                  <span class="material-symbols-outlined text-[13px]">person</span>
+                  <span>索菲亚 (Sofia)</span>
+                </div>
+                <span class="font-mono text-xs text-neutral-500 dark:text-[#86868B] tabular-nums">10:14 / 24:12</span>
+              </div>
+            </div>
+
+            <div class="pt-3 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between">
+              <div class="flex -space-x-2">
+                <div class="w-6 h-6 rounded-full bg-apple-purple text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white dark:ring-[#0e0e12]">S</div>
+                <div class="w-6 h-6 rounded-full bg-apple-orange text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white dark:ring-[#0e0e12]">M</div>
+              </div>
+              <button onclick="app.enterRoom('frieren')" class="px-3.5 py-1.5 rounded-full bg-black/[0.05] dark:bg-white/10 hover:bg-apple-blue hover:text-white text-neutral-800 dark:text-white text-[13px] font-medium border border-black/[0.06] dark:border-white/20 shadow-sm transition-all btn-spring flex items-center gap-1">
+                <span data-i18n="rooms.enterRoom">进入放映室</span>
+                <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: BBC 地球脉动 III -->
+        <div class="group flex flex-col rounded-3xl liquid-glass-card hover:-translate-y-1 transition-all duration-300 overflow-hidden shadow-lg border border-black/[0.06] dark:border-white/10">
+          <div class="relative w-full aspect-video bg-black/90 overflow-hidden">
+            <img class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=1200&auto=format&fit=crop" alt="Deep Sea BBC Nature"/>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/40"></div>
+            
+            <div class="absolute top-3 left-3 flex items-center gap-1.5">
+              <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 text-[11px] font-mono text-apple-orange tabular-nums shadow-sm">
+                <span class="w-1.5 h-1.5 rounded-full bg-apple-orange shadow-[0_0_6px_#FF9F0A]"></span>
+                节点中继 48ms
+              </span>
+              <span class="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 text-[11px] font-medium text-white/90">
+                4K UHD
+              </span>
+            </div>
+            <div class="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 text-[11px] font-medium text-white/90 tabular-nums">
+              2 在线
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+              <div class="h-full bg-apple-blue rounded-r-full w-[18%] shadow-[0_0_8px_var(--theme-color)]"></div>
+            </div>
+          </div>
+
+          <div class="p-5 flex flex-col flex-1 justify-between gap-4">
+            <div>
+              <h3 class="text-[16px] font-semibold text-neutral-900 dark:text-white tracking-tight group-hover:text-apple-blue transition-colors truncate">
+                BBC 地球脉动 III · 极地深海
+              </h3>
+              <div class="flex items-center gap-2.5 mt-2">
+                <div class="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/[0.05] dark:bg-white/10 border border-black/[0.06] dark:border-white/15 text-neutral-700 dark:text-white/90 text-[11px] font-medium">
+                  <span class="material-symbols-outlined text-[13px]">person</span>
+                  <span>林纳斯 (Linus)</span>
+                </div>
+                <span class="font-mono text-xs text-neutral-500 dark:text-[#86868B] tabular-nums">08:52 / 58:20</span>
+              </div>
+            </div>
+
+            <div class="pt-3 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between">
+              <div class="flex -space-x-2">
+                <div class="w-6 h-6 rounded-full bg-apple-green text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white dark:ring-[#0e0e12]">L</div>
+                <div class="w-6 h-6 rounded-full bg-apple-blue text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white dark:ring-[#0e0e12]">A</div>
+              </div>
+              <button onclick="app.enterRoom('earth')" class="px-3.5 py-1.5 rounded-full bg-black/[0.05] dark:bg-white/10 hover:bg-apple-blue hover:text-white text-neutral-800 dark:text-white text-[13px] font-medium border border-black/[0.06] dark:border-white/20 shadow-sm transition-all btn-spring flex items-center gap-1">
+                <span data-i18n="rooms.enterRoom">进入放映室</span>
+                <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Bottom Callout Card -->
+    <section class="liquid-glass-surface rounded-3xl p-6 sm:p-8 relative overflow-hidden specular-top shadow-lg">
+      <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-4 text-center md:text-left">
+          <div class="hidden sm:flex w-12 h-12 rounded-2xl bg-black/[0.04] dark:bg-white/10 border border-black/[0.06] dark:border-white/20 items-center justify-center text-apple-blue shadow-inner flex-shrink-0">
+            <span class="material-symbols-outlined text-[24px]">theater_comedy</span>
+          </div>
+          <div>
+            <h4 class="text-[17px] font-semibold text-neutral-900 dark:text-white tracking-tight" data-i18n="callout.title">
+              还没有放映室？即刻创建专属于你们的双人或多人影厅
+            </h4>
+            <p class="text-sm text-neutral-600 dark:text-[#98989F] mt-1 font-normal" data-i18n="callout.desc">
+              支持本地免转码切片分发、HTTPS 点播直链与 HLS 协议，单调时钟保障毫秒级同步。
+            </p>
+          </div>
+        </div>
+        <button onclick="app.openCreateRoomModal()" class="px-5 py-2.5 rounded-full bg-apple-blue hover:bg-apple-blue-hover text-white font-medium text-[13px] shadow-md whitespace-nowrap btn-spring flex items-center gap-2">
+          <span class="material-symbols-outlined text-[18px]">add_circle</span>
+          <span data-i18n="callout.btn">+ 开启新的放映</span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= VIEW 2: CINEMA ROOM VIEW (放映室播放大厅) ================= -->
+  <div id="view-room" class="flex-1 w-full flex flex-col hidden overflow-hidden relative">
+    
+    <!-- Top Cinema Room Subheader -->
+    <div class="px-4 lg:px-8 py-2.5 bg-white/60 dark:bg-black/60 backdrop-blur-2xl border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 z-20">
+      <!-- Left: Room Identity -->
+      <div class="flex items-center gap-3">
+        <button onclick="app.navigate('lobby')" class="w-8 h-8 rounded-full flex items-center justify-center text-neutral-500 hover:text-neutral-900 dark:text-white/70 dark:hover:text-white bg-black/[0.04] dark:bg-white/10 btn-spring" title="返回大厅">
+          <span class="material-symbols-outlined text-lg">arrow_back</span>
+        </button>
+        <div class="flex flex-col">
+          <div class="flex items-center gap-2">
+            <span id="room-title-display" class="font-semibold text-neutral-900 dark:text-white text-sm sm:text-base tracking-tight truncate max-w-[200px] sm:max-w-md">
+              周末影会 · 星际穿越 (4K HDR)
+            </span>
+            <span class="px-2 py-0.5 rounded-full bg-apple-orange/15 border border-apple-orange/30 text-apple-orange text-[10px] font-mono font-medium" data-i18n="room.hostBadge">
+              HOST 房主
+            </span>
+          </div>
+          <span class="text-xs text-neutral-500 dark:text-[#86868B] font-mono">
+            Room <span id="room-id-display">#0492</span> · <span id="room-peer-count">4</span> <span data-i18n="room.peersConnected">成员在线</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Center Telemetry Capsule -->
+      <div class="hidden lg:flex items-center gap-3 px-4 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] border border-black/[0.06] dark:border-white/15 text-xs text-neutral-700 dark:text-white/80 font-mono shadow-inner">
+        <span class="flex items-center gap-1.5 text-apple-green font-medium">
+          <span class="w-2 h-2 rounded-full bg-apple-green animate-pulse"></span>
+          <span>P2P Direct · 12ms</span>
+        </span>
+        <span class="text-neutral-300 dark:text-white/20">/</span>
+        <span class="text-apple-blue font-medium tabular-nums">Sync Offset ±0.8ms</span>
+        <span class="text-neutral-300 dark:text-white/20">/</span>
+        <span class="tabular-nums">Master 4K 60fps</span>
+      </div>
+
+      <!-- Right Room Actions -->
+      <div class="flex items-center gap-2">
+        <button onclick="app.copyInviteLink()" class="px-3 py-1.5 rounded-full bg-apple-blue text-white text-xs font-medium flex items-center gap-1.5 shadow-sm btn-spring">
+          <span class="material-symbols-outlined text-[16px]">person_add</span>
+          <span data-i18n="room.invite">邀请成员</span>
+        </button>
+        <button onclick="app.navigate('lobby')" class="px-3 py-1.5 rounded-full bg-black/[0.05] dark:bg-white/10 hover:bg-apple-red/20 hover:text-apple-red text-neutral-700 dark:text-white/80 text-xs font-medium transition-colors btn-spring flex items-center gap-1">
+          <span class="material-symbols-outlined text-[16px]">logout</span>
+          <span data-i18n="room.leave">退出</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content Area: Cinema Stage (Left) & Collapsible Inspector (Right) -->
+    <div class="flex-1 flex overflow-hidden relative">
+      
+      <!-- CINEMA STAGE CANVAS -->
+      <div class="flex-1 flex flex-col items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <!-- 16:9 Cinema Screen Card -->
+        <div class="relative w-full max-w-5xl aspect-video rounded-3xl overflow-hidden shadow-2xl border border-black/10 dark:border-white/15 bg-black flex flex-col justify-end group select-none">
+          
+          <!-- Mock Video Backing (High quality space scene) -->
+          <img id="video-frame" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.01]" src="https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=1600&auto=format&fit=crop" alt="Cinema Still"/>
+
+          <!-- Top HUD Overlay -->
+          <div class="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 text-xs text-white">
+              <span class="w-1.5 h-1.5 rounded-full bg-apple-green animate-ping"></span>
+              <span class="font-mono text-apple-green font-semibold">REC // MASTER 4K</span>
+              <span class="text-white/30">|</span>
+              <span class="font-mono text-white/80">fMP4 / H.264 AAC</span>
+            </div>
+            
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 text-xs text-apple-cyan font-mono">
+              <span class="material-symbols-outlined text-sm">lock</span>
+              <span>Sync Lock Active</span>
+            </div>
+          </div>
+
+          <!-- Cinema Floating Liquid Controls Bar -->
+          <div class="relative z-30 w-full p-4 lg:p-5 bg-gradient-to-t from-black/95 via-black/70 to-transparent flex flex-col gap-2.5 transition-all duration-200">
+            
+            <!-- Timeline Progress Scrubber with Peer Indicator Avatars -->
+            <div class="w-full flex items-center gap-3">
+              <span id="current-time-text" class="font-mono text-xs text-white/90 tabular-nums">01:42:18</span>
+              
+              <div id="timeline-track" onclick="app.seekTimeline(event)" class="relative flex-1 h-3 flex items-center cursor-pointer group/timeline">
+                <!-- Buffer & Progress Track -->
+                <div class="w-full h-1.5 bg-white/20 rounded-full overflow-hidden relative">
+                  <!-- Buffered chunk -->
+                  <div class="absolute left-0 top-0 h-full bg-white/40 w-[84%] rounded-full"></div>
+                  <!-- Played progress -->
+                  <div id="progress-bar-fill" class="absolute left-0 top-0 h-full bg-apple-blue w-[60.4%] rounded-full shadow-[0_0_12px_var(--theme-color)]"></div>
+                </div>
+
+                <!-- Peer Avatars on Timeline -->
+                <!-- Host (You) -->
+                <div id="peer-thumb-alex" class="absolute left-[60.4%] -translate-x-1/2 w-4 h-4 rounded-full ring-2 ring-apple-blue bg-apple-blue flex items-center justify-center shadow-md pointer-events-none" title="Alexander (房主 · 当前基准)">
+                  <span class="text-[8px] font-bold text-white font-mono">E</span>
+                </div>
+                <!-- Peer 2: Sophia (+0.2ms) -->
+                <div class="absolute left-[60.2%] -translate-x-1/2 w-3 h-3 rounded-full ring-1 ring-apple-purple bg-apple-purple flex items-center justify-center shadow" title="Sophia (+0.2ms)"></div>
+                <!-- Peer 3: Linus (-0.4ms) -->
+                <div class="absolute left-[60.55%] -translate-x-1/2 w-3 h-3 rounded-full ring-1 ring-apple-green bg-apple-green flex items-center justify-center shadow" title="Linus (-0.4ms)"></div>
+              </div>
+
+              <span id="total-time-text" class="font-mono text-xs text-white/60 tabular-nums">02:49:03</span>
+            </div>
+
+            <!-- Playback Control Buttons -->
+            <div class="flex items-center justify-between pt-1 text-white">
+              <!-- Left: Play/Pause, Replay/Forward, Volume -->
+              <div class="flex items-center gap-2 sm:gap-3">
+                <button onclick="app.togglePlay()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-apple-blue text-white flex items-center justify-center transition-all btn-spring shadow" title="播放 / 暂停 (空格)">
+                  <span id="play-btn-icon" class="material-symbols-outlined text-2xl">pause</span>
+                </button>
+                <button onclick="app.skipTime(-10)" class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors" title="后退 10 秒">
+                  <span class="material-symbols-outlined text-lg">replay_10</span>
+                </button>
+                <button onclick="app.skipTime(10)" class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/80 hover:text-white transition-colors" title="前进 10 秒">
+                  <span class="material-symbols-outlined text-lg">forward_10</span>
+                </button>
+
+                <!-- Volume Module -->
+                <div class="flex items-center gap-1.5 ml-2 group/vol">
+                  <button onclick="app.toggleMute()" class="w-7 h-7 rounded flex items-center justify-center text-white/80 hover:text-white">
+                    <span id="vol-icon" class="material-symbols-outlined text-base">volume_up</span>
+                  </button>
+                  <input id="vol-slider" type="range" min="0" max="1" step="0.05" value="0.85" oninput="app.setVolume(this.value)" class="w-16 h-1 bg-white/30 rounded-full appearance-none accent-apple-blue cursor-pointer"/>
+                </div>
+              </div>
+
+              <!-- Right: Playback Speed, Audio Stream, Fullscreen -->
+              <div class="flex items-center gap-2">
+                <!-- Speed Picker Dropdown -->
+                <div class="relative">
+                  <button onclick="app.toggleSpeedMenu()" class="liquid-glass-subtle px-2.5 py-1 rounded-lg text-xs font-mono font-medium hover:bg-white/20 flex items-center gap-1 btn-spring">
+                    <span id="speed-label">1.0x</span>
+                    <span class="material-symbols-outlined text-xs">arrow_drop_down</span>
+                  </button>
+                  <!-- Speed Popover -->
+                  <div id="speed-menu" class="hidden absolute bottom-full mb-2 right-0 p-1 rounded-xl liquid-glass-surface flex flex-col gap-1 z-40 text-xs min-w-[70px]">
+                    <button onclick="app.setPlaybackSpeed(0.5)" class="px-2 py-1 rounded hover:bg-apple-blue hover:text-white text-left font-mono">0.5x</button>
+                    <button onclick="app.setPlaybackSpeed(1.0)" class="px-2 py-1 rounded hover:bg-apple-blue hover:text-white text-left font-mono font-semibold">1.0x</button>
+                    <button onclick="app.setPlaybackSpeed(1.25)" class="px-2 py-1 rounded hover:bg-apple-blue hover:text-white text-left font-mono">1.25x</button>
+                    <button onclick="app.setPlaybackSpeed(1.5)" class="px-2 py-1 rounded hover:bg-apple-blue hover:text-white text-left font-mono">1.5x</button>
+                    <button onclick="app.setPlaybackSpeed(2.0)" class="px-2 py-1 rounded hover:bg-apple-blue hover:text-white text-left font-mono">2.0x</button>
+                  </div>
+                </div>
+
+                <!-- Fullscreen Toggle -->
+                <button onclick="app.toggleFullscreen()" class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-white/80 hover:text-white btn-spring" title="全屏视窗 (F)">
+                  <span class="material-symbols-outlined text-lg">fullscreen</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cinema Bottom Peer Synchrony Bar -->
+        <div class="w-full max-w-5xl mt-3 px-2 flex items-center justify-between text-xs text-neutral-500 dark:text-[#86868B]">
+          <div class="flex items-center gap-3">
+            <span class="font-medium uppercase tracking-wider text-[11px]" data-i18n="room.syncViewLine">画面同频视线</span>
+            <div class="flex items-center -space-x-2 py-1">
+              <div class="w-7 h-7 rounded-full ring-2 ring-apple-blue bg-apple-blue text-white flex items-center justify-center font-mono font-bold text-xs" title="Alexander (房主 · 0.0ms)">E</div>
+              <div class="w-7 h-7 rounded-full ring-2 ring-apple-purple bg-apple-purple text-white flex items-center justify-center font-mono font-bold text-xs" title="Sophia (+0.2ms)">S</div>
+              <div class="w-7 h-7 rounded-full ring-2 ring-apple-green bg-apple-green text-white flex items-center justify-center font-mono font-bold text-xs" title="Linus (-0.4ms)">L</div>
+              <div class="w-7 h-7 rounded-full ring-2 ring-apple-orange bg-apple-orange text-white flex items-center justify-center font-mono font-bold text-xs" title="Ann (±0.0ms)">A</div>
+            </div>
+            <span class="text-apple-green font-mono flex items-center gap-1 font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-apple-green"></span>
+              <span data-i18n="room.zeroDrop">全员帧对齐完成 (0 掉帧)</span>
+            </span>
+          </div>
+
+          <div class="hidden sm:flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-xs">spatial_audio</span>
+            <span data-i18n="room.spatialAudio">空间音频渲染就绪</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLLAPSIBLE INSPECTOR DOCK -->
+      <aside class="w-80 md:w-88 border-l border-black/[0.06] dark:border-white/10 bg-white/70 dark:bg-black/40 backdrop-blur-3xl flex flex-col shrink-0 z-10 transition-all">
+        <!-- Inspector Segmented Tab Navigation -->
+        <div class="p-3 border-b border-black/[0.06] dark:border-white/10">
+          <div class="grid grid-cols-4 gap-1 p-1 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/10 text-xs">
+            <button onclick="app.setRoomTab('chat')" id="tab-btn-chat" class="py-1.5 rounded-lg font-medium text-center transition-all bg-white dark:bg-white/15 text-neutral-900 dark:text-white shadow-sm btn-spring" data-i18n="roomTabs.chat">
+              讨论
+            </button>
+            <button onclick="app.setRoomTab('playlist')" id="tab-btn-playlist" class="py-1.5 rounded-lg font-medium text-center transition-all text-neutral-500 dark:text-[#98989F] hover:text-neutral-900 dark:hover:text-white btn-spring" data-i18n="roomTabs.playlist">
+              列表
+            </button>
+            <button onclick="app.setRoomTab('members')" id="tab-btn-members" class="py-1.5 rounded-lg font-medium text-center transition-all text-neutral-500 dark:text-[#98989F] hover:text-neutral-900 dark:hover:text-white btn-spring" data-i18n="roomTabs.members">
+              成员
+            </button>
+            <button onclick="app.setRoomTab('telemetry')" id="tab-btn-telemetry" class="py-1.5 rounded-lg font-medium text-center transition-all text-neutral-500 dark:text-[#98989F] hover:text-neutral-900 dark:hover:text-white btn-spring" data-i18n="roomTabs.telemetry">
+              遥测
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 1: CHAT & REACTIONS -->
+        <div id="tab-content-chat" class="flex-1 flex flex-col p-4 overflow-hidden">
+          <!-- Live Voice Strip -->
+          <div class="p-2 rounded-xl liquid-glass-subtle flex items-center justify-between mb-3 shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-apple-green text-base">mic</span>
+              <div class="flex flex-col text-left">
+                <span class="text-xs font-semibold text-neutral-900 dark:text-white" data-i18n="chat.voiceConnected">全双工超宽带语音</span>
+                <span class="font-mono text-[10px] text-neutral-500 dark:text-[#86868B]">Opus 48kHz · 0.2% 抖动</span>
+              </div>
+            </div>
+            <button onclick="app.toggleMuteMic()" id="mic-btn" class="w-7 h-7 rounded-lg bg-apple-green/15 text-apple-green flex items-center justify-center btn-spring">
+              <span id="mic-icon" class="material-symbols-outlined text-sm">mic</span>
+            </button>
+          </div>
+
+          <!-- Messages Stream -->
+          <div id="chat-messages-container" class="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
+            <div class="p-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.04] text-center font-mono text-[11px] text-neutral-500 dark:text-white/60" data-i18n="chat.sysBufferDone">
+              全员已完成星际穿越 4K 预加载缓冲 (100%)
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center justify-between text-neutral-400">
+                <span class="text-apple-purple font-medium">Sophia</span>
+                <span class="tabular-nums font-mono text-[10px]">21:42</span>
+              </div>
+              <div class="p-2.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.07] text-neutral-800 dark:text-white leading-relaxed">
+                汉斯·季默这段管风琴一响，低音炮太爽了！你们音画对齐完全无延迟吗？
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center justify-between text-neutral-400">
+                <span class="text-apple-green font-medium">Linus</span>
+                <span class="tabular-nums font-mono text-[10px]">21:43</span>
+              </div>
+              <div class="p-2.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.07] text-neutral-800 dark:text-white leading-relaxed">
+                我这 WebRTC P2P 延迟 12ms，毫秒表完全对齐，稳如本地蓝光机。
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1 items-end">
+              <div class="flex items-center gap-1.5 text-neutral-400">
+                <span class="tabular-nums font-mono text-[10px]">21:44</span>
+                <span class="text-apple-blue font-medium">Alexander (你)</span>
+              </div>
+              <div class="p-2.5 rounded-xl bg-apple-blue text-white leading-relaxed max-w-[90%] shadow-sm">
+                准备进入虫洞戏份，已开启自动杜比视界高动态调色保护。🚀
+              </div>
+            </div>
+          </div>
+
+          <!-- Message Input & Reactions Bar -->
+          <div class="mt-3 pt-3 border-t border-black/[0.06] dark:border-white/10 flex flex-col gap-2 shrink-0">
+            <!-- Reactions Quick Bar -->
+            <div class="flex items-center gap-1.5">
+              <button onclick="app.sendReaction('👏')" class="px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/10 hover:bg-apple-blue hover:text-white text-xs transition-colors btn-spring">👏 4</button>
+              <button onclick="app.sendReaction('✨')" class="px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/10 hover:bg-apple-blue hover:text-white text-xs transition-colors btn-spring">✨ 2</button>
+              <button onclick="app.sendReaction('🪐')" class="px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/10 hover:bg-apple-blue hover:text-white text-xs transition-colors btn-spring">🪐 6</button>
+              <button onclick="app.sendReaction('🍿')" class="px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/10 hover:bg-apple-blue hover:text-white text-xs transition-colors btn-spring">🍿 3</button>
+            </div>
+
+            <!-- Input Box -->
+            <form onsubmit="app.sendChat(event)" class="relative flex items-center">
+              <input id="chat-input" type="text" placeholder="向全员发送观影感想与弹幕..." data-i18n-placeholder="chat.inputPlaceholder" class="w-full pl-3 pr-10 py-2 bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/10 rounded-xl text-xs text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:border-apple-blue focus:ring-1 focus:ring-apple-blue transition-all"/>
+              <button type="submit" class="absolute right-1.5 w-7 h-7 rounded-lg bg-apple-blue text-white flex items-center justify-center hover:opacity-90 active:scale-95 transition-all btn-spring shadow-sm">
+                <span class="material-symbols-outlined text-sm">arrow_upward</span>
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 2: PLAYLIST -->
+        <div id="tab-content-playlist" class="flex-1 flex flex-col p-4 overflow-hidden hidden">
+          <div class="flex items-center justify-between mb-3 shrink-0">
+            <span class="text-xs font-semibold text-neutral-900 dark:text-white" data-i18n="playlist.title">点播序列 (3 条目)</span>
+            <div class="flex items-center gap-1">
+              <button onclick="app.openAddUrlModal()" class="px-2.5 py-1 rounded-lg bg-apple-blue text-white text-[11px] font-medium flex items-center gap-1 btn-spring shadow-sm">
+                <span class="material-symbols-outlined text-xs">add_link</span>
+                <span data-i18n="playlist.addUrl">加 URL</span>
+              </button>
+              <button onclick="app.openAddLocalFileModal()" class="px-2.5 py-1 rounded-lg bg-black/[0.05] dark:bg-white/10 hover:bg-apple-blue hover:text-white text-neutral-800 dark:text-white text-[11px] font-medium flex items-center gap-1 btn-spring">
+                <span class="material-symbols-outlined text-xs">upload_file</span>
+                <span data-i18n="playlist.addLocal">加本地</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="playlist-items-container" class="flex-1 overflow-y-auto space-y-2 pr-1 text-xs">
+            <!-- Item 1 (Playing) -->
+            <div class="p-3 rounded-2xl border border-apple-blue/40 bg-apple-blue/10 flex flex-col gap-1.5">
+              <div class="flex items-center justify-between">
+                <span class="px-2 py-0.5 rounded-full bg-apple-blue text-white font-mono text-[10px] font-bold" data-i18n="playlist.playing">正在播放</span>
+                <span class="font-mono text-[11px] text-neutral-500 dark:text-[#86868B] tabular-nums">02:49:03</span>
+              </div>
+              <h5 class="font-semibold text-neutral-900 dark:text-white text-xs truncate">星际穿越 (4K HDR Remux)</h5>
+              <div class="flex items-center gap-2 text-[11px] text-neutral-500 dark:text-[#86868B] font-mono">
+                <span class="text-apple-green">● Local Seeder (Alexander)</span>
+                <span>· fMP4 / H.264</span>
+              </div>
+            </div>
+
+            <!-- Item 2 -->
+            <div onclick="app.switchMediaItem('frieren')" class="p-3 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] hover:border-apple-blue/30 cursor-pointer flex flex-col gap-1.5 transition-all btn-spring">
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-[10px] text-neutral-400">#2 待播</span>
+                <span class="font-mono text-[11px] text-neutral-500 dark:text-[#86868B] tabular-nums">00:24:12</span>
+              </div>
+              <h5 class="font-semibold text-neutral-900 dark:text-white text-xs truncate">葬送的芙莉莲 · 第 28 话</h5>
+              <div class="flex items-center gap-2 text-[11px] text-neutral-500 dark:text-[#86868B] font-mono">
+                <span>HTTPS HLS 直链</span>
+                <span>· 1080P 60fps</span>
+              </div>
+            </div>
+
+            <!-- Item 3 -->
+            <div onclick="app.switchMediaItem('earth')" class="p-3 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] hover:border-apple-blue/30 cursor-pointer flex flex-col gap-1.5 transition-all btn-spring">
+              <div class="flex items-center justify-between">
+                <span class="font-mono text-[10px] text-neutral-400">#3 待播</span>
+                <span class="font-mono text-[11px] text-neutral-500 dark:text-[#86868B] tabular-nums">00:58:20</span>
+              </div>
+              <h5 class="font-semibold text-neutral-900 dark:text-white text-xs truncate">BBC 地球脉动 III · 极地深海</h5>
+              <div class="flex items-center gap-2 text-[11px] text-neutral-500 dark:text-[#86868B] font-mono">
+                <span>HTTPS MP4 直链</span>
+                <span>· 4K UHD</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-black/[0.06] dark:border-white/10 text-[11px] text-neutral-500 font-mono text-center" data-i18n="playlist.autoNextHint">
+            当前条目结束后将由房主自动发起切片接力
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 3: MEMBERS -->
+        <div id="tab-content-members" class="flex-1 flex flex-col p-4 overflow-hidden hidden">
+          <div class="flex items-center justify-between mb-3 shrink-0">
+            <span class="text-xs font-semibold text-neutral-900 dark:text-white" data-i18n="members.title">在线成员 (4/8)</span>
+            <button onclick="app.copyInviteLink()" class="px-2 py-0.5 rounded-full bg-apple-blue/15 text-apple-blue text-[11px] font-medium btn-spring" data-i18n="members.inviteNew">
+              + 邀请
+            </button>
+          </div>
+
+          <div class="flex-1 overflow-y-auto space-y-2.5 pr-1 text-xs">
+            <!-- Member 1: Alexander (Host / You) -->
+            <div class="p-3 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full bg-apple-blue text-white flex items-center justify-center font-bold text-xs font-mono">E</div>
+                  <div class="flex flex-col">
+                    <span class="font-semibold text-neutral-900 dark:text-white text-xs">Alexander (你)</span>
+                    <span class="font-mono text-[10px] text-apple-orange">房主 / Master Clock</span>
+                  </div>
+                </div>
+                <span class="px-2 py-0.5 rounded-full bg-apple-green/15 text-apple-green font-mono text-[10px]">基准</span>
+              </div>
+              <div class="w-full bg-black/10 dark:bg-white/10 rounded-full h-1 overflow-hidden">
+                <div class="bg-apple-blue h-full w-[100%] rounded-full"></div>
+              </div>
+            </div>
+
+            <!-- Member 2: Sophia (Admin) -->
+            <div class="p-3 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full bg-apple-purple text-white flex items-center justify-center font-bold text-xs font-mono">S</div>
+                  <div class="flex flex-col">
+                    <span class="font-semibold text-neutral-900 dark:text-white text-xs">Sophia</span>
+                    <span class="font-mono text-[10px] text-apple-purple">管理员 (Admin)</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="font-mono text-[10px] text-apple-green tabular-nums">14ms · +0.2ms</span>
+                  <button onclick="app.toggleAdminRole('Sophia')" class="text-neutral-400 hover:text-apple-orange text-[10px] px-1.5 py-0.5 rounded bg-black/[0.05] dark:bg-white/10 btn-spring" title="修改权限">撤销管理</button>
+                </div>
+              </div>
+              <div class="w-full bg-black/10 dark:bg-white/10 rounded-full h-1 overflow-hidden">
+                <div class="bg-apple-purple h-full w-[88%] rounded-full"></div>
+              </div>
+            </div>
+
+            <!-- Member 3: Linus (Member) -->
+            <div class="p-3 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full bg-apple-green text-white flex items-center justify-center font-bold text-xs font-mono">L</div>
+                  <div class="flex flex-col">
+                    <span class="font-semibold text-neutral-900 dark:text-white text-xs">Linus</span>
+                    <span class="font-mono text-[10px] text-neutral-400">成员 (Member)</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="font-mono text-[10px] text-apple-green tabular-nums">19ms · -0.4ms</span>
+                  <button onclick="app.toggleAdminRole('Linus')" class="text-neutral-400 hover:text-apple-blue text-[10px] px-1.5 py-0.5 rounded bg-black/[0.05] dark:bg-white/10 btn-spring" title="修改权限">设为管理</button>
+                </div>
+              </div>
+              <div class="w-full bg-black/10 dark:bg-white/10 rounded-full h-1 overflow-hidden">
+                <div class="bg-apple-green h-full w-[94%] rounded-full"></div>
+              </div>
+            </div>
+
+            <!-- Member 4: Ann (Member) -->
+            <div class="p-3 rounded-2xl border border-black/[0.06] dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full bg-apple-orange text-white flex items-center justify-center font-bold text-xs font-mono">A</div>
+                  <div class="flex flex-col">
+                    <span class="font-semibold text-neutral-900 dark:text-white text-xs">Ann</span>
+                    <span class="font-mono text-[10px] text-neutral-400">成员 (Member)</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span class="font-mono text-[10px] text-apple-green tabular-nums">22ms · ±0.0ms</span>
+                  <button onclick="app.toggleAdminRole('Ann')" class="text-neutral-400 hover:text-apple-blue text-[10px] px-1.5 py-0.5 rounded bg-black/[0.05] dark:bg-white/10 btn-spring" title="修改权限">设为管理</button>
+                </div>
+              </div>
+              <div class="w-full bg-black/10 dark:bg-white/10 rounded-full h-1 overflow-hidden">
+                <div class="bg-apple-orange h-full w-[82%] rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 4: TELEMETRY -->
+        <div id="tab-content-telemetry" class="flex-1 flex flex-col p-4 overflow-y-auto space-y-3 text-xs hidden font-mono">
+          <div class="p-3 rounded-2xl liquid-glass-subtle flex flex-col gap-1.5">
+            <span class="text-neutral-400 text-[10px] uppercase font-bold" data-i18n="telemetry.engine">单调时钟同步矩阵</span>
+            <div class="flex justify-between text-neutral-800 dark:text-white">
+              <span>Host Clock Monotonic:</span>
+              <span class="tabular-nums text-apple-blue">17849204.120 s</span>
+            </div>
+            <div class="flex justify-between text-neutral-800 dark:text-white">
+              <span>Local Estimated Drift:</span>
+              <span class="tabular-nums text-apple-green">-0.82 ms</span>
+            </div>
+            <div class="flex justify-between text-neutral-800 dark:text-white">
+              <span>Sampled RTT (5-8 probes):</span>
+              <span class="tabular-nums text-apple-cyan">12.4 ms</span>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-2xl liquid-glass-subtle flex flex-col gap-1.5">
+            <span class="text-neutral-400 text-[10px] uppercase font-bold" data-i18n="telemetry.channels">WebRTC DataChannels</span>
+            <div class="flex justify-between text-neutral-800 dark:text-white">
+              <span>ctrl (Reliable/Ordered):</span>
+              <span class="text-apple-green">OPEN · 0 丢包</span>
+            </div>
+            <div class="flex justify-between text-neutral-800 dark:text-white">
+              <span>data-urgent (Priority Chunk):</span>
+              <span class="text-apple-green">OPEN · 8.4 Mbps</span>
+            </div>
+            <div class="flex justify-between text-neutral-800 dark:text-white">
+              <span>data-bulk (Prefetch Window):</span>
+              <span class="text-apple-green">OPEN · 12.1 Mbps</span>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-2xl liquid-glass-subtle flex flex-col gap-1.5">
+            <span class="text-neutral-400 text-[10px] uppercase font-bold" data-i18n="telemetry.security">DTLS & 密码学握手</span>
+            <div class="flex justify-between text-neutral-800 dark:text-white">
+              <span>Ed25519 Fingerprint:</span>
+              <span class="truncate max-w-[120px] text-neutral-400">eir_pk_8f9c2d1b...</span>
+            </div>
+            <div class="flex justify-between text-neutral-800 dark:text-white">
+              <span>DTLS Cert Binding:</span>
+              <span class="text-apple-green">VERIFIED (Mutual)</span>
+            </div>
+            <div class="flex justify-between text-neutral-800 dark:text-white">
+              <span>RFC 8785 Canonical:</span>
+              <span class="text-apple-green">ENFORCED</span>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+  </div>
+
+  <!-- ================= GLOBAL FOOTER ================= -->
+  <footer class="mt-auto border-t border-black/[0.06] dark:border-white/10 bg-white/70 dark:bg-black/70 backdrop-blur-3xl shrink-0">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500 dark:text-[#86868B]">
+      <div class="flex items-center gap-2.5 font-mono text-[11px] tabular-nums">
+        <span class="flex items-center gap-1.5 text-apple-green font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-apple-green shadow-[0_0_6px_#30D158]"></span>
+          <span data-i18n="footer.meshReady">网络就绪 · P2P Mesh 正常</span>
+        </span>
+        <span class="text-black/15 dark:text-white/20">|</span>
+        <span>Eir Protocol v1.0 (RFC 8785)</span>
+        <span class="text-black/15 dark:text-white/20 hidden md:inline">|</span>
+        <span class="hidden md:inline" data-i18n="footer.copyright">© 2026 Eir Watch Party. All peers verified.</span>
+      </div>
+
+      <div class="flex items-center gap-5 font-mono text-[11px]">
+        <a href="javascript:void(0)" onclick="app.showToast('快捷键: 空格(播放/暂停), F(全屏), M(静音), ⌘V(粘贴加入)')" class="hover:text-neutral-900 dark:hover:text-white transition-colors" data-i18n="footer.shortcuts">快捷键</a>
+        <a href="javascript:void(0)" onclick="app.openSettingsModal()" class="hover:text-neutral-900 dark:hover:text-white transition-colors" data-i18n="footer.appSettings">通用设置</a>
+        <a href="https://github.com" target="_blank" rel="noreferrer" class="hover:text-neutral-900 dark:hover:text-white transition-colors">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ================= MODAL: CREATE ROOM ================= -->
+  <div id="modal-create-room" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md hidden transition-all">
+    <div class="w-full max-w-lg rounded-3xl liquid-glass-surface specular-top p-6 sm:p-7 shadow-2xl flex flex-col gap-5 border border-white/20">
+      <div class="flex items-center justify-between border-b border-black/[0.06] dark:border-white/10 pb-3">
+        <h3 class="text-lg font-bold text-neutral-900 dark:text-white tracking-tight" data-i18n="createModal.title">创建专属放映室</h3>
+        <button onclick="app.closeModals()" class="w-8 h-8 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-900 dark:hover:text-white bg-black/[0.04] dark:bg-white/10 btn-spring">
+          <span class="material-symbols-outlined text-base">close</span>
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-4 text-xs">
+        <div>
+          <label class="block text-neutral-700 dark:text-white/90 font-medium mb-1.5" data-i18n="createModal.roomName">放映室名称</label>
+          <input id="create-room-name" type="text" value="周末私享影院" class="w-full px-3.5 py-2.5 rounded-xl bg-black/[0.04] dark:bg-black/50 border border-black/[0.08] dark:border-white/15 text-neutral-900 dark:text-white text-xs focus:outline-none focus:border-apple-blue transition-all"/>
+        </div>
+
+        <div>
+          <label class="block text-neutral-700 dark:text-white/90 font-medium mb-1.5" data-i18n="createModal.mediaSource">初始媒体来源</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="p-3 rounded-xl border border-apple-blue bg-apple-blue/10 flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="media_type" value="url" checked class="text-apple-blue focus:ring-0"/>
+              <div class="flex flex-col">
+                <span class="font-semibold text-neutral-900 dark:text-white text-xs">HTTPS 直链</span>
+                <span class="text-[10px] text-neutral-500">MP4 / HLS 点播流</span>
+              </div>
+            </label>
+            <label class="p-3 rounded-xl border border-black/[0.08] dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="media_type" value="local" class="text-apple-blue focus:ring-0"/>
+              <div class="flex flex-col">
+                <span class="font-semibold text-neutral-900 dark:text-white text-xs">本地免转码文件</span>
+                <span class="text-[10px] text-neutral-500">H.264 / AAC MP4</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-neutral-700 dark:text-white/90 font-medium mb-1.5" data-i18n="createModal.urlInputLabel">媒体 URL 直链</label>
+          <input id="create-media-url" type="url" placeholder="https://example.com/video.mp4" class="w-full px-3.5 py-2.5 rounded-xl bg-black/[0.04] dark:bg-black/50 border border-black/[0.08] dark:border-white/15 text-neutral-900 dark:text-white text-xs font-mono focus:outline-none focus:border-apple-blue transition-all"/>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-end gap-2.5">
+        <button onclick="app.closeModals()" class="px-4 py-2 rounded-xl bg-black/[0.04] dark:bg-white/10 hover:bg-black/[0.08] dark:hover:bg-white/20 text-neutral-800 dark:text-white text-xs font-medium btn-spring" data-i18n="common.cancel">
+          取消
+        </button>
+        <button onclick="app.submitCreateRoom()" class="px-5 py-2 rounded-xl bg-apple-blue hover:bg-apple-blue-hover text-white text-xs font-medium shadow-md btn-spring" data-i18n="createModal.submit">
+          立即开播
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: ADD URL ================= -->
+  <div id="modal-add-url" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md hidden transition-all">
+    <div class="w-full max-w-md rounded-3xl liquid-glass-surface specular-top p-6 shadow-2xl flex flex-col gap-4 border border-white/20">
+      <div class="flex items-center justify-between border-b border-black/[0.06] dark:border-white/10 pb-3">
+        <h3 class="text-base font-bold text-neutral-900 dark:text-white" data-i18n="addUrlModal.title">添加 HTTPS 点播直链</h3>
+        <button onclick="app.closeModals()" class="w-7 h-7 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-900 dark:hover:text-white bg-black/[0.04] dark:bg-white/10 btn-spring">
+          <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-3 text-xs">
+        <div>
+          <label class="block text-neutral-700 dark:text-white/90 font-medium mb-1">媒体标题 (可选)</label>
+          <input id="add-url-title" type="text" placeholder="例如：新片点播 1080P" class="w-full px-3 py-2 rounded-xl bg-black/[0.04] dark:bg-black/50 border border-black/[0.08] dark:border-white/15 text-neutral-900 dark:text-white text-xs"/>
+        </div>
+        <div>
+          <label class="block text-neutral-700 dark:text-white/90 font-medium mb-1">HTTPS 视频直链</label>
+          <input id="add-url-val" type="url" placeholder="https://domain.com/movie.m3u8" class="w-full px-3 py-2 rounded-xl bg-black/[0.04] dark:bg-black/50 border border-black/[0.08] dark:border-white/15 text-neutral-900 dark:text-white text-xs font-mono"/>
+          <p class="text-[10px] text-neutral-400 mt-1">仅支持无需特定登录的 HTTPS MP4 或 HLS 协议资源</p>
+        </div>
+      </div>
+
+      <div class="pt-2 flex justify-end gap-2">
+        <button onclick="app.closeModals()" class="px-3.5 py-1.5 rounded-lg bg-black/[0.04] dark:bg-white/10 text-xs font-medium" data-i18n="common.cancel">取消</button>
+        <button onclick="app.submitAddUrl()" class="px-4 py-1.5 rounded-lg bg-apple-blue text-white text-xs font-medium shadow" data-i18n="common.confirm">确认添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: ADD LOCAL FILE ================= -->
+  <div id="modal-add-local" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md hidden transition-all">
+    <div class="w-full max-w-md rounded-3xl liquid-glass-surface specular-top p-6 shadow-2xl flex flex-col gap-4 border border-white/20">
+      <div class="flex items-center justify-between border-b border-black/[0.06] dark:border-white/10 pb-3">
+        <h3 class="text-base font-bold text-neutral-900 dark:text-white" data-i18n="addLocalModal.title">添加本地免转码视频</h3>
+        <button onclick="app.closeModals()" class="w-7 h-7 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-900 dark:hover:text-white bg-black/[0.04] dark:bg-white/10 btn-spring">
+          <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-3 text-xs">
+        <div class="p-6 rounded-2xl border-2 border-dashed border-black/[0.1] dark:border-white/20 flex flex-col items-center justify-center text-center gap-2 cursor-pointer hover:border-apple-blue transition-colors">
+          <span class="material-symbols-outlined text-3xl text-apple-blue">video_file</span>
+          <span class="font-medium text-neutral-800 dark:text-white">点击选择或拖拽本地 MP4 视频</span>
+          <span class="font-mono text-[10px] text-neutral-400">仅支持 H.264 / AAC 编码免转码切片</span>
+        </div>
+
+        <div id="local-slice-progress" class="hidden p-3 rounded-xl bg-apple-blue/10 border border-apple-blue/20 flex flex-col gap-1.5">
+          <div class="flex justify-between text-[11px] font-mono text-apple-blue">
+            <span>正在进行免转码 fMP4 切片与签名...</span>
+            <span id="slice-percent">48%</span>
+          </div>
+          <div class="w-full bg-apple-blue/20 rounded-full h-1 overflow-hidden">
+            <div id="slice-bar" class="bg-apple-blue h-full w-[48%] rounded-full transition-all"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 flex justify-end gap-2">
+        <button onclick="app.closeModals()" class="px-3.5 py-1.5 rounded-lg bg-black/[0.04] dark:bg-white/10 text-xs font-medium" data-i18n="common.cancel">取消</button>
+        <button onclick="app.submitAddLocal()" class="px-4 py-1.5 rounded-lg bg-apple-blue text-white text-xs font-medium shadow" data-i18n="addLocalModal.startProcess">开始分析切片</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: GLOBAL APP SETTINGS (遵循 APP-SETTINGS.md) ================= -->
+  <div id="modal-settings" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md hidden transition-all">
+    <div class="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl liquid-glass-surface specular-top p-6 sm:p-7 shadow-2xl flex flex-col gap-5 border border-white/20">
+      
+      <!-- Settings Header -->
+      <div class="flex items-center justify-between border-b border-black/[0.06] dark:border-white/10 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-apple-blue text-2xl">settings</span>
+          <h3 class="text-lg font-bold text-neutral-900 dark:text-white tracking-tight" data-i18n="settings.title">全局通用设置</h3>
+        </div>
+        <button onclick="app.closeModals()" class="w-8 h-8 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-900 dark:hover:text-white bg-black/[0.04] dark:bg-white/10 btn-spring">
+          <span class="material-symbols-outlined text-base">close</span>
+        </button>
+      </div>
+
+      <!-- Settings Sections -->
+      <div class="flex flex-col gap-6 text-xs">
+        
+        <!-- Section 1: Multi-language (多语言) -->
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-neutral-900 dark:text-white text-sm" data-i18n="settings.language">多语言 / Language</span>
+            <span class="text-[11px] text-neutral-400" data-i18n="settings.langHint">即时生效，不丢失表单与会话</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="app.setLanguage('system')" id="lang-opt-system" class="p-2.5 rounded-xl border border-black/[0.08] dark:border-white/10 text-center font-medium btn-spring">
+              <span data-i18n="settings.langSystem">跟随系统</span>
+            </button>
+            <button onclick="app.setLanguage('zh-CN')" id="lang-opt-zh" class="p-2.5 rounded-xl border border-black/[0.08] dark:border-white/10 text-center font-medium btn-spring">
+              简体中文
+            </button>
+            <button onclick="app.setLanguage('en-US')" id="lang-opt-en" class="p-2.5 rounded-xl border border-black/[0.08] dark:border-white/10 text-center font-medium btn-spring">
+              English
+            </button>
+          </div>
+        </div>
+
+        <!-- Section 2: Theme Mode (主题模式) -->
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-neutral-900 dark:text-white text-sm" data-i18n="settings.themeMode">主题模式</span>
+            <span class="text-[11px] text-neutral-400" data-i18n="settings.themeModeHint">浅色 / 深色 / 跟随系统</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="app.setThemeMode('system')" id="theme-opt-system" class="p-2.5 rounded-xl border border-black/[0.08] dark:border-white/10 flex items-center justify-center gap-1.5 font-medium btn-spring">
+              <span class="material-symbols-outlined text-sm">brightness_auto</span>
+              <span data-i18n="settings.themeSystem">跟随系统</span>
+            </button>
+            <button onclick="app.setThemeMode('light')" id="theme-opt-light" class="p-2.5 rounded-xl border border-black/[0.08] dark:border-white/10 flex items-center justify-center gap-1.5 font-medium btn-spring">
+              <span class="material-symbols-outlined text-sm">light_mode</span>
+              <span data-i18n="settings.themeLight">浅色模式</span>
+            </button>
+            <button onclick="app.setThemeMode('dark')" id="theme-opt-dark" class="p-2.5 rounded-xl border border-black/[0.08] dark:border-white/10 flex items-center justify-center gap-1.5 font-medium btn-spring">
+              <span class="material-symbols-outlined text-sm">dark_mode</span>
+              <span data-i18n="settings.themeDark">深色模式</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Section 3: Independent Theme Colors (明暗独立主题色配置) -->
+        <div class="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <div class="flex flex-col">
+              <span class="font-semibold text-neutral-900 dark:text-white text-sm" data-i18n="settings.independentColors">独立主题色配置</span>
+              <span class="text-[11px] text-neutral-400" data-i18n="settings.independentColorsDesc">浅色与深色主题色独立保存及恢复默认，禁止互串</span>
+            </div>
+          </div>
+
+          <!-- Light Theme Color Picker -->
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-neutral-800 dark:text-white/90" data-i18n="settings.lightColor">浅色主题色 (Light Theme Color)</span>
+              <div class="flex items-center gap-2">
+                <span id="light-color-preview-badge" class="w-4 h-4 rounded-full border border-black/20 shadow-sm" style="background-color: #007AFF;"></span>
+                <button onclick="app.resetLightThemeColor()" class="text-[11px] text-apple-blue hover:underline btn-spring" data-i18n="settings.resetDefault">重置默认</button>
+              </div>
+            </div>
+            <!-- Swatches for Light -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <button onclick="app.setLightThemeColor('#007AFF')" class="w-7 h-7 rounded-full bg-[#007AFF] ring-2 ring-transparent hover:scale-110 active:scale-95 transition-all shadow-sm" title="Apple Blue"></button>
+              <button onclick="app.setLightThemeColor('#5856D6')" class="w-7 h-7 rounded-full bg-[#5856D6] ring-2 ring-transparent hover:scale-110 active:scale-95 transition-all shadow-sm" title="Indigo"></button>
+              <button onclick="app.setLightThemeColor('#AF52DE')" class="w-7 h-7 rounded-full bg-[#AF52DE] ring-2 ring-transparent hover:scale-110 active:scale-95 transition-all shadow-sm" title="Purple"></button>
+              <button onclick="app.setLightThemeColor('#00C7BE')" class="w-7 h-7 rounded-full bg-[#00C7BE] ring-2 ring-transparent hover:scale-110 active:scale-95 transition-all shadow-sm" title="Teal"></button>
+              <button onclick="app.setLightThemeColor('#FF9500')" class="w-7 h-7 rounded-full bg-[#FF9500] ring-2 ring-transparent hover:scale-110 active:scale-95 transition-all shadow-sm" title="Orange"></button>
+              <button onclick="app.setLightThemeColor('#FF2D55')" class="w-7 h-7 rounded-full bg-[#FF2D55] ring-2 ring-transparent hover:scale-110 active:scale-95 transition-all shadow-sm" title="Rose"></button>
+              <input type="color" id="light-custom-color" onchange="app.setLightThemeColor(this.value)" class="w-7 h-7 rounded-full border-0 p-0 cursor-pointer" title="Custom Hex"/>
+            </div>
+          </div>
+
+          <!-- Dark Theme Color Picker -->
+          <div class="flex flex-col gap-2 pt-2 border-t border-black/[0.04] dark:border-white/10">
+            <div class="flex items-center justify-between">
+              <span class="font-medium text-neutral-800 dark:text-white/90" data-i18n="settings.darkColor">深色主题色 (Dark Theme Color)</span>
+              <div class="flex items-center gap-2">
+                <span id="dark-color-preview-badge" class="w-4 h-4 rounded-full border border-white/20 shadow-sm" style="background-color: #0A84FF;"></span>
+                <button onclick="app.resetDarkThemeColor()" class="text-[11px] text-apple-blue hover:underline btn-spring" data-i18n="settings.resetDefault">重置默认</button>
+              </div>
+            </div>
+            <!-- Swatches for Dark -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <button onclick="app.setDarkThemeColor('#0A84FF')" class="w-7 h-7 rounded-full bg-[#0A84FF] ring-2 ring-transparent hover:scale-110 active:scale-95 transition-all shadow-sm" title="Electric Blue"></button>
+              <button onclick="app.setDarkThemeColor('#5E5CE6')" class="w-7 h-7 rounded-full bg-[#5E5CE6] ring-2 ring-transparent hover:scale-110 active:scale-95 transition-all shadow-sm" title="Neon Indigo"></button>
+              <button onclick="app.setDarkThemeColor('#BF5AF2')" class="w-7 h-7 rounded-full bg-[#BF5AF2] ring-2 ring-transparent hover:scale-110 active:scale-95 transition-all shadow-sm" title="Cyber Violet"></button>
+              <button onclick="app.setDarkThemeColor('#30D158')" class="w-7 h-7 rounded-full bg-[#30D158] ring-2 ring-transparent hover:scale-110 active:scale-95 transition-all shadow-sm" title="Mint Emerald"></button>
+              <button onclick="app.setDarkThemeColor('#FF9F0A')" class="w-7 h-7 rounded-full bg-[#FF9F0A] ring-2 ring-transparent hover:scale-110 active:scale-95 transition-all shadow-sm" title="Amber"></button>
+              <button onclick="app.setDarkThemeColor('#FF375F')" class="w-7 h-7 rounded-full bg-[#FF375F] ring-2 ring-transparent hover:scale-110 active:scale-95 transition-all shadow-sm" title="Hot Pink"></button>
+              <input type="color" id="dark-custom-color" onchange="app.setDarkThemeColor(this.value)" class="w-7 h-7 rounded-full border-0 p-0 cursor-pointer" title="Custom Hex"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: Cache Management (缓存管理) -->
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-neutral-900 dark:text-white text-sm" data-i18n="settings.cacheTitle">分片缓存与磁盘空间</span>
+            <span id="cache-stat-label" class="font-mono text-apple-blue font-medium tabular-nums">1.24 GB / 10 GB</span>
+          </div>
+          <p class="text-[11px] text-neutral-500" data-i18n="settings.cacheDesc">
+            当前播放窗口与供片文件处于受保护状态，清理时仅安全驱逐非活动分片。
+          </p>
+          <div class="w-full bg-black/10 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+            <div id="cache-stat-bar" class="bg-apple-blue h-full w-[12.4%] rounded-full"></div>
+          </div>
+          <div class="flex justify-end pt-1">
+            <button onclick="app.cleanInactiveCache()" class="px-3 py-1.5 rounded-xl bg-black/[0.04] dark:bg-white/10 hover:bg-black/[0.08] dark:hover:bg-white/20 text-neutral-800 dark:text-white font-medium btn-spring" data-i18n="settings.cleanCache">
+              释放非活动缓存
+            </button>
+          </div>
+        </div>
+
+        <!-- Section 5: Diagnostics (诊断信息) -->
+        <div class="p-3.5 rounded-2xl liquid-glass-subtle flex flex-col gap-1.5 font-mono text-[11px]">
+          <span class="font-bold text-neutral-700 dark:text-white/80" data-i18n="settings.diagTitle">本地 Loopback 服务与诊断</span>
+          <div class="flex justify-between text-neutral-500 dark:text-[#86868B]">
+            <span>Loopback HTTP Endpoint:</span>
+            <span class="text-apple-green font-medium">http://127.0.0.1:49281 (Active)</span>
+          </div>
+          <div class="flex justify-between text-neutral-500 dark:text-[#86868B]">
+            <span>Signaling Transport:</span>
+            <span class="text-apple-green font-medium">WSS (TLS 1.3 Strict)</span>
+          </div>
+          <div class="flex justify-between text-neutral-500 dark:text-[#86868B]">
+            <span>Local Device Id:</span>
+            <span class="text-neutral-400">eir_pk_8f9c2d1b70aef10f...</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="pt-3 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-end">
+        <button onclick="app.closeModals()" class="px-5 py-2 rounded-xl bg-apple-blue text-white text-xs font-medium shadow-md btn-spring" data-i18n="common.done">
+          完成
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= APPLICATION ENGINE LOGIC ================= -->
+  <script>
+    const I18N = {
+      "zh-CN": {
+        "nav.sync": "Sync",
+        "nav.lobby": "大厅探索",
+        "nav.room": "放映室",
+        "nav.queue": "同步队列",
+        "user.nickname": "埃里克",
+        "telemetry.directP2p": "直连 12ms",
+        "hero.badge": "macOS Sequoia · Eir Sync Engine 2.14",
+        "hero.title": "跨越距离，同频共赏",
+        "hero.subtitle": "毫秒级点对点画面精准对齐，无感时钟修正。异地相隔，亦如促膝同席。",
+        "hero.createRoom": "创建专属放映室",
+        "hero.inputPlaceholder": "输入 6 位房间码或粘贴邀请链接...",
+        "hero.pasteJoin": "粘贴加入",
+        "features.cryptoTitle": "端对端密码学签名",
+        "features.cryptoDesc": "Ed25519 鉴权 · 零中心化托管",
+        "features.p2pTitle": "零转码分片传输",
+        "features.p2pDesc": "WebRTC DataChannel · 毫秒级直连",
+        "features.syncTitle": "自适应单调时钟同步",
+        "features.syncDesc": "微阶倍速调节 · 零顿挫追赶",
+        "rooms.title": "最近活跃的放映室",
+        "rooms.activeCount": "活跃",
+        "rooms.tabAll": "全部放映室 (3)",
+        "rooms.tabHosted": "我主持的",
+        "rooms.hostYou": "房主 埃里克 (你)",
+        "rooms.enterRoom": "进入放映室",
+        "callout.title": "还没有放映室？即刻创建专属于你们的双人或多人影厅",
+        "callout.desc": "支持本地免转码切片分发、HTTPS 点播直链与 HLS 协议，单调时钟保障毫秒级同步。",
+        "callout.btn": "+ 开启新的放映",
+        "room.hostBadge": "HOST 房主",
+        "room.peersConnected": "成员在线",
+        "room.invite": "邀请成员",
+        "room.leave": "退出",
+        "room.syncViewLine": "画面同频视线",
+        "room.zeroDrop": "全员帧对齐完成 (0 掉帧)",
+        "room.spatialAudio": "空间音频渲染就绪",
+        "roomTabs.chat": "讨论",
+        "roomTabs.playlist": "列表",
+        "roomTabs.members": "成员",
+        "roomTabs.telemetry": "遥测",
+        "chat.voiceConnected": "全双工超宽带语音",
+        "chat.sysBufferDone": "全员已完成星际穿越 4K 预加载缓冲 (100%)",
+        "chat.inputPlaceholder": "向全员发送观影感想与弹幕...",
+        "playlist.title": "点播序列 (3 条目)",
+        "playlist.addUrl": "加 URL",
+        "playlist.addLocal": "加本地",
+        "playlist.playing": "正在播放",
+        "playlist.autoNextHint": "当前条目结束后将由房主自动发起切片接力",
+        "members.title": "在线成员 (4/8)",
+        "members.inviteNew": "+ 邀请",
+        "telemetry.engine": "单调时钟同步矩阵",
+        "telemetry.channels": "WebRTC DataChannels",
+        "telemetry.security": "DTLS & 密码学握手",
+        "footer.meshReady": "网络就绪 · P2P Mesh 正常",
+        "footer.copyright": "© 2026 Eir Watch Party. All peers verified.",
+        "footer.shortcuts": "快捷键",
+        "footer.appSettings": "通用设置",
+        "createModal.title": "创建专属放映室",
+        "createModal.roomName": "放映室名称",
+        "createModal.mediaSource": "初始媒体来源",
+        "createModal.urlInputLabel": "媒体 URL 直链",
+        "createModal.submit": "立即开播",
+        "addUrlModal.title": "添加 HTTPS 点播直链",
+        "addLocalModal.title": "添加本地免转码视频",
+        "addLocalModal.startProcess": "开始分析切片",
+        "settings.title": "全局通用设置",
+        "settings.language": "多语言 / Language",
+        "settings.langHint": "即时生效，不丢失表单与会话",
+        "settings.langSystem": "跟随系统",
+        "settings.themeMode": "主题模式",
+        "settings.themeModeHint": "浅色 / 深色 / 跟随系统",
+        "settings.themeSystem": "跟随系统",
+        "settings.themeLight": "浅色模式",
+        "settings.themeDark": "深色模式",
+        "settings.independentColors": "独立主题色配置",
+        "settings.independentColorsDesc": "浅色与深色主题色独立保存及恢复默认，禁止互串",
+        "settings.lightColor": "浅色主题色 (Light Theme Color)",
+        "settings.darkColor": "深色主题色 (Dark Theme Color)",
+        "settings.resetDefault": "重置默认",
+        "settings.cacheTitle": "分片缓存与磁盘空间",
+        "settings.cacheDesc": "当前播放窗口与供片文件处于受保护状态，清理时仅安全驱逐非活动分片。",
+        "settings.cleanCache": "释放非活动缓存",
+        "settings.diagTitle": "本地 Loopback 服务与诊断",
+        "common.cancel": "取消",
+        "common.confirm": "确认添加",
+        "common.done": "完成",
+        "toast.inviteCopied": "已生成一次性专属邀请链接并复制到剪贴板！",
+        "toast.invalidRoomCode": "请输入有效房间码或邀请链接",
+        "toast.joinedSuccess": "身份验证通过，成功加入放映室！",
+        "toast.itemSwitched": "已同步切换媒体条目，正在重新对齐时间线...",
+        "toast.urlAdded": "HTTPS 点播直链已加入队列并向全员广播",
+        "toast.localAdded": "本地 fMP4 免转码切片清单生成成功并挂载 Loopback",
+        "toast.cacheCleaned": "已安全释放 480 MB 非活动缓存，当前播放不受影响",
+        "toast.speedUpdated": "已切换播放倍速至 ",
+        "toast.roleToggled": "已更新成员权限并签发 MEMBER_ADMIT 提交",
+        "toast.queueEmpty": "当前待播队列共有 2 个预加载条目",
+        "toast.profileInfo": "已绑定设备密钥: eir_pk_8f9c2d1b...",
+        "toast.roomsRefreshed": "放映室状态与网络节点已更新"
+      },
+      "en-US": {
+        "nav.sync": "Sync",
+        "nav.lobby": "Explore",
+        "nav.room": "Cinema",
+        "nav.queue": "Queue",
+        "user.nickname": "Alexander",
+        "telemetry.directP2p": "Direct 12ms",
+        "hero.badge": "macOS Sequoia · Eir Sync Engine 2.14",
+        "hero.title": "Synchronized Cinema Across Distances",
+        "hero.subtitle": "Millisecond-precise P2P frame alignment, zero-jitter monotonic clock correction. Worlds apart, watching together.",
+        "hero.createRoom": "Create Cinema Room",
+        "hero.inputPlaceholder": "Enter 6-digit code or paste invite link...",
+        "hero.pasteJoin": "Paste Join",
+        "features.cryptoTitle": "End-to-End Cryptography",
+        "features.cryptoDesc": "Ed25519 Signatures · Zero Cloud Video Retention",
+        "features.p2pTitle": "Zero-Transcode Slicing",
+        "features.p2pDesc": "WebRTC DataChannel · Ultra-low latency mesh",
+        "features.syncTitle": "Adaptive Monotonic Clock",
+        "features.syncDesc": "Micro-step rate trimming · Seamless drift catching",
+        "rooms.title": "Recently Active Cinema Rooms",
+        "rooms.activeCount": "Active",
+        "rooms.tabAll": "All Rooms (3)",
+        "rooms.tabHosted": "Hosted by Me",
+        "rooms.hostYou": "Host Alexander (You)",
+        "rooms.enterRoom": "Enter Cinema",
+        "callout.title": "No room yet? Instantly create your private synchronized party",
+        "callout.desc": "Supports local remuxed fMP4 slices, HTTPS direct links, and HLS streams with cryptographic ordering.",
+        "callout.btn": "+ Launch New Cinema",
+        "room.hostBadge": "HOST",
+        "room.peersConnected": "Peers Connected",
+        "room.invite": "Invite",
+        "room.leave": "Leave",
+        "room.syncViewLine": "Synchronized Sightlines",
+        "room.zeroDrop": "All Peers Frame-Locked (0 Drops)",
+        "room.spatialAudio": "Binaural Spatial Audio Ready",
+        "roomTabs.chat": "Discussion",
+        "roomTabs.playlist": "Playlist",
+        "roomTabs.members": "Peers",
+        "roomTabs.telemetry": "Telemetry",
+        "chat.voiceConnected": "Full-Duplex Ultra-Wideband Voice",
+        "chat.sysBufferDone": "All peers finished 4K prefetch buffer (100%)",
+        "chat.inputPlaceholder": "Send a reaction or comment to all peers...",
+        "playlist.title": "Media Queue (3 Items)",
+        "playlist.addUrl": "Add URL",
+        "playlist.addLocal": "Add Local",
+        "playlist.playing": "PLAYING",
+        "playlist.autoNextHint": "Next track will be automatically sequenced by the host",
+        "members.title": "Connected Peers (4/8)",
+        "members.inviteNew": "+ Invite",
+        "telemetry.engine": "Monotonic Clock Sync Matrix",
+        "telemetry.channels": "WebRTC DataChannels",
+        "telemetry.security": "DTLS & Crypto Handshake",
+        "footer.meshReady": "Mesh Ready · P2P Operational",
+        "footer.copyright": "© 2026 Eir Watch Party. All peers verified.",
+        "footer.shortcuts": "Shortcuts",
+        "footer.appSettings": "Settings",
+        "createModal.title": "Create Private Cinema Room",
+        "createModal.roomName": "Room Title",
+        "createModal.mediaSource": "Initial Media Source",
+        "createModal.urlInputLabel": "HTTPS Direct Media URL",
+        "createModal.submit": "Launch Cinema",
+        "addUrlModal.title": "Add HTTPS Direct Link",
+        "addLocalModal.title": "Add Local Compatible Video",
+        "addLocalModal.startProcess": "Analyze & Slice",
+        "settings.title": "Application Preferences",
+        "settings.language": "Language / 多语言",
+        "settings.langHint": "Takes effect instantly without session loss",
+        "settings.langSystem": "System Default",
+        "settings.themeMode": "Theme Mode",
+        "settings.themeModeHint": "Light / Dark / Follow System",
+        "settings.themeSystem": "System",
+        "settings.themeLight": "Light Mode",
+        "settings.themeDark": "Dark Mode",
+        "settings.independentColors": "Independent Theme Colors",
+        "settings.independentColorsDesc": "Light & dark colors are saved and reset independently",
+        "settings.lightColor": "Light Theme Accent",
+        "settings.darkColor": "Dark Theme Accent",
+        "settings.resetDefault": "Reset Default",
+        "settings.cacheTitle": "Chunk Cache & Storage",
+        "settings.cacheDesc": "Current playback window and seeding files are locked and protected from eviction.",
+        "settings.cleanCache": "Clean Inactive Chunks",
+        "settings.diagTitle": "Loopback Service & Diagnostics",
+        "common.cancel": "Cancel",
+        "common.confirm": "Confirm",
+        "common.done": "Done",
+        "toast.inviteCopied": "One-time cryptographically signed invite link copied to clipboard!",
+        "toast.invalidRoomCode": "Please enter a valid room code or invite link",
+        "toast.joinedSuccess": "Identity verified, successfully joined cinema room!",
+        "toast.itemSwitched": "Media item switched, realigning timeline...",
+        "toast.urlAdded": "HTTPS stream added to playlist and broadcasted",
+        "toast.localAdded": "fMP4 slices generated, manifest signed and loopback hosted",
+        "toast.cacheCleaned": "Safely cleared 480 MB inactive chunks without interrupting playback",
+        "toast.speedUpdated": "Playback speed set to ",
+        "toast.roleToggled": "Peer ACL updated and MEMBER_ADMIT committed",
+        "toast.queueEmpty": "Media queue has 2 items preloading",
+        "toast.profileInfo": "Device Identity: eir_pk_8f9c2d1b...",
+        "toast.roomsRefreshed": "Cinema rooms and peer topology refreshed"
+      }
+    };
+
+    class EirApp {
+      constructor() {
+        this.currentView = 'lobby';
+        this.activeRoom = 'interstellar';
+        this.isPlaying = true;
+        this.currentTime = 6138; // 01:42:18
+        this.totalDuration = 10143; // 02:49:03
+        this.playbackRate = 1.0;
+        this.volume = 0.85;
+        this.isMuted = false;
+        this.isMicMuted = false;
+        this.currentTab = 'chat';
+
+        // Load or initialize settings as per docs/APP-SETTINGS.md
+        this.settings = this.loadSettings();
+
+        // Bind playback tick
+        setInterval(() => this.playbackTick(), 1000);
+      }
+
+      loadSettings() {
+        const defaults = {
+          lang: 'system',
+          themeMode: 'system',
+          lightThemeColor: '#007AFF', // Apple Blue Light Default
+          darkThemeColor: '#0A84FF',  // Apple Blue Dark Default
+        };
+        try {
+          const raw = localStorage.getItem('eir_settings');
+          return raw ? Object.assign(defaults, JSON.parse(raw)) : defaults;
+        } catch (e) {
+          return defaults;
+        }
+      }
+
+      saveSettings() {
+        try {
+          localStorage.setItem('eir_settings', JSON.stringify(this.settings));
+        } catch (e) {}
+      }
+
+      init() {
+        this.applyTheme();
+        this.applyLanguage();
+        this.updateSettingsUI();
+        this.setupKeyboardShortcuts();
+      }
+
+      t(key) {
+        const lang = this.getEffectiveLang();
+        const dict = I18N[lang] || I18N['zh-CN'];
+        return dict[key] || key;
+      }
+
+      getEffectiveLang() {
+        if (this.settings.lang === 'zh-CN' || this.settings.lang === 'en-US') {
+          return this.settings.lang;
+        }
+        const sys = navigator.language || navigator.userLanguage || '';
+        return sys.startsWith('zh') ? 'zh-CN' : 'en-US';
+      }
+
+      getEffectiveTheme() {
+        if (this.settings.themeMode === 'light' || this.settings.themeMode === 'dark') {
+          return this.settings.themeMode;
+        }
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+
+      applyTheme() {
+        const effectiveTheme = this.getEffectiveTheme();
+        const html = document.documentElement;
+        
+        if (effectiveTheme === 'dark') {
+          html.classList.add('dark');
+          const color = this.settings.darkThemeColor;
+          document.documentElement.style.setProperty('--theme-color', color);
+          document.documentElement.style.setProperty('--theme-color-hover', this.shadeColor(color, -15));
+        } else {
+          html.classList.remove('dark');
+          const color = this.settings.lightThemeColor;
+          document.documentElement.style.setProperty('--theme-color', color);
+          document.documentElement.style.setProperty('--theme-color-hover', this.shadeColor(color, -15));
+        }
+      }
+
+      applyLanguage() {
+        const effective = this.getEffectiveLang();
+        document.documentElement.lang = effective;
+        
+        // Update all data-i18n elements
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          const key = el.getAttribute('data-i18n');
+          el.textContent = this.t(key);
+        });
+
+        // Update all data-i18n-placeholder
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+          const key = el.getAttribute('data-i18n-placeholder');
+          el.placeholder = this.t(key);
+        });
+
+        const langBadge = document.getElementById('current-lang-label');
+        if (langBadge) {
+          langBadge.textContent = effective === 'zh-CN' ? '中文' : 'EN';
+        }
+      }
+
+      setLanguage(lang) {
+        this.settings.lang = lang;
+        this.saveSettings();
+        this.applyLanguage();
+        this.updateSettingsUI();
+        this.showToast(effectiveLang => this.t('toast.roomsRefreshed'));
+      }
+
+      toggleLanguage() {
+        const current = this.getEffectiveLang();
+        this.setLanguage(current === 'zh-CN' ? 'en-US' : 'zh-CN');
+      }
+
+      setThemeMode(mode) {
+        this.settings.themeMode = mode;
+        this.saveSettings();
+        this.applyTheme();
+        this.updateSettingsUI();
+      }
+
+      setLightThemeColor(color) {
+        this.settings.lightThemeColor = color;
+        this.saveSettings();
+        this.applyTheme();
+        this.updateSettingsUI();
+      }
+
+      setDarkThemeColor(color) {
+        this.settings.darkThemeColor = color;
+        this.saveSettings();
+        this.applyTheme();
+        this.updateSettingsUI();
+      }
+
+      resetLightThemeColor() {
+        this.setLightThemeColor('#007AFF');
+      }
+
+      resetDarkThemeColor() {
+        this.setDarkThemeColor('#0A84FF');
+      }
+
+      updateSettingsUI() {
+        // Highlight active language button
+        ['system', 'zh', 'en'].forEach(k => {
+          const btn = document.getElementById('lang-opt-' + k);
+          if (!btn) return;
+          const match = (k === 'system' && this.settings.lang === 'system') ||
+                        (k === 'zh' && this.settings.lang === 'zh-CN') ||
+                        (k === 'en' && this.settings.lang === 'en-US');
+          btn.className = match
+            ? 'p-2.5 rounded-xl border border-apple-blue bg-apple-blue/15 text-apple-blue font-semibold btn-spring text-center'
+            : 'p-2.5 rounded-xl border border-black/[0.08] dark:border-white/10 text-center font-medium btn-spring text-neutral-600 dark:text-neutral-400';
+        });
+
+        // Highlight active theme mode button
+        ['system', 'light', 'dark'].forEach(k => {
+          const btn = document.getElementById('theme-opt-' + k);
+          if (!btn) return;
+          const match = this.settings.themeMode === k;
+          btn.className = match
+            ? 'p-2.5 rounded-xl border border-apple-blue bg-apple-blue/15 text-apple-blue font-semibold flex items-center justify-center gap-1.5 btn-spring'
+            : 'p-2.5 rounded-xl border border-black/[0.08] dark:border-white/10 flex items-center justify-center gap-1.5 font-medium btn-spring text-neutral-600 dark:text-neutral-400';
+        });
+
+        // Color badge previews
+        const lightBadge = document.getElementById('light-color-preview-badge');
+        if (lightBadge) lightBadge.style.backgroundColor = this.settings.lightThemeColor;
+
+        const darkBadge = document.getElementById('dark-color-preview-badge');
+        if (darkBadge) darkBadge.style.backgroundColor = this.settings.darkThemeColor;
+      }
+
+      shadeColor(color, percent) {
+        let R = parseInt(color.substring(1,3), 16);
+        let G = parseInt(color.substring(3,5), 16);
+        let B = parseInt(color.substring(5,7), 16);
+        R = parseInt(R * (100 + percent) / 100);
+        G = parseInt(G * (100 + percent) / 100);
+        B = parseInt(B * (100 + percent) / 100);
+        R = (R<255)?R:255;  
+        G = (G<255)?G:255;  
+        B = (B<255)?B:255;  
+        const RR = ((R.toString(16).length==1)?"0"+R.toString(16):R.toString(16));
+        const GG = ((G.toString(16).length==1)?"0"+G.toString(16):G.toString(16));
+        const BB = ((B.toString(16).length==1)?"0"+B.toString(16):B.toString(16));
+        return "#"+RR+GG+BB;
+      }
+
+      navigate(view) {
+        this.currentView = view;
+        const lobby = document.getElementById('view-lobby');
+        const room = document.getElementById('view-room');
+        const lobbyBtn = document.getElementById('nav-btn-lobby');
+        const roomBtn = document.getElementById('nav-btn-room');
+
+        if (view === 'lobby') {
+          lobby.classList.remove('hidden');
+          room.classList.add('hidden');
+          lobbyBtn.className = 'px-4 py-1 rounded-full bg-white dark:bg-white/15 text-neutral-900 dark:text-white font-medium shadow-sm border border-black/[0.04] dark:border-white/15 transition-all btn-spring';
+          roomBtn.className = 'px-4 py-1 rounded-full text-neutral-500 dark:text-[#98989F] hover:text-neutral-900 dark:hover:text-white transition-all font-medium btn-spring';
+        } else {
+          lobby.classList.add('hidden');
+          room.classList.remove('hidden');
+          roomBtn.className = 'px-4 py-1 rounded-full bg-white dark:bg-white/15 text-neutral-900 dark:text-white font-medium shadow-sm border border-black/[0.04] dark:border-white/15 transition-all btn-spring';
+          lobbyBtn.className = 'px-4 py-1 rounded-full text-neutral-500 dark:text-[#98989F] hover:text-neutral-900 dark:hover:text-white transition-all font-medium btn-spring';
+        }
+      }
+
+      enterRoom(roomId) {
+        this.activeRoom = roomId;
+        const titleMap = {
+          'interstellar': '周末影会 · 星际穿越 (4K HDR)',
+          'frieren': '葬送的芙莉莲 · 第 28 话',
+          'earth': 'BBC 地球脉动 III · 极地深海'
+        };
+        const imageMap = {
+          'interstellar': 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?q=80&w=1600&auto=format&fit=crop',
+          'frieren': 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1600&auto=format&fit=crop',
+          'earth': 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=1600&auto=format&fit=crop'
+        };
+        const titleDisplay = document.getElementById('room-title-display');
+        const frameImg = document.getElementById('video-frame');
+        if (titleDisplay) titleDisplay.textContent = titleMap[roomId] || roomId;
+        if (frameImg && imageMap[roomId]) frameImg.src = imageMap[roomId];
+
+        this.navigate('room');
+        this.showToast(this.t('toast.joinedSuccess'));
+      }
+
+      switchMediaItem(itemId) {
+        this.activeRoom = itemId;
+        this.enterRoom(itemId);
+        this.showToast(this.t('toast.itemSwitched'));
+      }
+
+      playbackTick() {
+        if (!this.isPlaying) return;
+        this.currentTime += Math.round(1 * this.playbackRate);
+        if (this.currentTime >= this.totalDuration) {
+          this.currentTime = this.totalDuration;
+          this.isPlaying = false;
+        }
+        this.updateScrubberUI();
+      }
+
+      updateScrubberUI() {
+        const currentText = document.getElementById('current-time-text');
+        const progressFill = document.getElementById('progress-bar-fill');
+        const thumb = document.getElementById('peer-thumb-alex');
+
+        if (currentText) currentText.textContent = this.formatTime(this.currentTime);
+        const percent = Math.min(100, Math.max(0, (this.currentTime / this.totalDuration) * 100));
+
+        if (progressFill) progressFill.style.width = percent + '%';
+        if (thumb) thumb.style.left = percent + '%';
+      }
+
+      formatTime(seconds) {
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return [
+          hrs.toString().padStart(2, '0'),
+          mins.toString().padStart(2, '0'),
+          secs.toString().padStart(2, '0')
+        ].join(':');
+      }
+
+      togglePlay() {
+        this.isPlaying = !this.isPlaying;
+        const icon = document.getElementById('play-btn-icon');
+        if (icon) icon.textContent = this.isPlaying ? 'pause' : 'play_arrow';
+      }
+
+      skipTime(delta) {
+        this.currentTime = Math.max(0, Math.min(this.totalDuration, this.currentTime + delta));
+        this.updateScrubberUI();
+      }
+
+      seekTimeline(e) {
+        const track = document.getElementById('timeline-track');
+        if (!track) return;
+        const rect = track.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+        this.currentTime = Math.round(ratio * this.totalDuration);
+        this.updateScrubberUI();
+      }
+
+      toggleSpeedMenu() {
+        const menu = document.getElementById('speed-menu');
+        if (menu) menu.classList.toggle('hidden');
+      }
+
+      setPlaybackSpeed(speed) {
+        this.playbackRate = speed;
+        const label = document.getElementById('speed-label');
+        if (label) label.textContent = speed + 'x';
+        this.toggleSpeedMenu();
+        this.showToast(this.t('toast.speedUpdated') + speed + 'x');
+      }
+
+      setVolume(val) {
+        this.volume = parseFloat(val);
+        this.isMuted = this.volume === 0;
+        this.updateVolumeIcon();
+      }
+
+      toggleMute() {
+        this.isMuted = !this.isMuted;
+        const slider = document.getElementById('vol-slider');
+        if (slider) slider.value = this.isMuted ? 0 : this.volume || 0.85;
+        this.updateVolumeIcon();
+      }
+
+      updateVolumeIcon() {
+        const icon = document.getElementById('vol-icon');
+        if (!icon) return;
+        if (this.isMuted || this.volume === 0) icon.textContent = 'volume_off';
+        else if (this.volume < 0.5) icon.textContent = 'volume_down';
+        else icon.textContent = 'volume_up';
+      }
+
+      toggleMuteMic() {
+        this.isMicMuted = !this.isMicMuted;
+        const btn = document.getElementById('mic-btn');
+        const icon = document.getElementById('mic-icon');
+        if (btn && icon) {
+          if (this.isMicMuted) {
+            btn.className = 'w-7 h-7 rounded-lg bg-apple-red/15 text-apple-red flex items-center justify-center btn-spring';
+            icon.textContent = 'mic_off';
+          } else {
+            btn.className = 'w-7 h-7 rounded-lg bg-apple-green/15 text-apple-green flex items-center justify-center btn-spring';
+            icon.textContent = 'mic';
+          }
+        }
+      }
+
+      toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+
+      setRoomTab(tabName) {
+        this.currentTab = tabName;
+        ['chat', 'playlist', 'members', 'telemetry'].forEach(t => {
+          const btn = document.getElementById('tab-btn-' + t);
+          const content = document.getElementById('tab-content-' + t);
+          if (btn && content) {
+            if (t === tabName) {
+              btn.className = 'py-1.5 rounded-lg font-medium text-center transition-all bg-white dark:bg-white/15 text-neutral-900 dark:text-white shadow-sm btn-spring';
+              content.classList.remove('hidden');
+            } else {
+              btn.className = 'py-1.5 rounded-lg font-medium text-center transition-all text-neutral-500 dark:text-[#98989F] hover:text-neutral-900 dark:hover:text-white btn-spring';
+              content.classList.add('hidden');
+            }
+          }
+        });
+      }
+
+      sendChat(e) {
+        e.preventDefault();
+        const input = document.getElementById('chat-input');
+        if (!input || !input.value.trim()) return;
+        const text = input.value.trim();
+        input.value = '';
+
+        const container = document.getElementById('chat-messages-container');
+        if (!container) return;
+
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'flex flex-col gap-1 items-end';
+        msgDiv.innerHTML = `
+          <div class="flex items-center gap-1.5 text-neutral-400">
+            <span class="tabular-nums font-mono text-[10px]">${timeStr}</span>
+            <span class="text-apple-blue font-medium">Alexander (你)</span>
+          </div>
+          <div class="p-2.5 rounded-xl bg-apple-blue text-white leading-relaxed max-w-[90%] shadow-sm">
+            ${this.escapeHtml(text)}
+          </div>
+        `;
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
+      }
+
+      sendReaction(emoji) {
+        this.showToast(emoji + ' 同频共鸣已同步至全房间视线');
+      }
+
+      escapeHtml(str) {
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+
+      toggleAdminRole(name) {
+        this.showToast(this.t('toast.roleToggled') + ': ' + name);
+      }
+
+      copyInviteLink() {
+        const link = "https://eir.app/room/#0492?token=eir_inv_8f9c2d1b70aef10f92b7";
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(link).then(() => {
+            this.showToast(this.t('toast.inviteCopied'));
+          }).catch(() => {
+            this.showToast(this.t('toast.inviteCopied'));
+          });
+        } else {
+          this.showToast(this.t('toast.inviteCopied'));
+        }
+      }
+
+      pasteJoinRoom() {
+        const input = document.getElementById('room-code-input');
+        if (input && input.value.trim()) {
+          this.enterRoom('interstellar');
+        } else {
+          this.showToast(this.t('toast.invalidRoomCode'));
+        }
+      }
+
+      cleanInactiveCache() {
+        const bar = document.getElementById('cache-stat-bar');
+        const label = document.getElementById('cache-stat-label');
+        if (bar) bar.style.width = '7.6%';
+        if (label) label.textContent = '760 MB / 10 GB';
+        this.showToast(this.t('toast.cacheCleaned'));
+      }
+
+      // Modals
+      openCreateRoomModal() {
+        document.getElementById('modal-create-room').classList.remove('hidden');
+      }
+
+      openAddUrlModal() {
+        document.getElementById('modal-add-url').classList.remove('hidden');
+      }
+
+      openAddLocalFileModal() {
+        document.getElementById('modal-add-local').classList.remove('hidden');
+      }
+
+      openSettingsModal() {
+        this.updateSettingsUI();
+        document.getElementById('modal-settings').classList.remove('hidden');
+      }
+
+      closeModals() {
+        ['modal-create-room', 'modal-add-url', 'modal-add-local', 'modal-settings'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.classList.add('hidden');
+        });
+      }
+
+      submitCreateRoom() {
+        const nameInput = document.getElementById('create-room-name');
+        const name = nameInput && nameInput.value.trim() ? nameInput.value.trim() : '专属放映室';
+        this.closeModals();
+        const titleDisplay = document.getElementById('room-title-display');
+        if (titleDisplay) titleDisplay.textContent = name;
+        this.navigate('room');
+        this.showToast(this.t('toast.joinedSuccess'));
+      }
+
+      submitAddUrl() {
+        const urlInput = document.getElementById('add-url-val');
+        if (urlInput && urlInput.value.trim()) {
+          this.closeModals();
+          this.showToast(this.t('toast.urlAdded'));
+        } else {
+          this.showToast(this.t('toast.urlAdded'));
+          this.closeModals();
+        }
+      }
+
+      submitAddLocal() {
+        const prog = document.getElementById('local-slice-progress');
+        if (prog) prog.classList.remove('hidden');
+        setTimeout(() => {
+          this.closeModals();
+          this.showToast(this.t('toast.localAdded'));
+          if (prog) prog.classList.add('hidden');
+        }, 1200);
+      }
+
+      showToast(msg) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        const toast = document.createElement('div');
+        toast.className = 'toast-anim mt-2 px-4 py-2 rounded-full liquid-glass-surface specular-top text-xs font-medium text-neutral-900 dark:text-white shadow-xl flex items-center gap-2 border border-white/30 backdrop-blur-2xl';
+        toast.innerHTML = `<span class="material-symbols-outlined text-apple-blue text-sm">info</span><span>${msg}</span>`;
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+          toast.style.opacity = '0';
+          toast.style.transform = 'translate(-50%, -10px) scale(0.95)';
+          setTimeout(() => toast.remove(), 350);
+        }, 3000);
+      }
+
+      setupKeyboardShortcuts() {
+        window.addEventListener('keydown', (e) => {
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+          if (e.code === 'Space') {
+            e.preventDefault();
+            this.togglePlay();
+          } else if (e.code === 'KeyF') {
+            this.toggleFullscreen();
+          } else if (e.code === 'KeyM') {
+            this.toggleMute();
+          } else if (e.code === 'Escape') {
+            this.closeModals();
+          }
+        });
+      }
+    }
+
+    const app = new EirApp();
+    window.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
+</body>
+</html>

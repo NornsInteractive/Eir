@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Eir · 异地同步观影协议</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Inter & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "ios-blue": "#0A84FF",
+            "ios-indigo": "#5E5CE6",
+            "ios-green": "#30D158",
+            "ios-amber": "#FF9F0A",
+            "ios-card": "rgba(255, 255, 255, 0.08)",
+            "ios-card-hover": "rgba(255, 255, 255, 0.12)",
+          },
+          fontFamily: {
+            sans: [
+              "-apple-system",
+              "BlinkMacSystemFont",
+              "SF Pro Display",
+              "SF Pro Text",
+              "Inter",
+              "PingFang SC",
+              "sans-serif"
+            ],
+            mono: [
+              "SF Mono",
+              "JetBrains Mono",
+              "ui-monospace",
+              "Menlo",
+              "monospace"
+            ]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 420, 'GRAD' 0, 'opsz' 20;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .material-symbols-fill {
+      font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+    }
+    
+    /* Emil Kowalski Engineering Polish: Spring active transition */
+    .ios-spring {
+      transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 150ms ease, border-color 150ms ease, box-shadow 180ms ease, opacity 150ms ease;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .ios-spring:active {
+      transform: scale(0.97);
+    }
+
+    /* iOS 18 Multi-layered Liquid Glass with Specular Highlights */
+    .liquid-glass {
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(28px) saturate(190%);
+      -webkit-backdrop-filter: blur(28px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.22),
+        inset 0 -1px 1px 0 rgba(0, 0, 0, 0.35),
+        0 8px 24px -4px rgba(0, 0, 0, 0.55);
+    }
+
+    .liquid-glass-elevated {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(36px) saturate(210%);
+      -webkit-backdrop-filter: blur(36px) saturate(210%);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow: 
+        inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -1px 1px 0 rgba(0, 0, 0, 0.4),
+        0 12px 32px -4px rgba(0, 0, 0, 0.65);
+    }
+
+    .liquid-glass-bar {
+      background: rgba(14, 14, 16, 0.72);
+      backdrop-filter: blur(32px) saturate(200%);
+      -webkit-backdrop-filter: blur(32px) saturate(200%);
+      border-top: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.15),
+        0 -8px 28px rgba(0, 0, 0, 0.5);
+    }
+
+    .liquid-glass-topbar {
+      background: rgba(10, 10, 12, 0.72);
+      backdrop-filter: blur(30px) saturate(200%);
+      -webkit-backdrop-filter: blur(30px) saturate(200%);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Tabular mono alignment for latency numbers */
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Scrollbar hide */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    body {
+      min-height: max(884px, 100dvh);
+      background-color: #000000;
+      color: #FFFFFF;
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    }
+  </style>
+</head>
+<body class="bg-black text-white antialiased min-h-screen selection:bg-[#0A84FF]/30 selection:text-white font-sans overflow-x-hidden flex justify-center">
+<!-- iOS Mobile Shell Container -->
+<div class="w-full max-w-md min-h-screen flex flex-col bg-black relative pb-32">
+<!-- Ambient Light Glows (Apple Vibrancy Backdrop) -->
+<div class="pointer-events-none fixed inset-0 max-w-md mx-auto overflow-hidden z-0">
+<!-- Top Cyan/Blue Glow behind Hero & Navbar -->
+<div class="absolute -top-16 left-1/2 -translate-x-1/2 w-80 h-72 bg-[#0A84FF]/25 blur-[100px] rounded-full"></div>
+<!-- Mid Purple/Indigo Vibrancy Glow -->
+<div class="absolute top-[340px] -left-20 w-80 h-80 bg-[#5E5CE6]/20 blur-[110px] rounded-full"></div>
+<!-- Subtle Emerald Glow under Room section -->
+<div class="absolute top-[720px] -right-16 w-80 h-80 bg-[#30D158]/15 blur-[120px] rounded-full"></div>
+<!-- Bottom Floating Bar Ambient Lighting -->
+<div class="absolute bottom-6 left-1/2 -translate-x-1/2 w-64 h-32 bg-[#0A84FF]/18 blur-[90px] rounded-full"></div>
+</div>
+<!-- iOS 18 Liquid Glass Top Navigation Bar -->
+<header class="sticky top-0 z-40 liquid-glass-topbar">
+<div class="flex justify-between items-center w-full px-4 h-14 max-w-md mx-auto">
+<!-- Leading: Brand & Sensor Telemetry Capsule -->
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-full bg-white/[0.08] border border-white/[0.18] flex items-center justify-center text-[#0A84FF] relative shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)]">
+<span class="material-symbols-outlined text-[17px]">sensors</span>
+<span class="absolute top-1 right-1 flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#30D158] opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-[#30D158]"></span>
+</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-[19px] font-bold tracking-tight text-white font-sans">Eir</span>
+<span class="inline-flex items-center gap-1.5 font-mono text-[10px] font-medium text-[#0A84FF] bg-[#0A84FF]/12 px-2.5 py-0.5 rounded-full border border-[#0A84FF]/30 backdrop-blur-md tabular-nums">
+<span class="w-1.5 h-1.5 rounded-full bg-[#0A84FF] animate-pulse"></span>
+            P2P 16ms
+          </span>
+</div>
+</div>
+<!-- Trailing: Notifications & User Avatar -->
+<div class="flex items-center gap-2">
+<button aria-label="通知中心" class="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.15] transition-all ios-spring relative shadow-[inset_0_1px_1px_rgba(255,255,255,0.18)]">
+<span class="material-symbols-outlined text-[18px]">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#0A84FF] ring-2 ring-black"></span>
+</button>
+<!-- User Profile Pill -->
+<button aria-label="用户账户" class="flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.18] transition-all ios-spring shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
+<div class="w-5 h-5 rounded-full overflow-hidden bg-[#0A84FF]/25 border border-[#0A84FF]/50 flex items-center justify-center text-[10px] font-bold text-[#0A84FF]">
+            埃
+          </div>
+<span class="text-xs font-semibold text-white/90 tracking-tight">埃里克</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="relative z-10 flex-1 px-4 pt-4 flex flex-col gap-5">
+<!-- Hero & Quick Actions -->
+<section class="flex flex-col gap-3">
+<!-- iOS Sub-badge Pill -->
+<div class="flex items-center">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.16] backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
+<span class="relative flex h-1.5 w-1.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0A84FF] opacity-75"></span>
+<span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#0A84FF]"></span>
+</span>
+<span class="text-[10px] font-semibold text-white/70 tracking-wider uppercase font-mono">v0.9.4 · EIR SYNC PROTOCOL · APPLE GLASS</span>
+</div>
+</div>
+<!-- Primary Apple Headline -->
+<div class="space-y-1">
+<h1 class="text-[30px] font-bold text-white tracking-tight leading-tight">
+          跨越距离，<span class="text-[#0A84FF] bg-clip-text text-transparent bg-gradient-to-r from-[#0A84FF] to-[#68D3FF]">同频共赏</span>
+</h1>
+<p class="text-[14px] text-white/60 leading-relaxed font-normal">
+          毫秒级点对点画面精准对齐，无感时钟修正。异地相隔，亦如促膝同席。
+        </p>
+</div>
+<!-- Action Area: Primary CTA & Inset Input Pill -->
+<div class="grid grid-cols-1 gap-2.5 pt-1">
+<!-- Apple Liquid Glass Primary Button -->
+<button class="ios-spring w-full py-3.5 px-5 rounded-2xl bg-gradient-to-b from-[#0A84FF] to-[#0071E3] text-white font-semibold text-[15px] flex items-center justify-center gap-2 border border-white/30 shadow-[inset_0_1px_1.5px_rgba(255,255,255,0.45),0_8px_24px_rgba(10,132,255,0.38)] active:shadow-none">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+<span>创建专属放映室</span>
+<span class="text-[10px] font-medium font-mono uppercase bg-white/20 px-2 py-0.5 rounded-full ml-1 backdrop-blur-sm border border-white/20">即刻开播</span>
+</button>
+<!-- Inset Liquid Glass Join Input -->
+<div class="w-full liquid-glass rounded-2xl p-1.5 flex items-center gap-2 focus-within:border-[#0A84FF] focus-within:ring-1 focus-within:ring-[#0A84FF]/60 transition-all">
+<div class="pl-2.5 text-white/40 flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">key</span>
+</div>
+<input class="bg-transparent border-0 text-white text-[13px] focus:ring-0 focus:outline-none flex-1 py-1.5 px-0 placeholder:text-white/30 font-sans" placeholder="输入 6 位房间码或粘贴邀请链接..." type="text"/>
+<button class="ios-spring px-3.5 py-1.5 rounded-xl bg-white/[0.09] hover:bg-white/[0.15] text-white text-xs font-semibold border border-white/[0.2] flex items-center gap-1.5 whitespace-nowrap shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)]">
+<span class="material-symbols-outlined text-[14px] text-[#0A84FF]">content_paste</span>
+<span>粘贴加入</span>
+</button>
+</div>
+</div>
+<!-- Feature Capsules Carousel -->
+<div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 -mx-4 px-4 text-xs font-mono">
+<div class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full liquid-glass text-white/75 text-[11px] font-sans">
+<span class="material-symbols-outlined text-[14px] text-[#30D158]">lock</span>
+<span>AES-256 全链路加密</span>
+</div>
+<div class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full liquid-glass text-white/75 text-[11px] font-sans">
+<span class="material-symbols-outlined text-[14px] text-[#0A84FF]">bolt</span>
+<span>零中继 P2P &lt;20ms</span>
+</div>
+<div class="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full liquid-glass text-white/75 text-[11px] font-sans">
+<span class="material-symbols-outlined text-[14px] text-[#FF9F0A]">tune</span>
+<span>自适应音画时间戳对齐</span>
+</div>
+</div>
+</section>
+<!-- Section: Active Rooms ("活跃放映室") -->
+<section class="flex flex-col gap-3">
+<!-- Section Header & Filter Segmented Control -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<h2 class="text-[17px] font-bold tracking-tight text-white font-sans">活跃放映室</h2>
+<span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#0A84FF]/15 text-[#0A84FF] border border-[#0A84FF]/30 font-semibold backdrop-blur-md tabular-nums">3 活跃</span>
+</div>
+<!-- iOS 18 Liquid Segmented Control -->
+<div class="flex items-center gap-0.5 bg-white/[0.06] p-0.5 rounded-xl border border-white/[0.14] text-[11px] backdrop-blur-xl shadow-inner">
+<button class="px-2.5 py-1 rounded-lg bg-white/[0.14] text-white font-semibold shadow-sm border border-white/[0.15] ios-spring">全部</button>
+<button class="px-2.5 py-1 rounded-lg text-white/50 hover:text-white transition-colors ios-spring">我主持的</button>
+<button class="px-2.5 py-1 rounded-lg text-white/50 hover:text-white transition-colors ios-spring">已收藏</button>
+</div>
+</div>
+<!-- Room Cards List -->
+<div class="space-y-3.5">
+<!-- Card 1: 星际穿越 (4K HDR) -->
+<article class="liquid-glass rounded-3xl p-3 flex flex-col gap-3 ios-spring hover:border-white/30 cursor-pointer">
+<!-- Thumbnail Visual Container with 16:9 Aspect Ratio -->
+<div class="relative w-full aspect-video rounded-2xl overflow-hidden bg-black/60 border border-white/[0.12]">
+<img class="w-full h-full object-cover brightness-95 contrast-105" data-alt="A cinematic 16 by 9 widescreen frame of a futuristic spaceship drifting near a mesmerizing glowing golden wormhole in deep space. Highly detailed volumetric dust, dark obsidian cosmic voids, subtle cyan reflections on the hull, and ultra-high fidelity sci-fi lighting that complements modern technical interfaces." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0zZ-F-J0fgZv3CEavDPmrxTCEUAcYaSUq9repGYvDYZp4u3Aa6ntNzYY_b-pETsUBVsHGzIQ3ZG4pJ8ZY18y2-z1MgknRuP0XF9ML1L5kuvWiPRXNTLkVW6cue6OwVgAr08q5WVZaqV7Jgtgv50CIxR9U4Ec-F1oC92wLYlaR5VBnXqQcFQPyecf0ehkXhE6BXjeknMtni8lIj-sogQFoGknEc4Xw14y4sh1gLi9k"/>
+<!-- Top Badges -->
+<div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 font-mono text-[10px] text-[#30D158] font-medium tabular-nums shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse"></span>
+                直连 12ms
+              </span>
+<span class="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 font-mono text-[10px] text-white/90 shadow-sm">
+                4K HDR
+              </span>
+</div>
+<div class="absolute top-2.5 right-2.5">
+<span class="px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 font-mono text-[10px] text-[#0A84FF] flex items-center gap-1 font-medium shadow-sm">
+<span class="material-symbols-outlined text-[12px]">group</span>
+                4/8 成员
+              </span>
+</div>
+<!-- Scrubber Progress Bar Overlay -->
+<div class="absolute bottom-0 inset-x-0 p-2.5 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col gap-1">
+<div class="flex justify-between items-center text-[10px] font-mono text-white/80 tabular-nums">
+<span>01:42:18</span>
+<span class="text-white/45">02:49:00</span>
+</div>
+<div class="w-full h-1 bg-white/20 rounded-full overflow-hidden backdrop-blur-sm">
+<div class="h-full bg-gradient-to-r from-[#0A84FF] to-[#68D3FF] rounded-full relative" style="width: 60%;">
+<div class="absolute right-0 top-0 bottom-0 w-2 bg-white rounded-full shadow-[0_0_8px_#0A84FF]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Card Body & Info -->
+<div class="flex flex-col gap-2">
+<div>
+<div class="flex items-center gap-1.5">
+<span class="text-[10px] px-2 py-0.5 rounded-full bg-[#FF9F0A]/15 text-[#FF9F0A] border border-[#FF9F0A]/30 font-semibold backdrop-blur-sm font-mono">★ 房主 (你)</span>
+<h3 class="text-[15px] font-semibold text-white tracking-tight">周末影会 · 星际穿越</h3>
+</div>
+<p class="text-xs text-white/50 mt-0.5">全员杜比全景声已校准 · 画面零卡顿同步</p>
+</div>
+<!-- Participants & Join Action -->
+<div class="flex items-center justify-between pt-2.5 border-t border-white/[0.1]">
+<div class="flex items-center -space-x-1.5">
+<div class="w-6 h-6 rounded-full bg-[#0A84FF]/25 border border-white/20 text-[10px] font-bold text-[#0A84FF] flex items-center justify-center backdrop-blur-sm">埃</div>
+<div class="w-6 h-6 rounded-full bg-[#30D158]/25 border border-white/20 text-[10px] font-bold text-[#30D158] flex items-center justify-center backdrop-blur-sm">索</div>
+<div class="w-6 h-6 rounded-full bg-[#FF9F0A]/25 border border-white/20 text-[10px] font-bold text-[#FF9F0A] flex items-center justify-center backdrop-blur-sm">安</div>
+<div class="w-6 h-6 rounded-full bg-white/[0.1] border border-white/20 text-[9px] font-mono text-white/70 flex items-center justify-center backdrop-blur-sm">+2</div>
+</div>
+<button class="ios-spring px-3.5 py-1.5 rounded-full bg-white/[0.1] hover:bg-[#0A84FF] hover:text-white border border-white/[0.18] text-xs font-semibold text-white flex items-center gap-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
+<span>进入房间</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</article>
+<!-- Card 2: 葬送的芙莉莲 · 第 28 话 -->
+<article class="liquid-glass rounded-3xl p-3 flex flex-col gap-3 ios-spring hover:border-white/30 cursor-pointer">
+<div class="relative w-full aspect-video rounded-2xl overflow-hidden bg-black/60 border border-white/[0.12]">
+<img class="w-full h-full object-cover brightness-95 contrast-105" data-alt="An ethereal and artistic anime fantasy scenery showing a twilight flower field and historic medieval spires under a starry violet and cyan sky. The artwork is delicately composed with cinematic anime aesthetics, subtle particle lights, and a cool dark obsidian color palette perfectly suited for technical dark UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwb3JyDDfEVXChRzjN4fXYbvfInJnjCoygqirhv-IlSbvxDsHohvqpiGWQnbjwuUnfZvhResHZ6QEOYfls2kVxO-opE2r5bdpvuladRoENARyQ-H9-GLAWC1QdXcAo8datZmiQPrEFbN5pMIObB7wRDsNShgmro7OGIjHDMZKKSybnmfGBIzKwFayIB8uPoId2YH82NXGHKcamaS_i1pHflGdSaOzKxkxW0hnvAJkz"/>
+<div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 font-mono text-[10px] text-[#30D158] font-medium tabular-nums shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-[#30D158] animate-pulse"></span>
+                直连 19ms
+              </span>
+<span class="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 font-mono text-[10px] text-white/90 shadow-sm">
+                1080P 60fps
+              </span>
+</div>
+<div class="absolute top-2.5 right-2.5">
+<span class="px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 font-mono text-[10px] text-[#0A84FF] flex items-center gap-1 font-medium shadow-sm">
+<span class="material-symbols-outlined text-[12px]">group</span>
+                6 在线
+              </span>
+</div>
+<div class="absolute bottom-0 inset-x-0 p-2.5 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col gap-1">
+<div class="flex justify-between items-center text-[10px] font-mono text-white/80 tabular-nums">
+<span>10:14</span>
+<span class="text-white/45">24:12</span>
+</div>
+<div class="w-full h-1 bg-white/20 rounded-full overflow-hidden backdrop-blur-sm">
+<div class="h-full bg-gradient-to-r from-[#0A84FF] to-[#68D3FF] rounded-full relative" style="width: 42%;">
+<div class="absolute right-0 top-0 bottom-0 w-2 bg-white rounded-full shadow-[0_0_8px_#0A84FF]"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<div>
+<div class="flex items-center gap-1.5">
+<span class="text-xs text-white/50">房主: 索菲亚 (Sofia)</span>
+</div>
+<h3 class="text-[15px] font-semibold text-white tracking-tight mt-0.5">葬送的芙莉莲 · 第 28 话</h3>
+</div>
+<div class="flex items-center justify-between pt-2.5 border-t border-white/[0.1]">
+<div class="flex items-center -space-x-1.5">
+<div class="w-6 h-6 rounded-full bg-[#30D158]/25 border border-white/20 text-[10px] font-bold text-[#30D158] flex items-center justify-center backdrop-blur-sm">索</div>
+<div class="w-6 h-6 rounded-full bg-[#0A84FF]/25 border border-white/20 text-[10px] font-bold text-[#0A84FF] flex items-center justify-center backdrop-blur-sm">K</div>
+<div class="w-6 h-6 rounded-full bg-white/[0.1] border border-white/20 text-[9px] font-mono text-white/70 flex items-center justify-center backdrop-blur-sm">+4</div>
+</div>
+<button class="ios-spring px-3.5 py-1.5 rounded-full bg-white/[0.1] hover:bg-[#0A84FF] hover:text-white border border-white/[0.18] text-xs font-semibold text-white flex items-center gap-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
+<span>进入房间</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</article>
+<!-- Card 3: BBC 地球脉动 III · 极地深海 -->
+<article class="liquid-glass rounded-3xl p-3 flex flex-col gap-3 ios-spring hover:border-white/30 cursor-pointer">
+<div class="relative w-full aspect-video rounded-2xl overflow-hidden bg-black/60 border border-white/[0.12]">
+<img class="w-full h-full object-cover brightness-95 contrast-105" data-alt="A breathtaking deep-ocean documentary shot of glowing translucent jellyfish drifting in the abyssal midnight zone. Neon bioluminescence in shades of deep cyan and electric emerald contrasts against the pitch black water. Crisp ultra-high definition details, calm aquatic ambiance, and high-end cinematic presence." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdXTG9ASxe-XWwysb0J4vWDxy9NXvRMryOTtZ0pAAorze9nX1rHqsfJGVbh8jwrf8nnfBfsQUiBVPRQCFxGVRmWmAsAx3xXn77ErybnKbOj8w9NeTohdAsKBzDhqa3_ZukVurJdr-yGoQt9iI1TG9slUAATrq9dYtQZ5Ni8wfvC579cHBkL4I0yRgCYNjqVhOdcXs8BxElEh9mjGQBXYvugo4oVeOGN1kg2IxQDcDk"/>
+<div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 font-mono text-[10px] text-[#FF9F0A] font-medium tabular-nums shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-[#FF9F0A]"></span>
+                节点中继 48ms
+              </span>
+<span class="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 font-mono text-[10px] text-white/90 shadow-sm">
+                4K UHD
+              </span>
+</div>
+<div class="absolute top-2.5 right-2.5">
+<span class="px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 font-mono text-[10px] text-[#0A84FF] flex items-center gap-1 font-medium shadow-sm">
+<span class="material-symbols-outlined text-[12px]">group</span>
+                2 在线
+              </span>
+</div>
+<div class="absolute bottom-0 inset-x-0 p-2.5 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col gap-1">
+<div class="flex justify-between items-center text-[10px] font-mono text-white/80 tabular-nums">
+<span>08:52</span>
+<span class="text-white/45">58:20</span>
+</div>
+<div class="w-full h-1 bg-white/20 rounded-full overflow-hidden backdrop-blur-sm">
+<div class="h-full bg-gradient-to-r from-[#0A84FF] to-[#68D3FF] rounded-full relative" style="width: 15%;">
+<div class="absolute right-0 top-0 bottom-0 w-2 bg-white rounded-full shadow-[0_0_8px_#0A84FF]"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<div>
+<div class="flex items-center gap-1.5">
+<span class="text-xs text-white/50">房主: 林纳斯 (Linus)</span>
+</div>
+<h3 class="text-[15px] font-semibold text-white tracking-tight mt-0.5">BBC 地球脉动 III · 极地深海</h3>
+</div>
+<div class="flex items-center justify-between pt-2.5 border-t border-white/[0.1]">
+<div class="flex items-center -space-x-1.5">
+<div class="w-6 h-6 rounded-full bg-[#0A84FF]/25 border border-white/20 text-[10px] font-bold text-[#0A84FF] flex items-center justify-center backdrop-blur-sm">林</div>
+<div class="w-6 h-6 rounded-full bg-white/[0.1] border border-white/20 text-[10px] font-bold text-white flex items-center justify-center backdrop-blur-sm">M</div>
+</div>
+<button class="ios-spring px-3.5 py-1.5 rounded-full bg-white/[0.1] hover:bg-[#0A84FF] hover:text-white border border-white/[0.18] text-xs font-semibold text-white flex items-center gap-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
+<span>进入房间</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</article>
+</div>
+</section>
+<!-- Assist / Local File Sync Inset Card -->
+<section class="mt-1">
+<div class="p-3.5 rounded-2xl liquid-glass flex items-center justify-between gap-3">
+<div class="space-y-0.5 flex-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[17px] text-[#0A84FF]">folder_zip</span>
+<p class="text-xs font-semibold text-white">本地文件或网络流直接同步</p>
+</div>
+<p class="text-[11px] text-white/50 leading-tight">支持拖拽 MKV / MP4 及 HLS 流媒体实时对齐</p>
+</div>
+<button class="ios-spring flex-shrink-0 px-3.5 py-1.5 rounded-xl bg-white/[0.09] hover:bg-white/[0.15] text-[#0A84FF] text-xs font-semibold border border-white/[0.18] flex items-center gap-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
+<span class="material-symbols-outlined text-[14px]">add</span>
+<span>开启新放映</span>
+</button>
+</div>
+</section>
+</main>
+<!-- iOS 18 Floating Liquid Glass Docked Tab Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pt-2.5 pb-6 liquid-glass-bar max-w-md mx-auto inset-x-0">
+<!-- Tab 1: Rooms (ACTIVE - Apple System Blue) -->
+<button class="flex flex-col items-center justify-center text-[#0A84FF] py-1 px-3 ios-spring relative">
+<span class="material-symbols-outlined material-symbols-fill text-[23px] drop-shadow-[0_0_8px_rgba(10,132,255,0.5)]">group_work</span>
+<span class="text-[10px] font-semibold mt-0.5 tracking-tight">大厅</span>
+</button>
+<!-- Tab 2: Browse -->
+<button class="flex flex-col items-center justify-center text-white/45 hover:text-white transition-colors py-1 px-3 ios-spring">
+<span class="material-symbols-outlined text-[23px]">explore</span>
+<span class="text-[10px] font-medium mt-0.5 tracking-tight">发现</span>
+</button>
+<!-- Tab 3: Activity -->
+<button class="flex flex-col items-center justify-center text-white/45 hover:text-white transition-colors py-1 px-3 ios-spring">
+<span class="material-symbols-outlined text-[23px]">notifications</span>
+<span class="text-[10px] font-medium mt-0.5 tracking-tight">动态</span>
+</button>
+<!-- Tab 4: Profile -->
+<button class="flex flex-col items-center justify-center text-white/45 hover:text-white transition-colors py-1 px-3 ios-spring">
+<span class="material-symbols-outlined text-[23px]">account_circle</span>
+<span class="text-[10px] font-medium mt-0.5 tracking-tight">我的</span>
+</button>
+</nav>
+</div>
+</body></html>

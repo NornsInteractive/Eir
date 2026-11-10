@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Eir Cinema - 房间播放室</title>
+<!-- Tailwind CSS CDN with plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- JetBrains Mono & Inter Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "secondary-fixed-dim": "#68d3ff",
+            "primary-fixed-dim": "#aac7ff",
+            "tertiary-container": "#00a73e",
+            "on-error-container": "#ffdad6",
+            "on-surface": "#e4e2e4",
+            "tertiary-fixed": "#6cff82",
+            "surface-container-highest": "#353437",
+            "on-secondary-fixed": "#001f2a",
+            "surface": "#131315",
+            "surface-dim": "#131315",
+            "on-surface-variant": "#c0c6d6",
+            "surface-container-high": "#2a2a2c",
+            "on-tertiary-container": "#00320d",
+            "inverse-primary": "#005db8",
+            "surface-bright": "#39393b",
+            "surface-tint": "#aac7ff",
+            "primary-container": "#3e90ff",
+            "tertiary-fixed-dim": "#47e266",
+            "error": "#ffb4ab",
+            "inverse-on-surface": "#303032",
+            "on-tertiary-fixed-variant": "#00531a",
+            "on-background": "#e4e2e4",
+            "on-error": "#690005",
+            "on-primary-fixed-variant": "#00468d",
+            "error-container": "#93000a",
+            "surface-container": "#1f1f21",
+            "on-secondary-fixed-variant": "#004d64",
+            "on-primary": "#003064",
+            "tertiary": "#47e266",
+            "outline-variant": "#414754",
+            "secondary-fixed": "#bee9ff",
+            "on-tertiary": "#003910",
+            "surface-container-low": "#1b1b1d",
+            "primary": "#aac7ff",
+            "on-primary-container": "#002957",
+            "on-tertiary-fixed": "#002106",
+            "secondary-container": "#139cc7",
+            "on-secondary-container": "#002e3d",
+            "primary-fixed": "#d6e3ff",
+            "surface-variant": "#353437",
+            "outline": "#8b91a0",
+            "on-primary-fixed": "#001b3e",
+            "background": "#131315",
+            "secondary": "#68d3ff",
+            "surface-container-lowest": "#0e0e10",
+            "inverse-surface": "#e4e2e4",
+            "on-secondary": "#003546"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "margin": "1rem",
+            "gutter": "1rem",
+            "space-xl": "2.5rem",
+            "space-md": "1rem",
+            "gutter-desktop": "1.5rem",
+            "margin-tablet": "2rem",
+            "margin-desktop": "3rem",
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1.5rem"
+          },
+          "fontFamily": {
+            "headline-xl-mobile": ["Inter"],
+            "display-lg-mobile": ["Inter"],
+            "headline-xl": ["Inter"],
+            "headline-lg": ["Inter"],
+            "headline-lg-mobile": ["Inter"],
+            "title-sm": ["Inter"],
+            "body-sm": ["Inter"],
+            "body-md": ["Inter"],
+            "display-lg": ["Inter"],
+            "body-lg": ["Inter"],
+            "mono-data": ["JetBrains Mono"],
+            "headline-md": ["Inter"],
+            "caption": ["Inter"]
+          },
+          "fontSize": {
+            "headline-xl-mobile": ["28px", { "lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "display-lg-mobile": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.03em", "fontWeight": "700" }],
+            "headline-xl": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.025em", "fontWeight": "700" }],
+            "headline-lg": ["24px", { "lineHeight": "30px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-lg-mobile": ["20px", { "lineHeight": "26px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "title-sm": ["17px", { "lineHeight": "22px", "letterSpacing": "-0.012em", "fontWeight": "600" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-md": ["15px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "display-lg": ["56px", { "lineHeight": "64px", "letterSpacing": "-0.035em", "fontWeight": "700" }],
+            "body-lg": ["17px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "mono-data": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "headline-md": ["20px", { "lineHeight": "26px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "caption": ["11px", { "lineHeight": "14px", "letterSpacing": "0.01em", "fontWeight": "500" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    /* iOS 18 Liquid Glass & Spring Physics Utilities */
+    body {
+      background-color: #0e0e10;
+      color: #e4e2e4;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    
+    .liquid-glass-header {
+      background: rgba(22, 22, 24, 0.72);
+      backdrop-filter: blur(28px) saturate(200%);
+      -webkit-backdrop-filter: blur(28px) saturate(200%);
+      box-shadow: inset 0 -0.5px 0 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .liquid-card {
+      background: rgba(24, 24, 28, 0.65);
+      backdrop-filter: blur(36px) saturate(190%);
+      -webkit-backdrop-filter: blur(36px) saturate(190%);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12), 0 8px 24px -6px rgba(0, 0, 0, 0.5);
+    }
+
+    .liquid-dock {
+      background: rgba(28, 28, 30, 0.85);
+      backdrop-filter: blur(44px) saturate(210%);
+      -webkit-backdrop-filter: blur(44px) saturate(210%);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.18), 0 20px 40px -10px rgba(0, 0, 0, 0.8);
+    }
+
+    .pill-capsule {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(16px);
+      box-shadow: inset 0 0.5px 0 0 rgba(255, 255, 255, 0.2);
+    }
+
+    /* Spring micro-interactions */
+    .press-spring {
+      transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1), background-color 0.15s ease;
+    }
+    .press-spring:active {
+      transform: scale(0.94);
+    }
+
+    /* Custom subtle scrub track */
+    input[type=range]::-webkit-slider-thumb {
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.6);
+      cursor: pointer;
+      margin-top: -5px;
+      transition: transform 0.1s ease;
+    }
+    input[type=range]:active::-webkit-slider-thumb {
+      transform: scale(1.3);
+    }
+
+    /* Floating Heart Animation */
+    @keyframes floatHeart {
+      0% { transform: translateY(0) scale(0.7) rotate(0deg); opacity: 1; }
+      50% { transform: translateY(-38px) scale(1.15) rotate(-12deg); opacity: 0.9; }
+      100% { transform: translateY(-75px) scale(0.85) rotate(14deg); opacity: 0; }
+    }
+    .heart-burst {
+      animation: floatHeart 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    }
+
+    /* Hide scrollbar */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-container-lowest min-h-screen text-on-surface flex flex-col justify-between items-center overflow-x-hidden font-body-md selection:bg-primary-container selection:text-on-primary-container">
+<!-- Mobile Viewport Constrained Container (iPhone 15 Pro Max Ratio Max Width) -->
+<div class="relative w-full max-w-md min-h-screen flex flex-col bg-surface pb-24 shadow-2xl overflow-hidden">
+<!-- 1. 顶部状态与导航栏 (Liquid Glass Floating Bar) -->
+<header class="sticky top-0 z-50 w-full liquid-glass-header pt-12 pb-3 px-4 flex items-center justify-between transition-all">
+<!-- Back Button -->
+<button aria-label="返回大厅" class="press-spring flex items-center justify-center w-9 h-9 rounded-full bg-surface-container/60 border border-outline-variant/30 text-on-surface active:bg-surface-bright/50">
+<span class="material-symbols-outlined text-[20px]">arrow_back_ios_new</span>
+</button>
+<!-- Room Title & Sync Indicator -->
+<div class="flex flex-col items-center max-w-[210px] text-center">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed-dim animate-pulse"></span>
+<h1 class="font-title-sm text-title-sm font-semibold tracking-tight text-on-surface truncate">
+            周末影会 · 星际穿越
+          </h1>
+</div>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-caption text-caption text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px] text-primary">groups</span>
+            4人在线
+          </span>
+<span class="text-outline-variant text-[10px]">•</span>
+<span class="font-mono-data text-mono-data text-primary font-medium tracking-tight">4K HDR</span>
+</div>
+</div>
+<!-- Action Cluster -->
+<div class="flex items-center gap-1.5">
+<button aria-label="邀请好友" class="press-spring w-9 h-9 rounded-full bg-surface-container/60 border border-outline-variant/30 flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[20px]">person_add</span>
+</button>
+<button aria-label="更多房间设置" class="press-spring w-9 h-9 rounded-full bg-surface-container/60 border border-outline-variant/30 flex items-center justify-center text-on-surface">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+</header>
+<!-- Main Scrollable Flow Canvas -->
+<main class="flex-1 flex flex-col px-3.5 space-y-3 pt-1">
+<!-- 2. 顶部沉浸式移动播放视窗 (16:9 Aspect Ratio) -->
+<section class="relative w-full aspect-video rounded-xl overflow-hidden border border-outline-variant/25 shadow-lg group">
+<!-- Cinema Screen Preview Image -->
+<img class="w-full h-full object-cover select-none" data-alt="A dramatic cinematic still from a deep space sci-fi film depicting a spacecraft traversing through a luminous swirling cosmic wormhole with golden relativistic accretion disc and obsidian black void. Master shot, high-contrast anamorphic lighting, photorealistic 8k digital cinematography with rich cinematic grain and deep blue nebula highlights." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbEkghJQb9aP0GyOf_P_LO-NmZrDRA2cyGCCDAtbPRSqXfhPV_5yxc5MoI5WQxoLtxd6mrpzD758HjPfiwQf4CBXUS5mf-m5cm3d_BEvUWL6djjcJ5AMn7BRR0ggbQ7uYiqMFDXoKi8UNnFuoPADnyTKtQbzHsyc-swt60SB1dK9PR_bwovPJvkEA9ampC0mYMm0Hvgu3i70DbqouuBbhXcLgQSRLjdWAjQCa0nRoh"/>
+<!-- Ambient Dark Vignette Overlay -->
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest/90 via-transparent to-surface-container-lowest/40 pointer-events-none"></div>
+<!-- Top Bar Inside Player: Latency & Direct P2P Indicator -->
+<div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
+<div class="pill-capsule pointer-events-auto rounded-full px-2.5 py-1 flex items-center gap-1.5 border border-outline-variant/20 shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-mono-data text-mono-data text-on-surface tracking-tight text-[11px]">
+              直连 14ms · 帧同步精准度 99.8%
+            </span>
+</div>
+<div class="flex items-center gap-1.5 pointer-events-auto">
+<button aria-label="锁定控制层" class="w-7 h-7 rounded-full bg-surface-container/80 backdrop-blur-md flex items-center justify-center text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[15px]">lock_open</span>
+</button>
+<button aria-label="画中画" class="w-7 h-7 rounded-full bg-surface-container/80 backdrop-blur-md flex items-center justify-center text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined text-[15px]">picture_in_picture_alt</span>
+</button>
+</div>
+</div>
+<!-- Center Interactive HUD (Play/Pause State) -->
+<div class="absolute inset-0 flex items-center justify-center gap-8 pointer-events-auto">
+<button aria-label="快退10秒" class="press-spring w-9 h-9 rounded-full bg-surface-container-low/75 backdrop-blur-md border border-outline-variant/20 flex items-center justify-center text-on-surface active:bg-surface-bright">
+<span class="material-symbols-outlined text-[18px]">replay_10</span>
+</button>
+<button aria-label="播放暂停" class="press-spring w-14 h-14 rounded-full bg-surface-bright/70 border border-outline-variant/40 shadow-xl backdrop-blur-xl flex items-center justify-center text-on-surface text-primary">
+<span class="material-symbols-outlined text-[32px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<button aria-label="快进10秒" class="press-spring w-9 h-9 rounded-full bg-surface-container-low/75 backdrop-blur-md border border-outline-variant/20 flex items-center justify-center text-on-surface active:bg-surface-bright">
+<span class="material-symbols-outlined text-[18px]">forward_10</span>
+</button>
+</div>
+<!-- Bottom Timeline Scrubber and Controls -->
+<div class="absolute bottom-0 inset-x-0 p-2.5 bg-gradient-to-t from-surface-container-lowest/95 via-surface-container-lowest/70 to-transparent flex flex-col gap-1.5">
+<!-- Precise Progress Bar -->
+<div class="relative w-full flex items-center group/slider">
+<!-- Background Track -->
+<div class="w-full h-1 bg-surface-variant/70 rounded-full overflow-hidden relative">
+<!-- Buffer Bar -->
+<div class="absolute left-0 top-0 bottom-0 bg-outline/40 w-[78%] rounded-full"></div>
+<!-- Played Bar -->
+<div class="absolute left-0 top-0 bottom-0 bg-primary-container w-[54%] rounded-full"></div>
+</div>
+<!-- Interactive Native Slider Track -->
+<input aria-label="播放进度调整" class="absolute inset-0 opacity-0 w-full h-4 cursor-pointer" max="100" min="0" type="range" value="54"/>
+</div>
+<!-- Bottom Time & Mode Metadata -->
+<div class="flex items-center justify-between text-on-surface-variant font-mono-data text-mono-data text-[11px] pt-0.5">
+<div class="flex items-center gap-1.5">
+<span class="text-on-surface font-medium">01:42:18.420</span>
+<span class="text-outline">/</span>
+<span>02:49:03.000</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 rounded bg-surface-variant/60 text-secondary text-[10px] font-medium border border-outline-variant/20">杜比全景声 7.1.4</span>
+<button aria-label="全屏切换" class="press-spring text-on-surface hover:text-primary flex items-center">
+<span class="material-symbols-outlined text-[18px]">fullscreen</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. 房间协同信息与设备控制卡片 (Liquid Inset Group) -->
+<section class="liquid-card rounded-xl p-3 border border-outline-variant/20 space-y-2.5">
+<!-- Host & Connected Friends Cluster -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<!-- Host Avatar with Halo -->
+<div class="relative">
+<img class="w-10 h-10 rounded-full object-cover border-2 border-primary-container shadow-md" data-alt="Editorial close-up portrait of a thoughtful Nordic male curator with short blonde hair wearing a dark minimalist turtleneck against a dim slate studio backdrop. Soft cinematic rim light accents his contours, capturing authentic skin texture, calm expression, and high fashion digital color grade." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfz-FKjL6DEsJVPZ_532sac2GaJGjzsHiKVqFllOpHHicDvU1CHGXXvGHlRvZULnw7SD2pGNH5IJezv3VVDRa3YfDZ6qZry8-2Irtvwl-V8yws5f2zSpY1rFP-bxwSX0tXIXgMj3YLj5SCPoTzly1ilGN-hihBy6SEetIHmpVhnzgb-MVM4EwX12_9ZgMDBvRJff3sqYSTeKKye2NKqDXNWC5JxZGh4XAXTdj_eDiM"/>
+<span class="absolute -bottom-1 -right-1 bg-primary text-on-primary text-[9px] font-bold px-1 rounded-full border border-surface">房主</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5">
+<span class="font-title-sm text-title-sm text-on-surface font-semibold">埃里克</span>
+<span class="material-symbols-outlined text-[14px] text-tertiary-fixed-dim" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+<span class="font-caption text-caption text-on-surface-variant block">播控权限 · 全体同步锁定中</span>
+</div>
+</div>
+<!-- Peer Avatars Stack -->
+<div class="flex items-center -space-x-2 pl-2">
+<div class="relative">
+<img class="w-7 h-7 rounded-full object-cover border border-surface-container-high ring-1 ring-tertiary" data-alt="Minimalist modern headshot of Sophia, a woman with sleek dark brunette bob and soft natural lighting in an architectural studio setting. Moody dark tones with subtle ambient teal highlights, high definition editorial fashion aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDYD3pR1OOztMSZQK5rMQQGqkWvkpca2Ko7R-T5qaQZ7C61GX_pJJWDO6ZlQcMVNq3lGeow64QHapTCIvUgC-a33Cc_jveIimAiUcmOCc1nJ1DBzzxV5MRYR5aNmKotbLYIUa7uRRULrFHwrI8Q5Bk-YdnOtLqjJxWPd8zc_R1-Z9_bIdBYWeMGZKs32jh_vAhTcd-WmQ8ZAwe14epb4TfotEjBRSaNtwvJuOtw6um0"/>
+</div>
+<div class="relative">
+<img class="w-7 h-7 rounded-full object-cover border border-surface-container-high ring-1 ring-tertiary" data-alt="Close up lifestyle portrait of Linus, an Asian young man wearing modern acetate eyeglasses and a graphite gray crewneck shirt. Clean neutral gray studio background with gentle side rim lighting and natural cinematic grain." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAOL45Mxm8rMFhFMJuPdhw5zAU2vxaFbJ3IhqA7h3GetA41iYd5G-kbtYzq0R_VTjYzXsq_SeTigQVkzwmFB1JVsv--aO-b3pjHD_zjE-GjeIKBE6nbNoCmzD4csSgntLy7Dh6JJ5gqXm7YsHZ1MuTVSUR0EvBAbr0Ieayid3Qb-4JpRYJ4BPu9KNlxBmTVkUcabMAMI2JVoMJDAFRMDCLFMM42F97t8YNTTAo6L78Z"/>
+</div>
+<div class="relative">
+<img class="w-7 h-7 rounded-full object-cover border border-surface-container-high ring-1 ring-tertiary" data-alt="Atmospheric profile photograph of Marcus, a young creative professional with textured short hair against a warm dark amber cinematic gradient background. Soft focus, realistic skin textures, contemporary portraiture." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-_5pGlhNY7DbvImDscxnawtjmWSjmP92KOesTTjdA6mcNlYEORk6zfiOtkP75WOx-w8VuAb3xwnv4GeFbBoU-OifOfgVtVEsJiRmZXwYJy5jieb6VllP1oKARYa7HIkEJOQKyQ14mAdoHz7O96ktEvDkxzCICtICDz-nvJCVVu_W4n03fswiE0UEQx1s6YHPAOegU_Si3xshMqE8D-c3bHpAQm0_9x1Jq1fOTvDOl"/>
+</div>
+<div class="w-7 h-7 rounded-full bg-surface-bright/80 border border-outline-variant/30 flex items-center justify-center text-[10px] font-mono-data text-on-surface font-semibold z-10 backdrop-blur-sm">
+              +1
+            </div>
+</div>
+</div>
+<!-- Subtle Divider Hairline -->
+<div class="h-[0.5px] bg-outline-variant/20 -mx-1"></div>
+<!-- Quick Interaction Actions Bar -->
+<div class="grid grid-cols-3 gap-2">
+<!-- Mic Toggle Button -->
+<button class="press-spring py-2 px-2.5 rounded-lg bg-surface-container-high/60 border border-outline-variant/25 flex items-center justify-center gap-1.5 text-on-surface">
+<span class="material-symbols-outlined text-[16px] text-tertiary">mic</span>
+<span class="font-body-sm text-body-sm font-medium">连麦中</span>
+</button>
+<!-- Sync Calibration Button -->
+<button class="press-spring py-2 px-2.5 rounded-lg bg-surface-container-high/60 border border-outline-variant/25 flex items-center justify-center gap-1.5 text-on-surface">
+<span class="material-symbols-outlined text-[16px] text-secondary">sync</span>
+<span class="font-body-sm text-body-sm font-medium">重新校准</span>
+</button>
+<!-- Stream Quality / Track Selector -->
+<button class="press-spring py-2 px-2.5 rounded-lg bg-surface-container-high/60 border border-outline-variant/25 flex items-center justify-center gap-1.5 text-on-surface">
+<span class="material-symbols-outlined text-[16px] text-primary">tune</span>
+<span class="font-body-sm text-body-sm font-medium">原盘码率</span>
+</button>
+</div>
+</section>
+<!-- 4. 协同互动与弹幕面板 (Segmented Control + Activity Feed) -->
+<section class="flex-1 flex flex-col min-h-[290px] rounded-xl liquid-card border border-outline-variant/20 p-3 overflow-hidden">
+<!-- Apple iOS 18 Segmented Control -->
+<div class="w-full bg-surface-container-lowest/80 p-0.5 rounded-lg border border-outline-variant/20 flex items-center relative mb-3">
+<button class="flex-1 py-1.5 text-center rounded-[6px] bg-surface-bright/80 text-on-surface font-title-sm text-body-sm font-medium shadow-sm transition-all flex items-center justify-center gap-1">
+<span>弹幕讨论</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+</button>
+<button class="flex-1 py-1.5 text-center text-on-surface-variant font-body-sm text-body-sm hover:text-on-surface transition-all flex items-center justify-center gap-1">
+<span>播放列表</span>
+<span class="font-mono-data text-[10px] text-outline px-1 rounded bg-surface-variant/40">3</span>
+</button>
+<button class="flex-1 py-1.5 text-center text-on-surface-variant font-body-sm text-body-sm hover:text-on-surface transition-all flex items-center justify-center gap-1">
+<span>网络遥测</span>
+</button>
+</div>
+<!-- Chat / Danmaku Message Stream -->
+<div class="flex-1 overflow-y-auto space-y-2.5 pr-1 no-scrollbar text-left text-body-sm" id="chatStream">
+<!-- System Alert Message -->
+<div class="flex items-center justify-center my-1">
+<span class="px-2.5 py-0.5 rounded-full bg-surface-variant/40 border border-outline-variant/15 text-outline text-[11px] font-caption flex items-center gap-1">
+<span class="material-symbols-outlined text-[11px]">bolt</span>
+              所有终端已完成时间轴锚定 (Offset: ±0.8ms)
+            </span>
+</div>
+<!-- Message Bubble: Linus -->
+<div class="flex items-start gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-bright flex items-center justify-center text-[10px] font-medium text-secondary">
+              林
+            </div>
+<div class="flex flex-col max-w-[80%]">
+<div class="flex items-baseline gap-1.5 mb-0.5">
+<span class="text-on-surface-variant font-medium text-[11px]">林纳斯</span>
+<span class="text-outline font-mono-data text-[10px]">01:41:20</span>
+</div>
+<div class="bg-surface-container/70 border border-outline-variant/20 rounded-xl rounded-tl-sm px-3 py-1.5 text-on-surface">
+                汉斯季默的原声进来了，管风琴低频下潜震撼！
+              </div>
+</div>
+</div>
+<!-- Message Bubble: Sophia -->
+<div class="flex items-start gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-bright flex items-center justify-center text-[10px] font-medium text-tertiary">
+              索
+            </div>
+<div class="flex flex-col max-w-[80%]">
+<div class="flex items-baseline gap-1.5 mb-0.5">
+<span class="text-on-surface-variant font-medium text-[11px]">索菲亚</span>
+<span class="text-outline font-mono-data text-[10px]">01:41:55</span>
+</div>
+<div class="bg-surface-container/70 border border-outline-variant/20 rounded-xl rounded-tl-sm px-3 py-1.5 text-on-surface">
+                大家画面帧率稳定吗？我这边显示满帧 120fps 直连没有任何抖动。
+              </div>
+</div>
+</div>
+<!-- Message Bubble: Self -->
+<div class="flex items-start gap-2 justify-end">
+<div class="flex flex-col items-end max-w-[80%]">
+<div class="flex items-baseline gap-1.5 mb-0.5">
+<span class="text-outline font-mono-data text-[10px]">01:42:04</span>
+<span class="text-primary-fixed-dim font-medium text-[11px]">你</span>
+</div>
+<div class="bg-primary-container/20 border border-primary/30 rounded-xl rounded-tr-sm px-3 py-1.5 text-on-surface">
+                极其丝滑，音画完全对齐！准备好穿越虫洞了。
+              </div>
+</div>
+</div>
+<!-- Peer Reaction Pill Banner -->
+<div class="flex items-center gap-1.5 py-1 px-2 rounded-lg bg-surface-container-high/30 border border-outline-variant/15 w-fit">
+<span class="text-error text-xs">❤️</span>
+<span class="text-on-surface-variant text-[11px]">亚历山大 赞赏了房主的高码率源</span>
+</div>
+</div>
+</section>
+</main>
+<!-- 5. 底部悬浮晶透输入与互动交互 Dock (Liquid Glass Bottom Dock) -->
+<div class="fixed bottom-0 inset-x-0 max-w-md mx-auto z-40 p-3 pointer-events-none">
+<div class="liquid-dock rounded-2xl p-2 border border-outline-variant/30 flex items-center gap-2 pointer-events-auto shadow-2xl relative">
+<!-- Danmaku Mode Toggle Button -->
+<button aria-label="弹幕模式开关" class="press-spring w-9 h-9 rounded-xl bg-surface-bright/40 border border-outline-variant/25 flex items-center justify-center text-primary flex-shrink-0">
+<span class="material-symbols-outlined text-[19px]">subtitles</span>
+</button>
+<!-- Glass Input Box -->
+<div class="relative flex-1 flex items-center">
+<input class="w-full h-9 bg-surface-container-lowest/70 border border-outline-variant/30 rounded-xl px-3 text-body-sm text-on-surface placeholder:text-outline/50 focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-all" placeholder="发条同屏弹幕互动..." type="text"/>
+<button aria-label="表情符号" class="absolute right-2 text-outline hover:text-on-surface flex items-center">
+<span class="material-symbols-outlined text-[17px]">mood</span>
+</button>
+</div>
+<!-- Emil Kowalski Style Reaction Micro-Burst Button -->
+<div class="relative flex-shrink-0">
+<button aria-label="快捷爱心点赞" class="press-spring w-9 h-9 rounded-xl bg-surface-bright/40 border border-outline-variant/25 flex items-center justify-center text-error hover:bg-error/10 active:scale-90 transition-all" id="reactionBtn">
+<span class="material-symbols-outlined text-[19px]" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+<!-- Burst Anchor Element -->
+<div class="absolute -top-1 left-1/2 -translate-x-1/2 pointer-events-none w-0 h-0 overflow-visible" id="burstAnchor"></div>
+</div>
+<!-- Send Danmaku Primary Button -->
+<button aria-label="发送" class="press-spring h-9 px-3 rounded-xl bg-primary-container text-on-primary-container font-semibold text-body-sm flex items-center justify-center gap-1 shadow-sm flex-shrink-0">
+<span>发送</span>
+<span class="material-symbols-outlined text-[15px]">send</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Inline Micro-Interactions Script -->
+<script>
+    // Emil Kowalski Style Heart Burst Effect
+    const reactionBtn = document.getElementById('reactionBtn');
+    const burstAnchor = document.getElementById('burstAnchor');
+
+    if (reactionBtn && burstAnchor) {
+      reactionBtn.addEventListener('click', (e) => {
+        // Create 2-3 randomized lightweight floating elements
+        for (let i = 0; i < 2; i++) {
+          const heart = document.createElement('div');
+          heart.className = 'absolute heart-burst text-[16px] select-none';
+          heart.innerText = ['❤️', '✨', '🪐', '💖'][Math.floor(Math.random() * 4)];
+          
+          const randomX = (Math.random() - 0.5) * 44;
+          heart.style.left = `${randomX}px`;
+          
+          burstAnchor.appendChild(heart);
+          
+          setTimeout(() => {
+            heart.remove();
+          }, 1100);
+        }
+      });
+    }
+
+    // Auto-scroll chat to latest messages on load
+    const chatStream = document.getElementById('chatStream');
+    if (chatStream) {
+      chatStream.scrollTop = chatStream.scrollHeight;
+    }
+  </script>
+</body></html>

@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Eir Cinema - 放映室 #0492</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: Inter & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "secondary-fixed-dim": "#68d3ff",
+            "primary-fixed-dim": "#aac7ff",
+            "tertiary-container": "#00a73e",
+            "on-error-container": "#ffdad6",
+            "on-surface": "#e4e2e4",
+            "tertiary-fixed": "#6cff82",
+            "surface-container-highest": "#353437",
+            "on-secondary-fixed": "#001f2a",
+            "surface": "#131315",
+            "surface-dim": "#131315",
+            "on-surface-variant": "#c0c6d6",
+            "surface-container-high": "#2a2a2c",
+            "on-tertiary-container": "#00320d",
+            "inverse-primary": "#005db8",
+            "surface-bright": "#39393b",
+            "surface-tint": "#aac7ff",
+            "primary-container": "#3e90ff",
+            "tertiary-fixed-dim": "#47e266",
+            "error": "#ffb4ab",
+            "inverse-on-surface": "#303032",
+            "on-tertiary-fixed-variant": "#00531a",
+            "on-background": "#e4e2e4",
+            "on-error": "#690005",
+            "on-primary-fixed-variant": "#00468d",
+            "error-container": "#93000a",
+            "surface-container": "#1f1f21",
+            "on-secondary-fixed-variant": "#004d64",
+            "on-primary": "#003064",
+            "tertiary": "#47e266",
+            "outline-variant": "#414754",
+            "secondary-fixed": "#bee9ff",
+            "on-tertiary": "#003910",
+            "surface-container-low": "#1b1b1d",
+            "primary": "#aac7ff",
+            "on-primary-container": "#002957",
+            "on-tertiary-fixed": "#002106",
+            "secondary-container": "#139cc7",
+            "on-secondary-container": "#002e3d",
+            "primary-fixed": "#d6e3ff",
+            "surface-variant": "#353437",
+            "outline": "#8b91a0",
+            "on-primary-fixed": "#001b3e",
+            "background": "#131315",
+            "secondary": "#68d3ff",
+            "surface-container-lowest": "#0e0e10",
+            "inverse-surface": "#e4e2e4",
+            "on-secondary": "#003546"
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          spacing: {
+            "margin": "1rem",
+            "gutter": "1rem",
+            "space-xl": "2.5rem",
+            "space-md": "1rem",
+            "gutter-desktop": "1.5rem",
+            "margin-tablet": "2rem",
+            "margin-desktop": "3rem",
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1.5rem"
+          },
+          fontFamily: {
+            "headline-xl-mobile": ["Inter"],
+            "display-lg-mobile": ["Inter"],
+            "headline-xl": ["Inter"],
+            "headline-lg": ["Inter"],
+            "title-sm": ["Inter"],
+            "body-sm": ["Inter"],
+            "body-md": ["Inter"],
+            "display-lg": ["Inter"],
+            "body-lg": ["Inter"],
+            "mono-data": ["JetBrains Mono"],
+            "headline-md": ["Inter"],
+            "caption": ["Inter"]
+          },
+          fontSize: {
+            "headline-xl-mobile": ["28px", { lineHeight: "34px", letterSpacing: "-0.02em", fontWeight: "700" }],
+            "display-lg-mobile": ["40px", { lineHeight: "48px", letterSpacing: "-0.03em", fontWeight: "700" }],
+            "headline-xl": ["36px", { lineHeight: "44px", letterSpacing: "-0.025em", fontWeight: "700" }],
+            "headline-lg": ["24px", { lineHeight: "30px", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "title-sm": ["17px", { lineHeight: "22px", letterSpacing: "-0.012em", fontWeight: "600" }],
+            "body-sm": ["13px", { lineHeight: "18px", letterSpacing: "0em", fontWeight: "400" }],
+            "body-md": ["15px", { lineHeight: "20px", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "display-lg": ["56px", { lineHeight: "64px", letterSpacing: "-0.035em", fontWeight: "700" }],
+            "body-lg": ["17px", { lineHeight: "24px", letterSpacing: "-0.01em", fontWeight: "400" }],
+            "mono-data": ["12px", { lineHeight: "16px", letterSpacing: "0.02em", fontWeight: "500" }],
+            "headline-md": ["20px", { lineHeight: "26px", letterSpacing: "-0.015em", fontWeight: "600" }],
+            "caption": ["11px", { lineHeight: "14px", letterSpacing: "0.01em", fontWeight: "500" }]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    
+    /* Optical Physics Hairlines & Ambient Glow */
+    .liquid-glass-panel {
+      background: rgba(28, 28, 30, 0.72);
+      backdrop-filter: blur(48px) saturate(210%);
+      -webkit-backdrop-filter: blur(48px) saturate(210%);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+                  0 24px 48px -12px rgba(0, 0, 0, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .liquid-sub-glass {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(20px) saturate(180%);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .interactive-hover-spring {
+      transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .interactive-hover-spring:active {
+      transform: scale(0.965);
+    }
+
+    /* Ambient dynamic reactive lighting backdrop */
+    .ambient-glow-mesh {
+      background: 
+        radial-gradient(circle at 45% 40%, rgba(62, 144, 255, 0.18) 0%, transparent 60%),
+        radial-gradient(circle at 65% 55%, rgba(104, 211, 255, 0.12) 0%, transparent 50%),
+        radial-gradient(circle at 30% 70%, rgba(255, 140, 50, 0.08) 0%, transparent 45%);
+    }
+
+    /* Tabular data alignment */
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased overflow-hidden selection:bg-primary-container selection:text-on-primary-container h-screen w-screen flex flex-col font-body-md">
+<!-- ================= BACKGROUND AMBIENT ATMOSPHERE ================= -->
+<div class="fixed inset-0 pointer-events-none z-0 ambient-glow-mesh transition-opacity duration-1000"></div>
+<div class="fixed -top-40 left-1/4 w-[700px] h-[500px] bg-primary-container/10 rounded-full blur-[140px] pointer-events-none z-0"></div>
+<div class="fixed bottom-0 left-1/3 w-[600px] h-[350px] bg-secondary-container/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
+<!-- ================= TOP NAV BAR (Shared Component JSON Target) ================= -->
+<header class="bg-surface-container/70 backdrop-blur-2xl text-on-surface docked full-width top-0 z-50 shadow-sm backdrop-saturate-200 border-b border-outline-variant/20 flex justify-between items-center w-full px-6 py-2.5 h-14 relative shrink-0">
+<!-- Left: Brand & Cinema Room Title -->
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-surface-container-high/90 border border-outline-variant/30 flex items-center justify-center text-primary shadow-sm">
+<span class="material-symbols-outlined text-primary text-base" data-icon="videocam">videocam</span>
+</div>
+<div class="flex flex-col">
+<div class="text-title-sm font-title-sm text-on-surface tracking-tight font-semibold flex items-center gap-2">
+<span>Eir Cinema</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant/50"></span>
+<span class="text-on-surface-variant font-medium text-body-sm font-body-sm truncate max-w-[280px]">周末影会 · 星际穿越 (4K HDR)</span>
+</div>
+</div>
+</div>
+<div class="px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 flex items-center gap-1.5 ml-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+<span class="font-caption text-caption text-primary tracking-wide">HOST ROOM</span>
+</div>
+</div>
+<!-- Center: P2P Direct & Synchronization Telemetry Anchor -->
+<div class="hidden lg:flex items-center gap-4 px-4 py-1.5 rounded-full bg-surface-container-lowest/50 border border-outline-variant/25 backdrop-blur-xl shadow-inner">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="text-primary font-mono-data text-mono-data font-medium tabular-nums">4K HDR 120fps</span>
+</div>
+<span class="text-outline-variant text-caption font-caption">/</span>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-tertiary text-sm" data-icon="bolt">bolt</span>
+<span class="text-on-surface-variant font-mono-data text-mono-data tabular-nums">P2P Direct · 14ms</span>
+</div>
+<span class="text-outline-variant text-caption font-caption">/</span>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="sync">sync</span>
+<span class="text-secondary font-mono-data text-mono-data font-medium tabular-nums">Sync Delta ±0.8ms</span>
+</div>
+<span class="text-outline-variant text-caption font-caption">/</span>
+<div class="flex items-center gap-1 text-on-surface-variant text-body-sm font-body-sm">
+<span class="material-symbols-outlined text-xs" data-icon="group">group</span>
+<span class="font-mono-data text-mono-data">4/8 成员</span>
+</div>
+</div>
+<!-- Right: Actions & Tools -->
+<div class="flex items-center gap-2">
+<!-- Media Info / Equalizer Action Button -->
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-bright/40 hover:text-on-surface transition-colors duration-150 active:scale-[0.97]" title="音频引擎图谱">
+<span class="material-symbols-outlined text-lg" data-icon="graphic_eq">graphic_eq</span>
+</button>
+<!-- Cast Connection -->
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-bright/40 hover:text-on-surface transition-colors duration-150 active:scale-[0.97]" title="隔空投送与屏幕镜像">
+<span class="material-symbols-outlined text-lg" data-icon="cast_connected">cast_connected</span>
+</button>
+<!-- Tuning Specs Modal Trigger -->
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-bright/40 hover:text-on-surface transition-colors duration-150 active:scale-[0.97]" title="推流与缓冲校准">
+<span class="material-symbols-outlined text-lg" data-icon="tune">tune</span>
+</button>
+<div class="h-4 w-[1px] bg-outline-variant/30 mx-1"></div>
+<!-- Invite Member Action -->
+<button class="px-3 py-1.5 rounded-lg liquid-sub-glass text-on-surface hover:text-on-surface hover:bg-surface-bright/40 transition-colors duration-150 flex items-center gap-1.5 text-body-sm font-body-sm active:scale-[0.97]">
+<span class="material-symbols-outlined text-base text-primary" data-icon="person_add">person_add</span>
+<span>邀请成员</span>
+</button>
+<!-- Leave Room Primary Destructive Action -->
+<button class="px-3 py-1.5 rounded-lg bg-surface-container-high/60 hover:bg-error/15 border border-outline-variant/30 hover:border-error/40 text-on-surface hover:text-error transition-all duration-150 flex items-center gap-1.5 text-body-sm font-body-sm active:scale-[0.97]">
+<span class="material-symbols-outlined text-base" data-icon="close">close</span>
+<span>退出房间</span>
+</button>
+<!-- Host Profile Anchor Avatar -->
+<div class="ml-1 relative">
+<img class="w-7 h-7 rounded-full ring-1 ring-primary/40 object-cover" data-alt="A portrait of Alexander the host of the room, looking confident and attentive against a deep moody ambient cinema background with subtle blue volumetric rim lighting. High resolution photographic portrait, Apple aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAOaUDOoFKxVUUD4B5VkzdfUm4WKj6o1wGMw6XklU4eDaKW1grpANfmBVqJELbXpV6DYkVs-FHyze0nQ37ErxDc54VCtP5El76tQWjwQeSH87dFEdvWWlX5Di5QbkmlBoq8IX5rT53L-K6tLCIt6PCvbA0eVRIWHQcCE_1Yla_8v-2FKdza-I446yyGVlzCP3FiSkQS0Jdd4FUIcX7o-iQ-nqKjMuY-6n5PxfyExTRJ"/>
+<span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-tertiary ring-1 ring-surface"></span>
+</div>
+</div>
+</header>
+<!-- ================= MAIN CINEMA STAGE & COLLAPSIBLE INSPECTOR ================= -->
+<div class="flex-1 flex overflow-hidden relative z-10">
+<!-- PRIMARY CINEMA CANVAS (Viewport Center) -->
+<main class="flex-1 flex flex-col items-center justify-center p-4 lg:p-6 mr-80 transition-all duration-300 relative select-none">
+<!-- Video Screen Frame with Ambient Projection Glow -->
+<div class="relative w-full max-w-6xl aspect-video rounded-2xl overflow-hidden group shadow-2xl border border-white/10 bg-surface-container-lowest flex flex-col justify-end">
+<!-- Ambient projection border illusion -->
+<div class="absolute inset-0 pointer-events-none z-10 shadow-[inset_0_0_80px_rgba(0,0,0,0.85)]"></div>
+<!-- Film Frame Video Element -->
+<img class="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-700 group-hover:scale-[1.01]" data-alt="A breathtaking cinematic wide-angle 4K HDR still from an interstellar space movie showing an endurance spaceship drifting past a monumental shimmering black hole with a glowing golden-orange gravitational lensing accretion disk. Highly realistic cosmic depth, fine space dust, intense contrast, cinematic anamorphic lens flares." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGbT8Ny1SylU4GS84RBsAhon1qSkOQsEY-thqWQ_KRZIMjfXUPo0ShYsN3erlsUAmSOVZhPqPULI3_9Emh2PZl25tDahE7bynwTvzHjTbdXfcGQ0u0qy8iW0qQYirFJiP4VE-TXaBY0Ma7JxpBqobfPeSNMqEsCtDRACZDvoX76Rh7ugXF1mslYp20feIqHy5aXCvB6fTV5Jsx_pH0NXT0wUKw_3fnGa8u5_9LKKe3"/>
+<!-- Top Right Mini Telemetry HUD (Inside Viewport) -->
+<div class="absolute top-4 right-4 z-20 flex items-center gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
+<div class="liquid-sub-glass px-2.5 py-1 rounded-full flex items-center gap-2 text-caption font-caption text-on-surface">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-ping"></span>
+<span class="text-tertiary font-mono-data text-mono-data font-semibold">REC // MASTER 4K</span>
+<span class="text-outline-variant">|</span>
+<span class="font-mono-data text-mono-data">HEVC Main10</span>
+</div>
+<div class="liquid-sub-glass px-2.5 py-1 rounded-full flex items-center gap-1.5 text-caption font-caption text-secondary">
+<span class="material-symbols-outlined text-xs" data-icon="lock">lock</span>
+<span class="font-mono-data text-mono-data">Sync Master Clock</span>
+</div>
+</div>
+<!-- Cinema Stage Center Quick Overlay Playback Indicator (Hidden on steady playback) -->
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 opacity-0 group-hover:opacity-20 transition-opacity duration-300">
+<div class="w-20 h-20 rounded-full liquid-glass-panel flex items-center justify-center text-white scale-90 group-hover:scale-100 transition-transform">
+<span class="material-symbols-outlined text-4xl" data-icon="play_arrow" data-weight="fill" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<!-- Multi-Peer Reaction Floaters Canvas (Emil Kowalski Physics Micro-interaction) -->
+<div class="absolute bottom-24 right-8 z-20 flex flex-col items-end gap-2 pointer-events-none">
+<div class="liquid-glass-panel px-3 py-1.5 rounded-full flex items-center gap-2 text-xs text-white transform translate-y-1 animate-bounce shadow-lg">
+<span>✨</span>
+<span class="text-body-sm font-body-sm font-medium">Sophia: “这个黑洞吸积盘的光学渲染太震撼了！”</span>
+</div>
+<div class="liquid-sub-glass px-2.5 py-1 rounded-full flex items-center gap-1 text-xs text-white opacity-90 shadow-md">
+<span>🪐</span>
+<span class="font-mono-data text-mono-data text-primary">+3 同步共鸣</span>
+</div>
+</div>
+<!-- ================= HOVER LIQUID GLASS CONTROLS ================= -->
+<div class="relative z-30 w-full p-4 lg:p-5 bg-gradient-to-t from-black/95 via-black/60 to-transparent flex flex-col gap-2.5 transition-all duration-200">
+<!-- Precise Timeline Progress Scrubber -->
+<div class="w-full flex items-center gap-3 group/timeline cursor-pointer">
+<span class="font-mono-data text-mono-data text-on-surface tabular-nums text-xs">01:42:18.420</span>
+<div class="relative flex-1 h-2 flex items-center">
+<!-- Buffer Track -->
+<div class="w-full h-1 bg-white/20 rounded-full overflow-hidden relative">
+<div class="absolute left-0 top-0 h-full bg-white/35 w-[78%] rounded-full"></div>
+<div class="absolute left-0 top-0 h-full bg-primary w-[60.4%] rounded-full shadow-[0_0_12px_rgba(170,199,255,0.7)]"></div>
+</div>
+<!-- Peer Heads Timeline Marker Positions -->
+<!-- Peer 1 (Host: Alexander) -->
+<div class="absolute left-[60.4%] -translate-x-1/2 flex flex-col items-center pointer-events-none">
+<div class="w-3.5 h-3.5 rounded-full ring-2 ring-primary bg-primary flex items-center justify-center shadow-lg">
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-lowest"></div>
+</div>
+</div>
+<!-- Peer 2 (Sophia: +0.2ms) -->
+<div class="absolute left-[60.2%] -translate-x-1/2 flex flex-col items-center" title="Sophia (-12ms)">
+<div class="w-2.5 h-2.5 rounded-full ring-1 ring-secondary bg-secondary/80"></div>
+</div>
+<!-- Peer 3 (Linus: -0.4ms) -->
+<div class="absolute left-[60.6%] -translate-x-1/2 flex flex-col items-center" title="Linus (+15ms)">
+<div class="w-2.5 h-2.5 rounded-full ring-1 ring-tertiary bg-tertiary/80"></div>
+</div>
+<!-- Scrubber Thumb -->
+<div class="absolute left-[60.4%] -translate-x-1/2 w-4 h-4 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.6)] opacity-0 group-hover/timeline:opacity-100 transition-opacity flex items-center justify-center scale-90 group-hover/timeline:scale-100">
+<div class="w-1.5 h-1.5 rounded-full bg-primary-container"></div>
+</div>
+</div>
+<span class="font-mono-data text-mono-data text-on-surface-variant tabular-nums text-xs">02:49:03.000</span>
+</div>
+<!-- Functional Playback & Engine Bar -->
+<div class="flex items-center justify-between pt-1">
+<!-- Left Controls: Play/Pause, Replay, Sync Lock Indicator -->
+<div class="flex items-center gap-2">
+<button class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 active:scale-[0.95] flex items-center justify-center text-white transition-all" title="暂停/播放 (空格)">
+<span class="material-symbols-outlined text-2xl" data-icon="pause" data-weight="fill" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-on-surface transition-colors" title="倒退 10 秒">
+<span class="material-symbols-outlined text-lg" data-icon="replay_10">replay_10</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-on-surface transition-colors" title="前进 10 秒">
+<span class="material-symbols-outlined text-lg" data-icon="forward_10">forward_10</span>
+</button>
+<!-- Locked Sync Pill -->
+<div class="ml-2 px-2.5 py-1 rounded-full bg-primary-container/20 border border-primary/30 flex items-center gap-1.5 cursor-default">
+<span class="material-symbols-outlined text-primary text-xs" data-icon="lock" data-weight="fill" style="font-variation-settings: 'FILL' 1;">lock</span>
+<span class="font-caption text-caption text-primary font-medium tracking-tight">Locked Sync</span>
+</div>
+<!-- Volume Slider Module -->
+<div class="flex items-center gap-1.5 ml-2 group/vol">
+<button class="w-7 h-7 rounded flex items-center justify-center text-on-surface hover:text-white">
+<span class="material-symbols-outlined text-base" data-icon="volume_up">volume_up</span>
+</button>
+<div class="w-16 h-1 bg-white/25 rounded-full overflow-hidden relative cursor-pointer group-hover/vol:w-20 transition-all duration-200">
+<div class="w-[82%] h-full bg-white rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Right Controls: Audio Stream, Video Spec, PiP, Fullscreen -->
+<div class="flex items-center gap-2">
+<!-- Audio Spec Pill -->
+<button class="liquid-sub-glass px-2.5 py-1 rounded-lg flex items-center gap-1.5 hover:bg-white/10 transition-colors text-xs text-on-surface" title="音轨选择">
+<span class="material-symbols-outlined text-xs text-secondary" data-icon="surround_sound">surround_sound</span>
+<span class="font-mono-data text-mono-data font-medium">Dolby Atmos 7.1</span>
+</button>
+<!-- Video Resolution Selector -->
+<button class="liquid-sub-glass px-2.5 py-1 rounded-lg flex items-center gap-1.5 hover:bg-white/10 transition-colors text-xs text-on-surface" title="清晰度与码率">
+<span class="font-mono-data text-mono-data font-semibold text-primary">4K UHD</span>
+<span class="font-mono-data text-mono-data text-on-surface-variant">60fps</span>
+</button>
+<!-- Picture in Picture -->
+<button class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-on-surface hover:text-white transition-colors" title="画中画模式">
+<span class="material-symbols-outlined text-lg" data-icon="picture_in_picture_alt">picture_in_picture_alt</span>
+</button>
+<!-- Theater Mode Toggle -->
+<button class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-on-surface hover:text-white transition-colors" title="影院全宽布局">
+<span class="material-symbols-outlined text-lg" data-icon="crop_landscape">crop_landscape</span>
+</button>
+<!-- Fullscreen -->
+<button class="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-on-surface hover:text-white transition-colors" title="全屏视窗">
+<span class="material-symbols-outlined text-lg" data-icon="fullscreen">fullscreen</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Live Participant Sync Head Stack (Under Cinema Window) -->
+<div class="w-full max-w-6xl mt-4 px-2 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="text-caption font-caption text-outline font-medium uppercase tracking-wider">画面同频视线</span>
+<div class="flex items-center -space-x-2 overflow-hidden py-1">
+<!-- Host: Alexander -->
+<div class="relative group/avatar cursor-pointer" title="Alexander (房主 · 基准时钟)">
+<img class="w-7 h-7 rounded-full ring-2 ring-primary object-cover" data-alt="A portrait of Alexander the room host, dressed in minimalist charcoal aesthetic clothing with deep ambient dark lighting. Profile avatar." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD62ROhBIwqMQsHbhMHCYmXqRs7-SYRxVHpsqG_sxYlJufYhqkD5k6_jWSZZoiTH7IBBqC15mUtTHatzTpVbh49FA5XGXJqc5WB5oF7jby0MwqnhpB0RH_Bk6zHQ1IC32CLfXizsBhZRVjeoN_RPGHAzlmOuCUJOCfgli4W3ORY6RG3Pzs0Xij2qRrIRSDYYFCciL-fvQAO-ZV4IBevylZnVV_YjFBAO1FNpIb2XhU9"/>
+<div class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-surface flex items-center justify-center">
+<span class="w-1 h-1 rounded-full bg-surface-container-lowest"></span>
+</div>
+</div>
+<!-- Member: Sophia -->
+<div class="relative group/avatar cursor-pointer" title="Sophia (+0.2ms 延迟)">
+<img class="w-7 h-7 rounded-full ring-2 ring-surface-container-highest object-cover" data-alt="Portrait of Sophia, clean Apple-like aesthetic headshot with subtle studio backlighting, confident smile, natural warm tone." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDE5CXqBalI1NLHm37c1yUU4zKxCFOWQl450d-QijSHklaDqgzuZxrO1c9jWgzvDyVRiJJy8t3rFVBHAM1_s9mlICtZNYL-2DQMgZOyK1bxfarDRDByLGeiKh1y18BCA44mQ526bmX0oSctVwaERhWrHEcBmhwMcyWJN6Owldd0tEBVNt6DkmvohVUGM_ikgesRJ7P-J4FKiR6JcpEB8g3PAmLHlM_EFbWc3G8J83nN"/>
+<div class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-tertiary border-2 border-surface"></div>
+</div>
+<!-- Member: Linus -->
+<div class="relative group/avatar cursor-pointer" title="Linus (-0.4ms 延迟)">
+<img class="w-7 h-7 rounded-full ring-2 ring-surface-container-highest object-cover" data-alt="Portrait of Linus, wearing smart dark glasses, moody cinematic lighting, clean focused studio shot." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC4rsVJrS-teCP1MqjqhVw47oYcvtBaj0kCTniKB6fB8sSwfxyyHohe8CfdENBIZFZkz-nFsN8J9_63pojqCvx0yf0MC2j4e68nnRPru3LYZ1Op-H94bBTgKvczAX4pcKYxFkecX1943pK68h2rRrmhA624rctlSqRmRG82X7Gxyln4gmB_UpTdSYOFsu65_XGgfvOybNSa-2QVyrjPDR_WGFYDUenBFbKsgJypLRXa"/>
+<div class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-tertiary border-2 border-surface"></div>
+</div>
+<!-- Member: Ann -->
+<div class="relative group/avatar cursor-pointer" title="Ann (±0.0ms 完美对齐)">
+<img class="w-7 h-7 rounded-full ring-2 ring-surface-container-highest object-cover" data-alt="Portrait of Ann, minimal artistic lighting, soft focus background, Scandinavian modern clean portrait styling." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpR3RDJ3MqL9C7rYXsRAXtKLf0A4N0CCXNOUTaPz-THs_O_9VuRkOkbqY4Uz5R8Y2D4U8MY12Osr4t9SWY-gVa-WROhRR9HVTnY1mrLaypm4CwYvM-UhEt22q_0xm-c5fljW4YNBXGteSmzDxSJSMMCwTL51SeVMy4bA5DlFs9pW8eo6mJxkeMYP6SkoElLNrg6Of-etNIWVWqnaLrf3gHZpJXUf0EwB_PUkxG0whl"/>
+<div class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-tertiary border-2 border-surface"></div>
+</div>
+</div>
+<span class="text-caption font-caption text-tertiary font-mono-data flex items-center gap-1">
+<span class="w-1 h-1 rounded-full bg-tertiary"></span>
+            全员帧对齐完成 (0 掉帧)
+          </span>
+</div>
+<!-- Cinema Audio Preset Badge -->
+<div class="flex items-center gap-2 text-caption font-caption text-outline">
+<span class="material-symbols-outlined text-xs" data-icon="spatial_audio">spatial_audio</span>
+<span>空间音频已就绪 · 双耳渲染已开启</span>
+</div>
+</div>
+</main>
+<!-- ================= RIGHT COLLAPSIBLE INSPECTOR DOCK (Shared Component JSON Target) ================= -->
+<aside class="fixed right-0 top-0 h-full w-80 z-40 bg-surface-container-low/75 dark:bg-surface-container-low/75 backdrop-blur-3xl border-l border-outline-variant/15 dark:border-outline-variant/15 shadow-2xl flex flex-col pt-16 pb-6 px-4">
+<!-- Dock Room Identity Header -->
+<div class="pb-3 border-b border-outline-variant/15 flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<img class="w-8 h-8 rounded-full ring-1 ring-primary/40 object-cover" data-alt="Small round avatar icon of room host Alexander in ambient soft cinematic light, high contrast Apple aesthetic styling." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkp0ZWrK285nORCXaMrqKHS4nc0qNAiDzOa9ElxyQcQBM4VFhLmZT8YsPpYtgyqE0tXyQkYnn7NTMVmcmCYZiKSlUGqlq1ebXDHcWtofj68aw0wfQx31VHVNeqHVjPJF2_eNwyhGVKIpozlJ1AuO41DX9e9MkargFJ9XhAOndf8rIMab_yUMsHvbkp7Or5OC1y6YR4uconBb4zyc_fZ0WALfezUaDWUfPeSsDlMI9N"/>
+<div class="flex flex-col">
+<h2 class="text-title-sm font-title-sm font-semibold text-on-surface dark:text-on-surface leading-tight">放映室 #0492</h2>
+<p class="text-caption font-caption text-on-surface-variant leading-tight">Host: Alexander · 4 Peers Connected</p>
+</div>
+</div>
+<!-- Media Request CTA Button from JSON -->
+<button class="px-2.5 py-1 rounded-lg bg-primary-container text-on-primary-container text-caption font-caption font-semibold active:scale-[0.98] transition-all duration-100 ease-out flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-xs" data-icon="add">add</span>
+<span>点播媒体</span>
+</button>
+</div>
+<!-- Segmented Inspector Tabs (4 Tabs as per JSON) -->
+<!-- Tab logic: 实时讨论 is Active -->
+<div class="grid grid-cols-4 gap-1 p-1 mt-3 bg-surface-container-highest/40 rounded-xl border border-outline-variant/15">
+<!-- Tab 1: 实时讨论 (ACTIVE) -->
+<button class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg bg-surface-bright/50 dark:bg-surface-bright/50 text-on-surface dark:text-on-surface font-title-sm text-title-sm border border-outline-variant/20 transition-all duration-150 active:scale-[0.98]" title="实时讨论">
+<span class="material-symbols-outlined text-base text-primary" data-icon="chat_bubble">chat_bubble</span>
+<span class="text-caption font-caption font-medium tracking-tight mt-0.5">实时讨论</span>
+</button>
+<!-- Tab 2: 语音连接 (4) -->
+<button class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface dark:hover:text-on-surface text-body-sm font-body-sm hover:bg-surface-container-highest/40 transition-all duration-150 active:scale-[0.98]" title="语音连接">
+<div class="relative">
+<span class="material-symbols-outlined text-base" data-icon="mic">mic</span>
+<span class="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+</div>
+<span class="text-caption font-caption tracking-tight mt-0.5">语音 (4)</span>
+</button>
+<!-- Tab 3: 点播序列 -->
+<button class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface dark:hover:text-on-surface text-body-sm font-body-sm hover:bg-surface-container-highest/40 transition-all duration-150 active:scale-[0.98]" title="点播序列">
+<span class="material-symbols-outlined text-base" data-icon="playlist_play">playlist_play</span>
+<span class="text-caption font-caption tracking-tight mt-0.5">点播序列</span>
+</button>
+<!-- Tab 4: 同步遥测 -->
+<button class="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface dark:hover:text-on-surface text-body-sm font-body-sm hover:bg-surface-container-highest/40 transition-all duration-150 active:scale-[0.98]" title="同步遥测">
+<span class="material-symbols-outlined text-base" data-icon="monitoring">monitoring</span>
+<span class="text-caption font-caption tracking-tight mt-0.5">同步遥测</span>
+</button>
+</div>
+<!-- Voice Session Sub-strip: Quick P2P Voice Matrix -->
+<div class="mt-3 p-2 rounded-xl bg-surface-container/40 border border-outline-variant/15 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="flex items-center -space-x-1.5">
+<div class="w-5 h-5 rounded-full bg-surface-container-high ring-1 ring-primary overflow-hidden flex items-center justify-center text-[10px] text-primary">A</div>
+<div class="w-5 h-5 rounded-full bg-surface-container-high ring-1 ring-tertiary overflow-hidden flex items-center justify-center text-[10px] text-tertiary">S</div>
+<div class="w-5 h-5 rounded-full bg-surface-container-high ring-1 ring-tertiary overflow-hidden flex items-center justify-center text-[10px] text-tertiary">L</div>
+</div>
+<div class="flex flex-col">
+<span class="text-caption font-caption text-on-surface font-medium leading-none">全双工超宽带语音</span>
+<span class="font-mono-data text-mono-data text-outline leading-tight text-[10px]">Opus 48kHz · 0.2% 抖动</span>
+</div>
+</div>
+<!-- Mic mute toggle button -->
+<button class="w-7 h-7 rounded-lg bg-surface-bright/50 hover:bg-surface-bright text-primary flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="mic">mic</span>
+</button>
+</div>
+<!-- Real-time Discussion Message Stream -->
+<div class="flex-1 overflow-y-auto mt-3 pr-1 space-y-3 flex flex-col justify-end">
+<!-- System notification card -->
+<div class="px-2.5 py-1.5 rounded-lg bg-surface-container/30 border border-outline-variant/10 text-center">
+<span class="text-caption font-caption text-on-surface-variant font-mono-data">全员已完成星际穿越 4K 预加载缓冲 (100%)</span>
+</div>
+<!-- Chat message item 1 -->
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="text-caption font-caption text-secondary font-medium">Sophia</span>
+<span class="text-caption font-caption text-outline tabular-nums">21:42</span>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-high/40 border border-outline-variant/15 text-body-sm font-body-sm text-on-surface leading-snug">
+            汉斯·季默这段管风琴一响，低音炮下潜太爽了！你们音画对齐有延迟吗？
+          </div>
+</div>
+<!-- Chat message item 2 -->
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="text-caption font-caption text-primary font-medium">Linus</span>
+<span class="text-caption font-caption text-outline tabular-nums">21:43</span>
+</div>
+<div class="p-2.5 rounded-xl bg-surface-container-high/40 border border-outline-variant/15 text-body-sm font-body-sm text-on-surface leading-snug">
+            我这 P2P 延迟 12ms，毫秒表完全对齐，稳如本地蓝光播放机。
+          </div>
+</div>
+<!-- Chat message item 3 (Host with accent bubble) -->
+<div class="flex flex-col gap-1 items-end">
+<div class="flex items-center gap-1.5">
+<span class="text-caption font-caption text-outline tabular-nums">21:44</span>
+<span class="text-caption font-caption text-primary font-medium">Alexander (房主)</span>
+</div>
+<div class="p-2.5 rounded-xl bg-primary-container/25 border border-primary/30 text-body-sm font-body-sm text-on-surface leading-snug">
+            准备进入虫洞戏份，已开启自动杜比视界高动态调色保护。🚀
+          </div>
+</div>
+<!-- Reaction Floating Bar -->
+<div class="flex items-center gap-1.5 pt-1">
+<button class="px-2 py-1 rounded-full bg-surface-container-high/50 hover:bg-surface-bright border border-outline-variant/15 text-xs text-on-surface transition-all active:scale-95">👏 4</button>
+<button class="px-2 py-1 rounded-full bg-surface-container-high/50 hover:bg-surface-bright border border-outline-variant/15 text-xs text-on-surface transition-all active:scale-95">✨ 2</button>
+<button class="px-2 py-1 rounded-full bg-surface-container-high/50 hover:bg-surface-bright border border-outline-variant/15 text-xs text-on-surface transition-all active:scale-95">🪐 6</button>
+</div>
+</div>
+<!-- Quick Message Input Field (Emil Kowalski Tactile Spec) -->
+<div class="mt-3 pt-3 border-t border-outline-variant/15 flex flex-col gap-2">
+<div class="relative flex items-center">
+<input class="w-full pl-3 pr-16 py-2 bg-surface-container/60 border border-outline-variant/25 rounded-xl text-body-sm font-body-sm text-on-surface placeholder-outline/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all" placeholder="向全员发送观影感想与弹幕..." type="text"/>
+<div class="absolute right-2 flex items-center gap-1">
+<button class="w-6 h-6 rounded flex items-center justify-center text-outline hover:text-on-surface transition-colors" title="表情包">
+<span class="material-symbols-outlined text-base" data-icon="mood">mood</span>
+</button>
+<button class="w-6 h-6 rounded bg-primary text-on-primary flex items-center justify-center hover:opacity-90 active:scale-95 transition-all shadow-sm" title="发送">
+<span class="material-symbols-outlined text-xs" data-icon="arrow_upward">arrow_upward</span>
+</button>
+</div>
+</div>
+<!-- Bottom Footer Navigation Links from JSON (校准偏置 & 房间设置) -->
+<div class="flex items-center justify-between pt-1">
+<button class="flex items-center gap-1.5 text-body-sm font-body-sm text-on-surface-variant hover:text-on-surface py-1 px-2 rounded-lg hover:bg-surface-container-highest/40 transition-all duration-150 active:scale-[0.98]">
+<span class="material-symbols-outlined text-base" data-icon="tune">tune</span>
+<span class="text-caption font-caption">校准偏置</span>
+</button>
+<button class="flex items-center gap-1.5 text-body-sm font-body-sm text-on-surface-variant hover:text-on-surface py-1 px-2 rounded-lg hover:bg-surface-container-highest/40 transition-all duration-150 active:scale-[0.98]">
+<span class="material-symbols-outlined text-base" data-icon="settings">settings</span>
+<span class="text-caption font-caption">房间设置</span>
+</button>
+</div>
+</div>
+</aside>
+</div>
+</body></html>

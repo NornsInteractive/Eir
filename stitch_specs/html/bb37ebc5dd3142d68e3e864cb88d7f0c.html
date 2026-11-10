@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Eir · 同频共赏 P2P 同步影厅</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "apple-blue": "#007AFF",
+            "apple-blue-hover": "#0062CC",
+            "apple-green": "#34C759",
+            "apple-orange": "#FF9500",
+            "apple-indigo": "#5856D6",
+            "apple-purple": "#AF52DE",
+            "apple-cyan": "#32ADE6",
+          },
+          fontFamily: {
+            sans: [
+              "-apple-system",
+              "BlinkMacSystemFont",
+              "SF Pro Display",
+              "SF Pro Text",
+              "Inter",
+              "sans-serif"
+            ],
+            mono: [
+              "JetBrains Mono",
+              "SF Mono",
+              "ui-monospace",
+              "monospace"
+            ]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    /* Apple macOS Sequoia & iOS 18 Light Mode Liquid Glass Physics */
+    body {
+      background-color: #F5F5F7;
+      color: #1D1D1F;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      overflow-x: hidden;
+    }
+
+    /* Light Liquid Glass Layers */
+    .liquid-glass-light {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.58) 100%);
+      backdrop-filter: blur(28px) saturate(200%);
+      -webkit-backdrop-filter: blur(28px) saturate(200%);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      box-shadow: inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95),
+                  0 8px 32px -4px rgba(0, 0, 0, 0.06),
+                  0 2px 8px -2px rgba(0, 0, 0, 0.04);
+    }
+
+    .liquid-glass-subtle-light {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.62) 100%);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.95),
+                  0 4px 16px -2px rgba(0, 0, 0, 0.04);
+    }
+
+    .liquid-glass-card-light {
+      background: linear-gradient(175deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.7) 100%);
+      backdrop-filter: blur(32px) saturate(190%);
+      -webkit-backdrop-filter: blur(32px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 1),
+                  0 12px 30px -6px rgba(0, 0, 0, 0.06),
+                  0 4px 12px -2px rgba(0, 0, 0, 0.03);
+    }
+
+    .liquid-glass-card-light:hover {
+      border-color: rgba(255, 255, 255, 0.95);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 1),
+                  0 18px 40px -8px rgba(0, 0, 0, 0.1),
+                  0 6px 16px -2px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Emil Kowalski Specular Highlight */
+    .specular-top-light {
+      position: relative;
+    }
+    .specular-top-light::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.95) 50%, transparent 100%);
+      pointer-events: none;
+    }
+
+    /* Micro-Capsule Kbd styling */
+    .micro-kbd-light {
+      font-family: inherit;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body class="text-[#1D1D1F] antialiased min-h-screen flex flex-col selection:bg-apple-blue selection:text-white relative bg-[#F5F5F7]">
+<!-- Apple Light Theme Ambient Multi-layered Gradient Glows (Refractive Background) -->
+<div class="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+<div class="absolute -top-36 left-1/2 -translate-x-1/2 w-[820px] h-[520px] bg-gradient-to-b from-[#BAE6FD]/70 via-[#E0E7FF]/55 to-transparent blur-[140px] rounded-full"></div>
+<div class="absolute top-[24%] -left-28 w-[580px] h-[580px] bg-[#CCFBF1]/65 blur-[140px] rounded-full"></div>
+<div class="absolute top-[32%] -right-28 w-[640px] h-[640px] bg-[#E0E7FF]/60 blur-[150px] rounded-full"></div>
+<div class="absolute bottom-16 left-1/3 w-[620px] h-[460px] bg-[#BAE6FD]/50 blur-[140px] rounded-full"></div>
+<!-- Apple Subtle Micro-dot pattern overlay -->
+<div class="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.025)_1px,transparent_1px)] [background-size:24px_24px] opacity-70"></div>
+</div>
+<!-- FLOATING LIQUID GLASS macOS / iOS 18 DOCK NAV BAR -->
+<header class="sticky top-4 z-50 px-4 md:px-8 max-w-7xl mx-auto w-full transition-all">
+<div class="liquid-glass-light rounded-full px-4 sm:px-5 py-2.5 flex items-center justify-between specular-top-light transition-all duration-300">
+<!-- Brand & Indicator -->
+<div class="flex items-center gap-3">
+<a class="flex items-center gap-2.5 group cursor-pointer" href="#">
+<div class="w-8 h-8 rounded-xl bg-gradient-to-b from-white to-[#F0F0F3] border border-white flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,1),0_2px_6px_rgba(0,0,0,0.08)] group-hover:scale-105 active:scale-95 transition-all">
+<span class="text-xs font-bold tracking-tighter text-[#1D1D1F] drop-shadow-sm font-mono">E</span>
+</div>
+<span class="text-[17px] font-semibold tracking-[-0.03em] text-[#1D1D1F]">Eir</span>
+<!-- Live Ping Indicator -->
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#34C759]/12 border border-[#34C759]/25 text-[11px] font-medium text-[#1E8238] tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+<span class="relative flex h-1.5 w-1.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-apple-green opacity-75"></span>
+<span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-apple-green shadow-[0_0_6px_rgba(52,199,89,0.7)]"></span>
+</span>
+          Sync
+        </span>
+</a>
+</div>
+<!-- Center macOS Inset Segmented Tab Picker -->
+<nav class="hidden md:flex items-center p-1 rounded-full bg-black/[0.04] border border-black/[0.06] shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] text-[13px]">
+<a class="px-4 py-1 rounded-full bg-white text-[#1D1D1F] font-medium shadow-[0_1px_3px_rgba(0,0,0,0.1),inset_0_0.5px_0_rgba(255,255,255,0.9)] border border-black/[0.04] transition-all" href="#">
+        大厅探索
+      </a>
+<a class="px-4 py-1 rounded-full text-[#86868B] hover:text-[#1D1D1F] hover:bg-white/40 transition-all font-medium" href="#">
+        我的放映室
+      </a>
+<a class="px-4 py-1 rounded-full text-[#86868B] hover:text-[#1D1D1F] hover:bg-white/40 transition-all font-medium" href="#">
+        同步队列
+      </a>
+<a class="px-4 py-1 rounded-full text-[#86868B] hover:text-[#1D1D1F] hover:bg-white/40 transition-all font-medium" href="#">
+        网络节点
+      </a>
+</nav>
+<!-- Right System Status, Notifications & Profile -->
+<div class="flex items-center gap-2">
+<!-- Latency Capsule -->
+<div class="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-black/[0.03] border border-black/[0.06] text-xs text-[#86868B] shadow-[inset_0_1px_1px_rgba(0,0,0,0.03)]">
+<span class="w-1.5 h-1.5 rounded-full bg-apple-green shadow-[0_0_6px_rgba(52,199,89,0.8)]"></span>
+<span class="font-mono text-[11px] text-[#1D1D1F]/90 tracking-tight font-medium">直连 12ms</span>
+</div>
+<!-- Action Buttons with Emil Micro-Interactions -->
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.05] active:scale-95 transition-all duration-150 border border-transparent hover:border-black/[0.05]" title="网络拓扑">
+<span class="material-symbols-outlined text-[18px]">wifi_tethering</span>
+</button>
+<button class="relative w-8 h-8 rounded-full flex items-center justify-center text-[#86868B] hover:text-[#1D1D1F] hover:bg-black/[0.05] active:scale-95 transition-all duration-150 border border-transparent hover:border-black/[0.05]" title="通知中心">
+<span class="material-symbols-outlined text-[18px]">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-apple-blue rounded-full shadow-[0_0_4px_#007AFF]"></span>
+</button>
+<div class="h-4 w-[1px] bg-black/10 mx-1 hidden sm:block"></div>
+<!-- User Profile Pill -->
+<div class="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-black/[0.03] hover:bg-black/[0.06] border border-black/[0.06] cursor-pointer active:scale-95 transition-all shadow-[inset_0_0.5px_0_rgba(255,255,255,0.7)]">
+<div class="w-5 h-5 rounded-full bg-gradient-to-tr from-apple-blue to-[#32ADE6] text-white flex items-center justify-center text-[10px] font-bold shadow-sm">
+          E
+        </div>
+<span class="text-xs font-medium text-[#1D1D1F] tracking-tight hidden sm:inline">埃里克</span>
+</div>
+</div>
+</div>
+</header>
+<!-- MAIN VIEWPORT -->
+<main class="flex-1 w-full max-w-7xl mx-auto px-5 md:px-8 py-10 flex flex-col gap-14 pb-28">
+<!-- HERO SECTION - Emil Kowalski & Apple Keynote Elegance -->
+<section class="flex flex-col items-center text-center pt-8 pb-3 max-w-4xl mx-auto">
+<!-- Apple HIG Capsule Badge -->
+<div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/70 border border-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_1px_rgba(255,255,255,1)] mb-7 backdrop-blur-xl">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-apple-blue opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-apple-blue shadow-[0_0_8px_#007AFF]"></span>
+</span>
+<span class="font-mono text-[11px] font-medium text-[#1D1D1F]/80 tracking-tight">macOS Sequoia · Eir Sync Engine 2.14</span>
+</div>
+<!-- Keynote Display Typography -->
+<h1 class="text-4xl sm:text-5xl md:text-6xl font-bold tracking-[-0.04em] text-[#1D1D1F] mb-4 leading-tight">
+      跨越距离，同频共赏
+    </h1>
+<!-- Subtitle with refined typography -->
+<p class="text-base sm:text-lg text-[#86868B] max-w-2xl text-balance font-normal leading-relaxed mb-9 tracking-[-0.015em]">
+      毫秒级点对点画面精准对齐，无感时钟修正。异地相隔，亦如促膝同席。
+    </p>
+<!-- Apple Liquid Glass Action Bar -->
+<div class="w-full max-w-2xl p-2 rounded-2xl liquid-glass-light specular-top-light flex flex-col sm:flex-row items-center gap-2.5">
+<!-- Apple Primary Blue Button with Specular Edge -->
+<button class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-apple-blue hover:bg-apple-blue-hover text-white font-medium text-[14px] shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_6px_18px_rgba(0,122,255,0.25)] border-t border-white/30 flex items-center justify-center gap-2 whitespace-nowrap active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+<span>创建专属放映室</span>
+</button>
+<!-- macOS Inset Search Field -->
+<div class="relative flex-1 w-full flex items-center">
+<span class="material-symbols-outlined absolute left-3.5 text-[#86868B] text-[18px]">link</span>
+<input class="w-full pl-10 pr-24 py-2 bg-white/70 border border-black/[0.08] rounded-xl text-[13px] text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:border-apple-blue focus:ring-2 focus:ring-apple-blue/20 transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.03)]" placeholder="输入 6 位房间码或粘贴邀请链接..." type="text"/>
+<div class="absolute right-1.5 flex items-center">
+<button class="px-2.5 py-1 rounded-lg bg-black/[0.05] hover:bg-black/[0.08] text-[12px] font-medium text-[#1D1D1F]/90 border border-black/[0.06] active:scale-95 transition-all flex items-center gap-1.5 micro-kbd-light">
+<span class="text-[11px] font-mono tracking-wider font-semibold text-[#86868B]">⌘V</span>
+<span>粘贴加入</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- HIG FEATURE PILLS STRIP (Apple Liquid Glass Pills) -->
+<section class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 max-w-4xl mx-auto w-full">
+<!-- Feature 1 -->
+<div class="liquid-glass-subtle-light rounded-2xl p-4 flex items-center gap-3.5 hover:border-white transition-all duration-200">
+<div class="w-10 h-10 rounded-xl bg-apple-blue/10 border border-apple-blue/25 flex items-center justify-center text-apple-blue shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]">
+<span class="material-symbols-outlined text-[20px]">lock</span>
+</div>
+<div>
+<h4 class="text-[13px] font-semibold text-[#1D1D1F] tracking-tight">端对端硬件加密</h4>
+<p class="font-mono text-[11px] text-[#86868B] mt-0.5">AES-256-GCM · 零日志保留</p>
+</div>
+</div>
+<!-- Feature 2 -->
+<div class="liquid-glass-subtle-light rounded-2xl p-4 flex items-center gap-3.5 hover:border-white transition-all duration-200">
+<div class="w-10 h-10 rounded-xl bg-apple-green/12 border border-apple-green/25 flex items-center justify-center text-[#1E8238] shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]">
+<span class="material-symbols-outlined text-[20px]">bolt</span>
+</div>
+<div>
+<h4 class="text-[13px] font-semibold text-[#1D1D1F] tracking-tight">零中继 P2P 直连</h4>
+<p class="font-mono text-[11px] text-[#86868B] mt-0.5">WebRTC Mesh · 延迟 &lt; 20ms</p>
+</div>
+</div>
+<!-- Feature 3 -->
+<div class="liquid-glass-subtle-light rounded-2xl p-4 flex items-center gap-3.5 hover:border-white transition-all duration-200">
+<div class="w-10 h-10 rounded-xl bg-apple-orange/12 border border-apple-orange/25 flex items-center justify-center text-[#D97706] shadow-[inset_0_1px_1px_rgba(255,255,255,0.8)]">
+<span class="material-symbols-outlined text-[20px]">sync</span>
+</div>
+<div>
+<h4 class="text-[13px] font-semibold text-[#1D1D1F] tracking-tight">自适应声画同步</h4>
+<p class="font-mono text-[11px] text-[#86868B] mt-0.5">微阶帧跳跃 · 零抖动补偿</p>
+</div>
+</div>
+</section>
+<!-- SECTION: ACTIVE ROOMS -->
+<section class="flex flex-col gap-5">
+<!-- Section Header Bar -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+<div class="flex items-center gap-2.5">
+<h2 class="text-xl font-bold tracking-tight text-[#1D1D1F]">最近活跃的放映室</h2>
+<span class="px-2 py-0.5 rounded-full bg-black/[0.05] text-[#1D1D1F]/80 font-mono text-[11px] font-medium border border-black/[0.06] tabular-nums">
+          3 活跃
+        </span>
+</div>
+<!-- Segmented Control Filter -->
+<div class="flex items-center gap-2">
+<div class="p-1 rounded-full bg-black/[0.04] border border-black/[0.06] flex items-center gap-1 backdrop-blur-xl shadow-inner">
+<button class="px-3.5 py-1 rounded-full bg-white text-[#1D1D1F] font-medium text-xs shadow-[0_1px_3px_rgba(0,0,0,0.08)] border border-black/[0.04]">
+            全部放映室 (4)
+          </button>
+<button class="px-3.5 py-1 rounded-full text-[#86868B] hover:text-[#1D1D1F] font-medium text-xs transition-colors">
+            我主持的
+          </button>
+<button class="px-3.5 py-1 rounded-full text-[#86868B] hover:text-[#1D1D1F] font-medium text-xs transition-colors">
+            已收藏
+          </button>
+</div>
+<button class="w-8 h-8 rounded-full bg-white/70 border border-white/80 text-[#86868B] hover:text-[#1D1D1F] hover:bg-white shadow-sm flex items-center justify-center transition-all active:scale-95" title="刷新列表">
+<span class="material-symbols-outlined text-[17px]">refresh</span>
+</button>
+</div>
+</div>
+<!-- Room Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Card 1: 星际穿越 -->
+<div class="group flex flex-col rounded-3xl liquid-glass-card-light hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+<!-- 16:9 Cinematic Preview with squircle top -->
+<div class="relative w-full aspect-video bg-black/90 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" data-alt="A cinematic widescreen 4K shot of a spaceship navigating deep outer space through a luminous cyan-tinged wormhole and accretion disk. The lighting is moody and contrast-heavy with deep obsidian blacks, sharp cold light rays, and faint starlight. The atmosphere is quiet, majestic, and hyper-realistic in modern digital sci-fi film aesthetics." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNgIcDVTOpI89Z1q0UdyWJKMF_g8AJenorETH1J3VioNPQso-uQtGYs5SB7iqL83SriTl42OaklIToS1FHvcS2e8dxCsye_HSYwXG7fs5Wfhf7XpQkRB4MoELNqf--3uq2T_BytlFc0ZGvnojlxII0uCLyG1SEOAoQiFbCwIABPOH2p9qZ9ZdGAEqb_O8eJcixfohJoB7M6UVwL56sZTavDKCHC8DJ4XxdyzMo98UJ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40"></div>
+<!-- Liquid Frosted Badges -->
+<div class="absolute top-3 left-3 flex items-center gap-1.5">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 text-[11px] font-mono text-[#30D158] font-medium tabular-nums shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-[#30D158] shadow-[0_0_6px_#30D158]"></span>
+              直连 12ms
+            </span>
+<span class="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 text-[11px] font-medium text-white">
+              4K HDR
+            </span>
+</div>
+<div class="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 text-[11px] font-medium text-white tabular-nums">
+            4/8 成员
+          </div>
+<!-- Apple Scrubber Live Progress Bar -->
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-white/25">
+<div class="h-full bg-apple-blue rounded-r-full w-[68%] shadow-[0_0_8px_#007AFF]"></div>
+</div>
+</div>
+<!-- Card Content Body -->
+<div class="p-5 flex flex-col flex-1 justify-between gap-4">
+<div>
+<h3 class="text-[16px] font-semibold text-[#1D1D1F] tracking-[-0.015em] group-hover:text-apple-blue transition-colors truncate">
+              周末影会 · 星际穿越 (4K HDR)
+            </h3>
+<div class="flex items-center gap-2.5 mt-2">
+<div class="flex items-center gap-1 px-2 py-0.5 rounded-md bg-apple-orange/12 border border-apple-orange/25 text-[#D97706] text-[11px] font-medium">
+<span class="material-symbols-outlined text-[13px]">verified</span>
+<span>房主 埃里克 (你)</span>
+</div>
+<span class="font-mono text-xs text-[#86868B] tabular-nums">01:42:18 / 02:49:00</span>
+</div>
+</div>
+<!-- Action Area -->
+<div class="pt-3 border-t border-black/[0.06] flex items-center justify-between">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full bg-apple-blue text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white">E</div>
+<div class="w-6 h-6 rounded-full bg-apple-indigo text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white">K</div>
+<div class="w-6 h-6 rounded-full bg-black/10 text-[10px] font-mono font-semibold text-[#86868B] flex items-center justify-center ring-2 ring-white">+2</div>
+</div>
+<button class="px-3.5 py-1.5 rounded-full bg-black/[0.05] hover:bg-apple-blue hover:text-white text-[#1D1D1F] text-[13px] font-medium border border-black/[0.06] hover:border-apple-blue shadow-sm transition-all duration-150 flex items-center gap-1 active:scale-95">
+<span>进入房间</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Card 2: 葬送的芙莉莲 -->
+<div class="group flex flex-col rounded-3xl liquid-glass-card-light hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+<div class="relative w-full aspect-video bg-black/90 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" data-alt="An ethereal high-fantasy animated meadow with glowing blue starry night sky, ancient marble ruins overgrown with luminescent flowers. Crisp clean line art with subtle rim lighting and soft cyan and deep navy atmospheric contrast. The mood is quiet, contemplative, and cinematic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTAj4frMyM6OCN-tVeKh3QHLq69Rn7yRnccN-L4EG19UQdt_3NbKTvhZjCqTzi3HpnDexOMET-zJmg9KWPVG_bhGtK_LqK4DUTIwJ60a4A00DgG2x7IYEFYSSJUm4suffLJ0kgHW9AP88VCWuHsRXwcRZqim4C8hORZ1VY9EKJ_7FmDq318aYptcJoSyUcYORxOAS68Uro1BDi0Ax9QK_5wxo9P-C0EJ0WVAyLF-Uk"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40"></div>
+<div class="absolute top-3 left-3 flex items-center gap-1.5">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 text-[11px] font-mono text-[#30D158] font-medium tabular-nums shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-[#30D158] shadow-[0_0_6px_#30D158]"></span>
+              直连 19ms
+            </span>
+<span class="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 text-[11px] font-medium text-white">
+              1080P 60fps
+            </span>
+</div>
+<div class="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 text-[11px] font-medium text-white tabular-nums">
+            6 在线
+          </div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-white/25">
+<div class="h-full bg-apple-blue rounded-r-full w-[42%] shadow-[0_0_8px_#007AFF]"></div>
+</div>
+</div>
+<div class="p-5 flex flex-col flex-1 justify-between gap-4">
+<div>
+<h3 class="text-[16px] font-semibold text-[#1D1D1F] tracking-[-0.015em] group-hover:text-apple-blue transition-colors truncate">
+              葬送的芙莉莲 · 第 28 话
+            </h3>
+<div class="flex items-center gap-2.5 mt-2">
+<div class="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/[0.05] border border-black/[0.06] text-[#1D1D1F]/90 text-[11px] font-medium">
+<span class="material-symbols-outlined text-[13px]">person</span>
+<span>索菲亚 (Sofia)</span>
+</div>
+<span class="font-mono text-xs text-[#86868B] tabular-nums">10:14 / 24:12</span>
+</div>
+</div>
+<div class="pt-3 border-t border-black/[0.06] flex items-center justify-between">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full bg-apple-purple text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white">S</div>
+<div class="w-6 h-6 rounded-full bg-apple-orange text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white">M</div>
+<div class="w-6 h-6 rounded-full bg-black/10 text-[10px] font-mono font-semibold text-[#86868B] flex items-center justify-center ring-2 ring-white">+4</div>
+</div>
+<button class="px-3.5 py-1.5 rounded-full bg-black/[0.05] hover:bg-apple-blue hover:text-white text-[#1D1D1F] text-[13px] font-medium border border-black/[0.06] hover:border-apple-blue shadow-sm transition-all duration-150 flex items-center gap-1 active:scale-95">
+<span>进入房间</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Card 3: BBC 地球脉动 III -->
+<div class="group flex flex-col rounded-3xl liquid-glass-card-light hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+<div class="relative w-full aspect-video bg-black/90 overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" data-alt="An awe-inspiring underwater photography scene showing a bioluminescent deep sea creature drifting in the abyss. Deep obsidian water contrasts with delicate neon cyan and amber glowing aquatic tendrils. Ultra crisp resolution, photorealistic BBC nature documentary quality, high micro-detail." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNC1L2wqYbEKvB97AHp9anqsshLc3X-5sIMgyVjjI2-rZ7b-tEsul6ArKRa5HYRK1Qw8MhhwazzMNkhkPyxL0VyJqlBhXOaNCjajC_X5jA_u9fLbjbskHJ1qlvKTYocAK2EocSXcXcM2IyH4x0WDVTskq6Lc1A1kozEXOuvCSURIReQWmMrCoj3E3ZVeopa3RFcwTmSOsfnvOWyzB_EgEikYPolvNlwLU1F4d4bl4D"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40"></div>
+<div class="absolute top-3 left-3 flex items-center gap-1.5">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 text-[11px] font-mono text-[#FF9500] font-medium tabular-nums shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-[#FF9500] shadow-[0_0_6px_#FF9500]"></span>
+              节点中继 48ms
+            </span>
+<span class="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 text-[11px] font-medium text-white">
+              4K UHD
+            </span>
+</div>
+<div class="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 text-[11px] font-medium text-white tabular-nums">
+            2 在线
+          </div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-white/25">
+<div class="h-full bg-apple-blue rounded-r-full w-[18%] shadow-[0_0_8px_#007AFF]"></div>
+</div>
+</div>
+<div class="p-5 flex flex-col flex-1 justify-between gap-4">
+<div>
+<h3 class="text-[16px] font-semibold text-[#1D1D1F] tracking-[-0.015em] group-hover:text-apple-blue transition-colors truncate">
+              BBC 地球脉动 III · 极地深海
+            </h3>
+<div class="flex items-center gap-2.5 mt-2">
+<div class="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/[0.05] border border-black/[0.06] text-[#1D1D1F]/90 text-[11px] font-medium">
+<span class="material-symbols-outlined text-[13px]">person</span>
+<span>林纳斯</span>
+</div>
+<span class="font-mono text-xs text-[#86868B] tabular-nums">08:52 / 58:20</span>
+</div>
+</div>
+<div class="pt-3 border-t border-black/[0.06] flex items-center justify-between">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full bg-apple-green text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white">L</div>
+<div class="w-6 h-6 rounded-full bg-apple-blue text-[10px] font-mono font-bold text-white flex items-center justify-center ring-2 ring-white">A</div>
+</div>
+<button class="px-3.5 py-1.5 rounded-full bg-black/[0.05] hover:bg-apple-blue hover:text-white text-[#1D1D1F] text-[13px] font-medium border border-black/[0.06] hover:border-apple-blue shadow-sm transition-all duration-150 flex items-center gap-1 active:scale-95">
+<span>进入房间</span>
+<span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- CALLOUT CARD (Apple Translucent Liquid Glass Panel) -->
+<section class="liquid-glass-light rounded-3xl p-7 relative overflow-hidden specular-top-light">
+<!-- Ambient glowing reflection -->
+<div class="absolute -right-20 -bottom-20 w-96 h-96 rounded-full bg-apple-blue/15 blur-3xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+<div class="flex items-center gap-4 text-center md:text-left">
+<div class="hidden sm:flex w-12 h-12 rounded-2xl bg-white border border-white/80 items-center justify-center text-apple-blue shadow-[0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)] flex-shrink-0">
+<span class="material-symbols-outlined text-[24px]">theater_comedy</span>
+</div>
+<div>
+<h4 class="text-[17px] font-semibold text-[#1D1D1F] tracking-tight">
+            还没有放映室？即刻创建专属于你们的双人或多人影厅。
+          </h4>
+<p class="text-sm text-[#86868B] mt-1 font-normal">
+            支持本地视频文件、HLS 直播流、以及主流流媒体直链毫秒级锁频播放。
+          </p>
+</div>
+</div>
+<button class="px-5 py-2.5 rounded-full bg-apple-blue hover:bg-apple-blue-hover text-white font-medium text-[13px] shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_6px_18px_rgba(0,122,255,0.25)] whitespace-nowrap active:scale-95 transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+<span>+ 开启新的放映</span>
+</button>
+</div>
+</section>
+</main>
+<!-- APPLE CLEAN DOCKED FROSTED GLASS FOOTER (Prominent Liquid Glass) -->
+<footer class="fixed bottom-0 left-0 right-0 z-40 backdrop-blur-2xl bg-white/75 border-t border-white/60 shadow-[0_-4px_24px_rgba(0,0,0,0.05),inset_0_1px_0_rgba(255,255,255,0.8)]">
+<div class="max-w-7xl mx-auto px-6 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#86868B]">
+<!-- System status -->
+<div class="flex items-center gap-2.5 font-mono text-[11px] tabular-nums">
+<span class="flex items-center gap-1.5 text-[#1E8238] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-apple-green shadow-[0_0_6px_rgba(52,199,89,0.8)]"></span>
+        网络就绪 · P2P Mesh 正常
+      </span>
+<span class="text-black/15">|</span>
+<span class="text-[#86868B]">协议版本 2.14</span>
+<span class="text-black/15 hidden md:inline">|</span>
+<span class="hidden md:inline text-[#A1A1A6]">© 2025 Eir Sync Protocol. All peers verified.</span>
+</div>
+<!-- Footer Minimal Links -->
+<div class="flex items-center gap-5 font-mono text-[11px]">
+<a class="hover:text-[#1D1D1F] transition-colors" href="#">快捷键</a>
+<a class="hover:text-[#1D1D1F] transition-colors" href="#">协议条款</a>
+<a class="hover:text-[#1D1D1F] transition-colors" href="#">WebRTC Status</a>
+<a class="hover:text-[#1D1D1F] transition-colors" href="https://github.com" rel="noreferrer" target="_blank">GitHub</a>
+</div>
+</div>
+</footer>
+</body></html>
