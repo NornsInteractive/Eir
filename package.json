@@ -1,0 +1,12 @@
+{
+  "name": "eir",
+  "private": true,
+  "scripts": {
+    "build": "flutter build web --release",
+    "deploy": "npx wrangler deploy",
+    "dev": "npx wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^3.100.0"
+  }
+}
