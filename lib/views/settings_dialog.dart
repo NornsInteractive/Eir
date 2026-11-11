@@ -581,11 +581,65 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                 ),
                                 const SizedBox(height: 18),
 
-                                // 5. Media Cache Occupancy & Safe Cleanup (V1-PRD §9)
+                                // 5. Background Keep-Alive
+                                _buildSectionHeader(
+                                  context,
+                                  icon: Icons.power_settings_new_rounded,
+                                  title: i18n.backgroundKeepAliveTitle,
+                                ),
+                                const SizedBox(height: 8),
+                                GlassContainer.card(
+                                  surfaceStyle: GlassSurfaceStyle.solid,
+                                  color: tc.inputBackground,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 10),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              i18n.backgroundKeepAliveTitle,
+                                              style: TextStyle(
+                                                fontSize: 13.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: tc.textPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              i18n.backgroundKeepAliveDesc,
+                                              style: TextStyle(
+                                                fontSize: 11.5,
+                                                color: tc.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Switch.adaptive(
+                                        value: settings.backgroundKeepAlive,
+                                        activeColor: tc.primary,
+                                        onChanged: (val) {
+                                          settings.setBackgroundKeepAlive(val);
+                                          final session = widget.session;
+                                          if (session != null) {
+                                            session.syncKeepAlive(val);
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+
+                                // 6. Media Cache Occupancy & Safe Cleanup (V1-PRD §9)
                                 _buildCacheSection(context, i18n, tc),
                                 const SizedBox(height: 18),
 
-                                // 6. Real Node Diagnostics (No secrets, invites or URLs)
+                                // 7. Real Node Diagnostics (No secrets, invites or URLs)
                                 _buildDiagnosticsSection(context, i18n, tc),
                               ],
                             ),

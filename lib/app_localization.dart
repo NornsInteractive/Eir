@@ -276,6 +276,16 @@ class AppI18n {
   String get lightColor => isZh ? '浅色主题色' : 'Light Theme Accent';
   String get darkColor => isZh ? '深色主题色' : 'Dark Theme Accent';
   String get resetDefault => isZh ? '恢复默认' : 'Reset Default';
+  String get backgroundKeepAliveTitle => isZh ? '后台保活' : 'Background Keep-Alive';
+  String get backgroundKeepAliveDesc => isZh
+      ? '在房主或添加本地视频时保持后台网络连接与分片数据传输'
+      : 'Keep connection and streaming active when app is in background';
+  String get sourceUserLeftRoom => isZh ? '对方已退出房间' : 'Provider left';
+  String get autoSkipNextVideo => isZh ? '添加者已离开房间，自动播放下一条' : 'Provider left, playing next item';
+  String get toggleOrientation => isZh ? '横竖屏切换' : 'Toggle Orientation';
+  String get enterFullscreen => isZh ? '全屏播放' : 'Fullscreen';
+  String get exitFullscreen => isZh ? '退出全屏' : 'Exit Fullscreen';
+  String newHostPromoted(String name) => isZh ? '$name 已成为新房主' : '$name is now the host';
 
   // Preset Colors
   String get colorAppleBlue => isZh ? '经典蓝' : 'Classic Blue';

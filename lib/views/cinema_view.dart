@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
@@ -30,6 +31,11 @@ class _CinemaViewState extends State<CinemaView> {
   double _volume = 1.0;
   double _brightness = 1.0;
   bool _isFullscreen = false;
+  bool _isLandscape = false;
+  bool _isScrubbing = false;
+  Duration? _scrubTarget;
+  Duration? _scrubStart;
+  int _scrubDeltaSec = 0;
   bool _showControls = true;
   Timer? _controlsTimer;
   bool _isLocked = false;
@@ -128,6 +134,19 @@ class _CinemaViewState extends State<CinemaView> {
 
   @override
   void dispose() {
+    if (_isFullscreen || _isLandscape) {
+      if (!kIsWeb) {
+        try {
+          SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+          SystemChrome.setPreferredOrientations([
+            DeviceOrientation.portraitUp,
+            DeviceOrientation.portraitDown,
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ]);
+        } catch (_) {}
+      }
+    }
     _controlsTimer?.cancel();
     _gestureHudTimer?.cancel();
     hideLiquidGlassSnackBar();
@@ -138,6 +157,98 @@ class _CinemaViewState extends State<CinemaView> {
     _bufferingSub?.cancel();
     // Note: widget.session.player is owned by widget.session, do not dispose player here!
     super.dispose();
+  }
+
+  Future<void> _setFullscreen(bool fullscreen) async {
+    setState(() {
+      _isFullscreen = fullscreen;
+    });
+    if (!kIsWeb) {
+      if (fullscreen) {
+        try {
+          await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+          await SystemChrome.setPreferredOrientations([
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ]);
+          _isLandscape = true;
+        } catch (_) {}
+      } else {
+        try {
+          await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+          await SystemChrome.setPreferredOrientations([
+            DeviceOrientation.portraitUp,
+            DeviceOrientation.portraitDown,
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ]);
+          _isLandscape = false;
+        } catch (_) {}
+      }
+    }
+  }
+
+  Future<void> _toggleOrientation() async {
+    final nextLandscape = !_isLandscape;
+    setState(() {
+      _isLandscape = nextLandscape;
+    });
+    if (!kIsWeb) {
+      try {
+        if (nextLandscape) {
+          await SystemChrome.setPreferredOrientations([
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ]);
+        } else {
+          await SystemChrome.setPreferredOrientations([
+            DeviceOrientation.portraitUp,
+            DeviceOrientation.portraitDown,
+          ]);
+        }
+      } catch (_) {}
+    }
+  }
+
+  void _onHorizontalDragStart(DragStartDetails details, Duration currentPos, Duration mediaDuration) {
+    if (_isLocked || mediaDuration.inMilliseconds <= 0) return;
+    _isScrubbing = true;
+    _scrubStart = currentPos;
+    _scrubTarget = currentPos;
+    _scrubDeltaSec = 0;
+    _restartControlsTimer();
+    setState(() {});
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details, Duration mediaDuration, double screenWidth) {
+    if (!_isScrubbing || _scrubStart == null || mediaDuration.inMilliseconds <= 0) return;
+    final double scale = (mediaDuration.inSeconds > 0)
+        ? (mediaDuration.inSeconds / 180.0).clamp(0.2, 1.5)
+        : 0.5;
+    final int deltaMs = ((details.primaryDelta ?? 0) * scale * 250).toInt();
+    final newTargetMs = (_scrubTarget!.inMilliseconds + deltaMs).clamp(0, mediaDuration.inMilliseconds);
+    _scrubTarget = Duration(milliseconds: newTargetMs);
+    _scrubDeltaSec = (_scrubTarget!.inMilliseconds - _scrubStart!.inMilliseconds) ~/ 1000;
+    setState(() {});
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details, bool isHostOrAdmin) {
+    if (!_isScrubbing) return;
+    final target = _scrubTarget;
+    _isScrubbing = false;
+    setState(() {});
+    if (isHostOrAdmin && target != null) {
+      widget.session.seek(target);
+    }
+    _restartControlsTimer();
+  }
+
+  void _onHorizontalDragCancel() {
+    if (_isScrubbing) {
+      setState(() {
+        _isScrubbing = false;
+      });
+    }
   }
 
   void _restartControlsTimer() {
@@ -636,7 +747,7 @@ class _CinemaViewState extends State<CinemaView> {
         final screenHeight = mediaQuery.size.height;
         final isMobile = screenWidth < 768;
         final isNarrow = screenWidth < 560;
-        final isShort = screenHeight < 520;
+        final isShort = screenHeight < 680 || (screenWidth >= screenHeight && screenHeight < 750);
         final session = widget.session;
         final role = session.role;
         final isHostOrAdmin = role == RoomRole.owner || role == RoomRole.admin;
@@ -662,14 +773,42 @@ class _CinemaViewState extends State<CinemaView> {
             ? (syncTargetPos.inMilliseconds / mediaDuration.inMilliseconds).clamp(0.0, 1.0)
             : 0.0;
 
+        if (_isFullscreen) {
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop) return;
+              _setFullscreen(false);
+            },
+            child: Scaffold(
+              backgroundColor: Colors.black,
+              body: SizedBox.expand(
+                child: _buildPlayerStage(
+                  context,
+                  isMobile: isMobile,
+                  isShort: true,
+                  isPlaying: isPlaying,
+                  isHostOrAdmin: isHostOrAdmin,
+                  progressRatio: progressRatio,
+                  currentPos: currentPos,
+                  mediaDuration: mediaDuration,
+                  currentMedia: currentMedia,
+                  syncTargetPos: syncTargetPos,
+                  syncTargetRatio: syncTargetRatio,
+                  isBuffering: isBuffering,
+                  isFullscreen: true,
+                ),
+              ),
+            ),
+          );
+        }
+
         return Material(
           type: MaterialType.transparency,
           child: GlassScaffold(
           background: LiquidGlassAmbientBackground(child: Container()),
           extendBody: false,
-          appBar: _isFullscreen
-              ? null
-              : GlassAppBar(
+          appBar: GlassAppBar(
                   centerTitle: false,
                   backgroundColor: Colors.transparent,
                   leading: Semantics(
@@ -978,9 +1117,9 @@ class _CinemaViewState extends State<CinemaView> {
                               : const SizedBox.shrink(),
                         ),
 
-                        // Main Video Player & Control Stage
-                        Expanded(
-                          flex: 1,
+                        // Main Video Player & Control Stage (16:9 standard video aspect ratio, comfortably bounded)
+                        SizedBox(
+                          height: (screenWidth * 9 / 16).clamp(160.0, (screenHeight * 0.38).clamp(180.0, 320.0)),
                           child: _buildPlayerStage(
                             context,
                             isMobile: isMobile,
@@ -1001,7 +1140,6 @@ class _CinemaViewState extends State<CinemaView> {
 
                         // Bottom Dock (Tabs: Playlist / Peers / Info)
                         Expanded(
-                          flex: 1,
                           child: _buildInspectorDock(
                             context,
                             isMobile: isMobile,
@@ -1186,6 +1324,7 @@ class _CinemaViewState extends State<CinemaView> {
     BuildContext context, {
     required bool isMobile,
     bool isShort = false,
+    bool isFullscreen = false,
     required bool isPlaying,
     required bool isHostOrAdmin,
     required double progressRatio,
@@ -1198,6 +1337,7 @@ class _CinemaViewState extends State<CinemaView> {
   }) {
     final i18n = AppI18n.of(context);
     final tc = ThemeColors.of(context);
+    final screenWidth = MediaQuery.of(context).size.width;
     final displayPos = (_draggingSliderValue != null && mediaDuration.inMilliseconds > 0)
         ? Duration(milliseconds: (_draggingSliderValue! * mediaDuration.inMilliseconds).round())
         : currentPos;
@@ -1206,10 +1346,10 @@ class _CinemaViewState extends State<CinemaView> {
     return GlassContainer.card(
       surfaceStyle: GlassSurfaceStyle.solid,
       color: Colors.black,
-      shape: LiquidRoundedSuperellipse(borderRadius: isShort ? 16 : 22),
+      shape: LiquidRoundedSuperellipse(borderRadius: isFullscreen ? 0 : (isShort ? 16 : 22)),
       padding: EdgeInsets.zero,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(isShort ? 16 : 22),
+        borderRadius: BorderRadius.circular(isFullscreen ? 0 : (isShort ? 16 : 22)),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -1231,11 +1371,11 @@ class _CinemaViewState extends State<CinemaView> {
                 ),
               ),
 
-            // 2. Gesture Detection Layer (Double-tap skip, Drag brightness/volume)
+            // 2. Gesture Detection Layer (Double-tap skip, Drag brightness/volume, Horizontal drag seek)
             Positioned.fill(
               child: Row(
                 children: [
-                  // Left half: Double-tap rewind 10s, vertical drag brightness
+                  // Left half: Double-tap rewind 10s, vertical drag brightness, horizontal drag seek
                   Expanded(
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
@@ -1252,10 +1392,14 @@ class _CinemaViewState extends State<CinemaView> {
                               });
                               _showGestureHud('brightness');
                             },
+                      onHorizontalDragStart: (d) => _onHorizontalDragStart(d, currentPos, mediaDuration),
+                      onHorizontalDragUpdate: (d) => _onHorizontalDragUpdate(d, mediaDuration, screenWidth),
+                      onHorizontalDragEnd: (d) => _onHorizontalDragEnd(d, isHostOrAdmin),
+                      onHorizontalDragCancel: _onHorizontalDragCancel,
                       child: const SizedBox.expand(),
                     ),
                   ),
-                  // Right half: Double-tap forward 10s, vertical drag volume
+                  // Right half: Double-tap forward 10s, vertical drag volume, horizontal drag seek
                   Expanded(
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
@@ -1273,6 +1417,10 @@ class _CinemaViewState extends State<CinemaView> {
                               widget.session.player.setVolume(_volume * 100.0);
                               _showGestureHud('volume');
                             },
+                      onHorizontalDragStart: (d) => _onHorizontalDragStart(d, currentPos, mediaDuration),
+                      onHorizontalDragUpdate: (d) => _onHorizontalDragUpdate(d, mediaDuration, screenWidth),
+                      onHorizontalDragEnd: (d) => _onHorizontalDragEnd(d, isHostOrAdmin),
+                      onHorizontalDragCancel: _onHorizontalDragCancel,
                       child: const SizedBox.expand(),
                     ),
                   ),
@@ -1340,6 +1488,79 @@ class _CinemaViewState extends State<CinemaView> {
                             color: Colors.white.withValues(alpha: 0.7)),
                       ),
                     ],
+                  ),
+                ),
+              ),
+
+            // Floating Scrub HUD (Horizontal Drag Seek Indicator)
+            if (_isScrubbing && _scrubTarget != null)
+              IgnorePointer(
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white24),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black54,
+                          blurRadius: 20,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _scrubDeltaSec >= 0
+                                  ? Icons.fast_forward_rounded
+                                  : Icons.fast_rewind_rounded,
+                              color: _scrubDeltaSec >= 0 ? tc.primary : Colors.orangeAccent,
+                              size: 28,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${_scrubDeltaSec >= 0 ? '+' : ''}${_scrubDeltaSec}s',
+                              style: TextStyle(
+                                color: _scrubDeltaSec >= 0 ? tc.primary : Colors.orangeAccent,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${formatDuration(_scrubTarget!)} / ${formatDuration(mediaDuration)}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: 140,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: mediaDuration.inMilliseconds > 0
+                                  ? (_scrubTarget!.inMilliseconds / mediaDuration.inMilliseconds).clamp(0.0, 1.0)
+                                  : 0.0,
+                              backgroundColor: Colors.white24,
+                              valueColor: AlwaysStoppedAnimation<Color>(tc.primary),
+                              minHeight: 4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1494,6 +1715,29 @@ class _CinemaViewState extends State<CinemaView> {
                   ignoring: !_showControls || _isLocked,
                   child: Row(
                     children: [
+                      if (isFullscreen) ...[
+                        Semantics(
+                          button: true,
+                          enabled: true,
+                          label: i18n.exitFullscreen,
+                          child: Tooltip(
+                            message: i18n.exitFullscreen,
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                padding: EdgeInsets.zero,
+                                onPressed: () => _setFullscreen(false),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                       if (currentMedia != null)
                         Flexible(
                           child: Container(
@@ -1940,6 +2184,36 @@ class _CinemaViewState extends State<CinemaView> {
                               ),
                             ),
 
+                            // Orientation Toggle (Landscape / Portrait)
+                            if (!kIsWeb)
+                              Semantics(
+                                button: true,
+                                enabled: true,
+                                label: i18n.toggleOrientation,
+                                child: Tooltip(
+                                  message: i18n.toggleOrientation,
+                                  child: IconButton(
+                                    key: const ValueKey('cinema-orientation-btn'),
+                                    padding: isShort
+                                        ? const EdgeInsets.all(4)
+                                        : const EdgeInsets.all(8),
+                                    constraints:
+                                        isShort ? const BoxConstraints() : null,
+                                    icon: Icon(
+                                      _isLandscape
+                                          ? Icons.stay_current_portrait_rounded
+                                          : Icons.screen_rotation_rounded,
+                                      color: Colors.white70,
+                                      size: isShort ? 18 : 20,
+                                    ),
+                                    onPressed: () {
+                                      _restartControlsTimer();
+                                      _toggleOrientation();
+                                    },
+                                  ),
+                                ),
+                              ),
+
                             // Fullscreen Toggle (Local)
                             Semantics(
                               button: true,
@@ -1967,8 +2241,7 @@ class _CinemaViewState extends State<CinemaView> {
                                   ),
                                   onPressed: () {
                                     _restartControlsTimer();
-                                    setState(
-                                        () => _isFullscreen = !_isFullscreen);
+                                    _setFullscreen(!_isFullscreen);
                                   },
                                 ),
                               ),
@@ -2100,6 +2373,7 @@ class _CinemaViewState extends State<CinemaView> {
                   itemBuilder: (context, index) {
                     final item = playlist[index];
                     final isCurrent = item.itemId == currentItemId;
+                    final isOffline = widget.session.isItemSourceOffline(item);
 
                     return Container(
                       decoration: BoxDecoration(
@@ -2144,6 +2418,20 @@ class _CinemaViewState extends State<CinemaView> {
                               ],
                             ),
                           ),
+                          if (isOffline)
+                            Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                              ),
+                              child: Text(
+                                i18n.sourceUserLeftRoom,
+                                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.orangeAccent),
+                              ),
+                            ),
                           if (isCurrent)
                             Container(
                               margin: const EdgeInsets.only(right: 6),
@@ -2208,15 +2496,29 @@ class _CinemaViewState extends State<CinemaView> {
                             if (!isCurrent)
                               Semantics(
                                 button: true,
-                                enabled: true,
+                                enabled: !isOffline,
                                 label: '${i18n.switchMedia}: ${item.title}',
                                 child: IconButton(
-                                  icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                                  tooltip: i18n.switchMedia,
+                                  icon: Icon(
+                                    Icons.play_arrow_rounded,
+                                    size: 18,
+                                    color: isOffline ? Colors.white24 : null,
+                                  ),
+                                  tooltip: isOffline ? i18n.sourceUserLeftRoom : i18n.switchMedia,
                                   visualDensity: VisualDensity.compact,
                                   padding: const EdgeInsets.all(4),
                                   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                  onPressed: () => widget.session.switchItem(item.itemId),
+                                  onPressed: isOffline
+                                      ? () {
+                                          showLiquidGlassSnackBar(
+                                            context,
+                                            owner: this,
+                                            message: i18n.sourceUserLeftRoom,
+                                            icon: Icons.error_outline_rounded,
+                                            iconColor: Colors.orangeAccent,
+                                          );
+                                        }
+                                      : () => widget.session.switchItem(item.itemId),
                                 ),
                               ),
                             // Remove item

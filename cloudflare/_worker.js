@@ -47,6 +47,9 @@ class PeerConn {
     this.coordinator = coordinator;
     this.roomId = null;
     this.deviceId = null;
+    this.role = 'member';
+    this.publicKey = null;
+    this.joinedAt = Date.now();
     this.tokens = kRateBurst;
     this.lastRefill = Date.now();
     this.iceCount = 0;
@@ -216,15 +219,44 @@ export class SignalingCoordinator {
   }
 
   handleClose(conn) {
+    this.handlePeerDepart(conn);
+  }
+
+  handlePeerDepart(conn) {
     if (!conn.roomId || !conn.deviceId) return;
     const room = this.rooms.get(conn.roomId);
+    const deviceId = conn.deviceId;
+    conn.roomId = null;
+    conn.deviceId = null;
     if (!room) return;
-    room.remove(conn.deviceId, conn);
+    const wasOwner = room.ownerDeviceId === deviceId;
+    room.remove(deviceId, conn);
     room.broadcast({
       type: 'member_left',
       roomId: room.roomId,
-      deviceId: conn.deviceId,
+      deviceId,
     });
+    if (wasOwner && room.peers.size > 0) {
+      const candidates = Array.from(room.peers.values());
+      candidates.sort((a, b) => {
+        const aAdmin = a.role === 'admin' ? 1 : 0;
+        const bAdmin = b.role === 'admin' ? 1 : 0;
+        if (aAdmin !== bAdmin) return bAdmin - aAdmin;
+        return a.joinedAt - b.joinedAt;
+      });
+      const successor = candidates[0];
+      successor.role = 'owner';
+      room.ownerDeviceId = successor.deviceId;
+      if (successor.publicKey) {
+        room.ownerPublicKey = successor.publicKey;
+      }
+      room.broadcast({
+        type: 'owner_changed',
+        roomId: room.roomId,
+        newOwnerDeviceId: successor.deviceId,
+        previousOwnerDeviceId: deviceId,
+      });
+    }
     if (room.peers.size === 0) {
       this.scheduleRoomReap(room.roomId);
     }
@@ -317,6 +349,12 @@ export class SignalingCoordinator {
     room.attach(conn, deviceId);
     conn.roomId = roomId;
     conn.deviceId = deviceId;
+    conn.role = (deviceId === room.ownerDeviceId) ? 'owner' : 'member';
+    conn.publicKey = msg.publicKey || null;
+    conn.joinedAt = Date.now();
+    conn.role = 'owner';
+    conn.publicKey = ownerPublicKey;
+    conn.joinedAt = Date.now();
 
     conn.send({
       type: 'room_created',
@@ -406,6 +444,9 @@ export class SignalingCoordinator {
     room.attach(conn, deviceId);
     conn.roomId = roomId;
     conn.deviceId = deviceId;
+    conn.role = (deviceId === room.ownerDeviceId) ? 'owner' : 'member';
+    conn.publicKey = msg.publicKey || null;
+    conn.joinedAt = Date.now();
 
     conn.send({
       type: 'join_accepted',
@@ -472,21 +513,7 @@ export class SignalingCoordinator {
   }
 
   handleLeave(conn) {
-    if (!conn.roomId || !conn.deviceId) return;
-    const room = this.rooms.get(conn.roomId);
-    const deviceId = conn.deviceId;
-    conn.roomId = null;
-    conn.deviceId = null;
-    if (!room) return;
-    room.remove(deviceId, conn);
-    room.broadcast({
-      type: 'member_left',
-      roomId: room.roomId,
-      deviceId,
-    });
-    if (room.peers.size === 0) {
-      this.scheduleRoomReap(room.roomId);
-    }
+    this.handlePeerDepart(conn);
   }
 
   handleDisband(conn) {

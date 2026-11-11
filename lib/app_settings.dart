@@ -23,6 +23,7 @@ class AppSettings extends ChangeNotifier {
   static const String _kAvatarKey = 'eir_user_avatar';
   static const String _kHasPendingUpdateKey = 'eir_has_pending_update';
   static const String _kLastUpdateCheckDateKey = 'eir_last_update_check_date';
+  static const String _kBackgroundKeepAliveKey = 'eir_setting_background_keep_alive';
 
   static const List<String> _adjectives = [
     'Starlight', 'Velvet', 'Neon', 'Cosmic', 'Solar', 'Lunar', 'Silent',
@@ -106,6 +107,10 @@ class AppSettings extends ChangeNotifier {
 
   String _lastUpdateCheckDate = '';
   String get lastUpdateCheckDate => _lastUpdateCheckDate;
+
+  // Background Keep-Alive
+  bool _backgroundKeepAlive = true;
+  bool get backgroundKeepAlive => _backgroundKeepAlive;
 
   /// Effective display name: returns trimmed nickname if non-empty, otherwise empty
   String get effectiveDisplayName => _nickname.trim();
@@ -239,10 +244,26 @@ class AppSettings extends ChangeNotifier {
         _lastUpdateCheckDate = '';
         debugPrint('[AppSettings] Reset corrupted last update check date: $e');
       }
+
+      // 10. Background Keep-Alive (Isolated try-catch)
+      try {
+        _backgroundKeepAlive = prefs.getBool(_kBackgroundKeepAliveKey) ?? true;
+      } catch (e) {
+        _backgroundKeepAlive = true;
+        debugPrint('[AppSettings] Reset corrupted background keep-alive setting: $e');
+      }
     }
 
     _isInitialized = true;
     notifyListeners();
+  }
+
+  Future<void> setBackgroundKeepAlive(bool value) async {
+    if (_backgroundKeepAlive != value) {
+      _backgroundKeepAlive = value;
+      notifyListeners();
+      await _saveBool(_kBackgroundKeepAliveKey, value);
+    }
   }
 
   Future<void> setPendingUpdate(bool value) async {

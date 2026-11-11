@@ -11,6 +11,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:uuid/uuid.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../app_settings.dart';
 import '../media/local_media_service.dart';
@@ -58,18 +59,22 @@ class RoomMember {
     required this.role,
     this.online = true,
     this.avatar = '',
-  });
+    int? joinedAt,
+  }) : joinedAt = joinedAt ?? DateTime.now().millisecondsSinceEpoch;
+
   final String deviceId;
   final String displayName;
   final RoomRole role;
   final bool online;
   final String avatar;
+  final int joinedAt;
 
   RoomMember copyWith({
     String? displayName,
     RoomRole? role,
     bool? online,
     String? avatar,
+    int? joinedAt,
   }) =>
       RoomMember(
         deviceId: deviceId,
@@ -77,6 +82,7 @@ class RoomMember {
         role: role ?? this.role,
         online: online ?? this.online,
         avatar: avatar ?? this.avatar,
+        joinedAt: joinedAt ?? this.joinedAt,
       );
 }
 
@@ -481,6 +487,79 @@ class RoomSession extends ChangeNotifier {
     if (_roomId == null) _signalingUrl = clean;
   }
 
+  // ------------------------------------------------------------- keep alive & offline checks
+
+  bool _keepAliveActive = false;
+
+  Future<void> syncKeepAlive([bool? forceEnabled]) async {
+    final enabled = forceEnabled ?? AppSettings.instance.backgroundKeepAlive;
+    final inActiveRoom = _roomId != null && _connectionState != RoomConnectionState.disconnected;
+    final shouldHold = enabled && inActiveRoom;
+
+    if (shouldHold == _keepAliveActive) return;
+    _keepAliveActive = shouldHold;
+
+    try {
+      if (shouldHold) {
+        if (!kIsWeb) {
+          try {
+            await WakelockPlus.enable();
+          } catch (_) {}
+          if (defaultTargetPlatform == TargetPlatform.android) {
+            const channel = MethodChannel('com.norns.eir/media_picker');
+            await channel.invokeMethod<bool>('acquireKeepAliveLock');
+          }
+        }
+      } else {
+        if (!kIsWeb) {
+          try {
+            await WakelockPlus.disable();
+          } catch (_) {}
+          if (defaultTargetPlatform == TargetPlatform.android) {
+            const channel = MethodChannel('com.norns.eir/media_picker');
+            await channel.invokeMethod<bool>('releaseKeepAliveLock');
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  bool isItemSourceOffline(PlaylistItem item) {
+    if (item.sourceType != 'local') return false;
+    final mediaId = item.localMediaId;
+    if (mediaId == null) return false;
+    final sourceId = _knownLocalMediaSources[mediaId];
+    if (sourceId == null) return false;
+    if (sourceId == _selfId) return false;
+    final member = _members.firstWhere(
+      (m) => m.deviceId == sourceId,
+      orElse: () => RoomMember(
+        deviceId: sourceId,
+        displayName: '',
+        role: RoomRole.member,
+        online: false,
+      ),
+    );
+    return !member.online;
+  }
+
+  PlaylistItem? _findNextPlayableItem([String? fromItemId]) {
+    if (_playlist.isEmpty) return null;
+    final startIndex = fromItemId != null
+        ? _playlist.indexWhere((it) => it.itemId == fromItemId)
+        : -1;
+    final count = _playlist.length;
+    for (var i = 1; i <= count; i++) {
+      final index = (startIndex + i) % count;
+      final candidate = _playlist[index];
+      if (candidate.itemId == fromItemId) continue;
+      if (!isItemSourceOffline(candidate)) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
   // ------------------------------------------------------------- rooms
 
   Future<void> createRoom() async {
@@ -581,6 +660,7 @@ class RoomSession extends ChangeNotifier {
     _cachedToken = token;
     _connectionState = RoomConnectionState.connected;
     _lastErrorCode = null;
+    unawaited(syncKeepAlive());
     notifyListeners();
   }
 
@@ -695,6 +775,7 @@ class RoomSession extends ChangeNotifier {
 
     _connectionState = RoomConnectionState.connected;
     _lastErrorCode = null;
+    unawaited(syncKeepAlive());
     notifyListeners();
   }
 
@@ -782,6 +863,7 @@ class RoomSession extends ChangeNotifier {
     // Members draw synchronously from room creation; chain already seeded.
     _connectionState = RoomConnectionState.connected;
     _lastErrorCode = null;
+    unawaited(syncKeepAlive());
     notifyListeners();
   }
 
@@ -833,6 +915,9 @@ class RoomSession extends ChangeNotifier {
   }
 
   void _resetRoomState({bool full = false}) {
+    if (full) {
+      unawaited(syncKeepAlive(false));
+    }
     _roomGeneration++;
     _publishQueue = Future<void>.value();
     _commitApplyQueue = Future<void>.value();
@@ -1107,6 +1192,9 @@ class RoomSession extends ChangeNotifier {
       case 'member_left':
         _handleMemberLeft(msg);
         return;
+      case 'owner_changed':
+        _handleOwnerChanged(msg);
+        return;
       case 'disbanded':
         _handleDisbanded();
         return;
@@ -1127,10 +1215,45 @@ class RoomSession extends ChangeNotifier {
     if (role == RoomRole.owner) {
       _peerDeviceId ??= deviceId;
     }
-    _upsertMember(deviceId, online: true);
+    _upsertMember(deviceId, online: true, joinedAt: msg['joinedAt'] as int?);
     if (role == RoomRole.owner &&
         (!_peerVerified || _dcStateOpen() != true)) {
       unawaited(_startWebRtc(isOwner: true));
+    }
+    notifyListeners();
+  }
+
+  void _handleOwnerChanged(Map<String, dynamic> msg) {
+    final newOwner = (msg['newOwnerDeviceId'] ?? msg['newOwner']) as String?;
+    if (newOwner == null || newOwner.isEmpty) return;
+    _acl.transferOwnership(newOwner);
+    _refreshMemberRoles();
+    if (newOwner == _selfId) {
+      _startRoomTimers();
+      if (!_peerVerified || _dcStateOpen() != true) {
+        unawaited(_startWebRtc(isOwner: true));
+      }
+      final currentItemId = _playback.itemId;
+      if (currentItemId != null) {
+        final currentItem = _playlist.firstWhere(
+          (it) => it.itemId == currentItemId,
+          orElse: () => PlaylistItem(itemId: '', title: '', sourceType: 'none'),
+        );
+        if (isItemSourceOffline(currentItem)) {
+          final nextItem = _findNextPlayableItem(currentItemId);
+          if (nextItem != null) {
+            unawaited(_publishCommit(
+              requestId: _uuid.v4(),
+              action: 'switch_item',
+              params: <String, Object?>{
+                'itemId': nextItem.itemId,
+                'positionMs': 0,
+                'mode': 'playing',
+              },
+            ));
+          }
+        }
+      }
     }
     notifyListeners();
   }
@@ -1147,6 +1270,64 @@ class RoomSession extends ChangeNotifier {
       _handshakeTimer?.cancel();
     }
     _telemetry.remove(deviceId);
+
+    // If leaving member was the owner, succession rule:
+    // admin first, then earliest joinedAt
+    if (_acl.ownerDeviceId == deviceId) {
+      final candidates = _members.where((m) => m.online && m.deviceId != deviceId).toList();
+      if (candidates.isNotEmpty) {
+        candidates.sort((a, b) {
+          final aAdmin = a.role == RoomRole.admin ? 1 : 0;
+          final bAdmin = b.role == RoomRole.admin ? 1 : 0;
+          if (aAdmin != bAdmin) return bAdmin.compareTo(aAdmin);
+          return a.joinedAt.compareTo(b.joinedAt);
+        });
+        final successor = candidates.first;
+        _acl.transferOwnership(successor.deviceId);
+        _refreshMemberRoles();
+        if (successor.deviceId == _selfId) {
+          _startRoomTimers();
+          if (!_peerVerified || _dcStateOpen() != true) {
+            unawaited(_startWebRtc(isOwner: true));
+          }
+        }
+      }
+    }
+
+    // If currently playing item was provided by this member, owner automatically switches to next playable item
+    if (role == RoomRole.owner) {
+      final currentItemId = _playback.itemId;
+      if (currentItemId != null) {
+        final currentItem = _playlist.firstWhere(
+          (it) => it.itemId == currentItemId,
+          orElse: () => PlaylistItem(itemId: '', title: '', sourceType: 'none'),
+        );
+        if (currentItem.sourceType == 'local' &&
+            _knownLocalMediaSources[currentItem.localMediaId] == deviceId) {
+          final nextItem = _findNextPlayableItem(currentItemId);
+          if (nextItem != null) {
+            unawaited(_publishCommit(
+              requestId: _uuid.v4(),
+              action: 'switch_item',
+              params: <String, Object?>{
+                'itemId': nextItem.itemId,
+                'positionMs': 0,
+                'mode': 'playing',
+              },
+            ));
+          } else {
+            unawaited(_publishCommit(
+              requestId: _uuid.v4(),
+              action: 'pause',
+              params: <String, Object?>{
+                'positionMs': 0,
+              },
+            ));
+          }
+        }
+      }
+    }
+
     notifyListeners();
   }
 
@@ -2948,7 +3129,7 @@ class RoomSession extends ChangeNotifier {
     }
   }
 
-  void _upsertMember(String deviceId, {required bool online}) {
+  void _upsertMember(String deviceId, {required bool online, int? joinedAt}) {
     final isMe = _selfId == deviceId ||
         (_keyPair != null && _keyPair!.identity.deviceId == deviceId);
     final localName = isMe ? AppSettings.instance.effectiveDisplayName : '';
@@ -2960,6 +3141,7 @@ class RoomSession extends ChangeNotifier {
         role: _roleFor(deviceId),
         displayName: (isMe && localName.isNotEmpty) ? localName : null,
         avatar: (isMe && localAvatar.isNotEmpty) ? localAvatar : null,
+        joinedAt: joinedAt,
       );
       return;
     }
@@ -2970,6 +3152,7 @@ class RoomSession extends ChangeNotifier {
       role: _roleFor(deviceId),
       online: online,
       avatar: localAvatar,
+      joinedAt: joinedAt,
     ));
   }
 

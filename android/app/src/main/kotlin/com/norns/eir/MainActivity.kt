@@ -1,9 +1,12 @@
 package com.norns.eir
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.net.wifi.WifiManager
+import android.os.PowerManager
 import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
@@ -18,6 +21,40 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.norns.eir/media_picker"
     private var pendingResult: MethodChannel.Result? = null
     private val REQUEST_CODE_PICK_VIDEO = 1001
+
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
+
+    private fun acquireKeepAlive() {
+        try {
+            if (wakeLock == null) {
+                val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+                wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Eir:RoomKeepAlive")
+            }
+            if (wakeLock?.isHeld == false) {
+                wakeLock?.acquire(3 * 60 * 60 * 1000L) // 3 hours safety timeout
+            }
+
+            if (wifiLock == null) {
+                val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                wifiLock = wifiManager?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "Eir:WifiKeepAlive")
+            }
+            if (wifiLock?.isHeld == false) {
+                wifiLock?.acquire()
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun releaseKeepAlive() {
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+            if (wifiLock?.isHeld == true) {
+                wifiLock?.release()
+            }
+        } catch (_: Exception) {}
+    }
 
     private fun bytesToHex(bytes: ByteArray): String {
         val hexChars = "0123456789abcdef"
@@ -208,10 +245,21 @@ class MainActivity : FlutterActivity() {
                 } catch (e: Exception) {
                     result.error("INSTALL_ERROR", e.message, null)
                 }
+            } else if (call.method == "acquireKeepAliveLock") {
+                acquireKeepAlive()
+                result.success(true)
+            } else if (call.method == "releaseKeepAliveLock") {
+                releaseKeepAlive()
+                result.success(true)
             } else {
                 result.notImplemented()
             }
         }
+    }
+
+    override fun onDestroy() {
+        releaseKeepAlive()
+        super.onDestroy()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

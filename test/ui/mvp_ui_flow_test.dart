@@ -239,6 +239,12 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
   }
 
   @override
+  bool isItemSourceOffline(PlaylistItem item) => false;
+
+  @override
+  Future<void> syncKeepAlive([bool? forceEnabled]) async {}
+
+  @override
   Future<void> pickAndAddLocalFile() async {}
 
   @override

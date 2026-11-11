@@ -228,9 +228,15 @@ class CommitChain {
 class RoomAcl {
   RoomAcl({required this.ownerDeviceId});
 
-  final String ownerDeviceId;
+  String ownerDeviceId;
   int version = 1;
   final Map<String, String> _roles = <String, String>{}; // memberId -> admin|member
+
+  void transferOwnership(String newOwnerDeviceId) {
+    ownerDeviceId = newOwnerDeviceId;
+    _roles.remove(newOwnerDeviceId);
+    version += 1;
+  }
 
   String roleOf(String deviceId) {
     if (deviceId == ownerDeviceId) return 'owner';

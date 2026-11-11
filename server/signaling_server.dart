@@ -332,6 +332,9 @@ class SignalingServer {
     room.attach(conn, deviceId);
     conn.roomId = roomId;
     conn.deviceId = deviceId;
+    conn.role = 'owner';
+    conn.publicKey = msg['ownerPublicKey'] as String?;
+    conn.joinedAt = DateTime.now().millisecondsSinceEpoch;
     conn.send(<String, Object?>{
       'type': 'room_created',
       'roomId': roomId,
@@ -454,6 +457,9 @@ class SignalingServer {
     room.attach(conn, deviceId, displayName: displayName);
     conn.roomId = roomId;
     conn.deviceId = deviceId;
+    conn.role = (deviceId == room.ownerDeviceId) ? 'owner' : 'member';
+    conn.publicKey = msg['publicKey'] as String?;
+    conn.joinedAt = DateTime.now().millisecondsSinceEpoch;
     final wasConsumedBySelf = room.inviteConsumedBy == deviceId;
     conn.send(<String, Object?>{
       'type': 'join_accepted',
@@ -557,12 +563,34 @@ class SignalingServer {
     conn.roomId = null;
     conn.deviceId = null;
     if (room == null || deviceId == null) return;
+    final wasOwner = room.ownerDeviceId == deviceId;
     room.remove(deviceId, conn);
     room.broadcast(<String, Object?>{
       'type': 'member_left',
       'roomId': room.roomId,
       'deviceId': deviceId,
     });
+    if (wasOwner && room.peers.isNotEmpty) {
+      final candidates = room.peers.values.toList();
+      candidates.sort((a, b) {
+        final aAdmin = a.conn.role == 'admin' ? 1 : 0;
+        final bAdmin = b.conn.role == 'admin' ? 1 : 0;
+        if (aAdmin != bAdmin) return bAdmin.compareTo(aAdmin);
+        return a.conn.joinedAt.compareTo(b.conn.joinedAt);
+      });
+      final successor = candidates.first;
+      successor.conn.role = 'owner';
+      room.ownerDeviceId = successor.conn.deviceId!;
+      if (successor.conn.publicKey != null) {
+        room.ownerPublicKey = successor.conn.publicKey!;
+      }
+      room.broadcast(<String, Object?>{
+        'type': 'owner_changed',
+        'roomId': room.roomId,
+        'newOwnerDeviceId': successor.conn.deviceId,
+        'previousOwnerDeviceId': deviceId,
+      });
+    }
     _maybeReapRoom(room);
   }
 
@@ -699,8 +727,8 @@ class _Room {
 
   final String roomId;
   final String tokenDigest;
-  final String ownerDeviceId;
-  final String ownerPublicKey;
+  String ownerDeviceId;
+  String ownerPublicKey;
   final String sessionId;
   final String genesisHash;
   int inviteEpoch;
@@ -754,6 +782,9 @@ class _PeerConnection {
   String? roomId;
   String? deviceId;
   int iceCount = 0;
+  int joinedAt = DateTime.now().millisecondsSinceEpoch;
+  String role = 'member';
+  String? publicKey;
 
   int _tokens = kRateBurst;
   DateTime _lastRefill = DateTime.now();
