@@ -91,6 +91,9 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
   bool get peerVerified => true;
 
   @override
+  bool get isP2pConnected => true;
+
+  @override
   LocalMediaService? get debugMediaService => null;
 
   // V1 §9 cache occupancy API (added by core; fake reports an empty/no-cache view)

@@ -356,6 +356,11 @@ class AppI18n {
   String get autoSubtitle => isZh ? '自动选择' : 'Auto Subtitle';
   String get loadExternalSubtitle => isZh ? '加载本地字幕文件...' : 'Load external subtitle...';
   String get fastForwarding2x => isZh ? '2.0x 快速播放中' : '2.0x Fast Forwarding';
+  String get connectionP2p => 'P2P';
+  String get connectionServer => isZh ? '服务器' : 'Server';
+  String get connectionP2pTooltip => isZh ? '当前为端到端 P2P 直连通道' : 'Connected via P2P direct channel';
+  String get connectionServerTooltip => isZh ? '当前通过边缘信令服务器连接' : 'Connected via edge signaling server';
+  String get moreSettings => isZh ? '更多设置' : 'More Settings';
 }
 
 class AppLocalizationsDelegate extends LocalizationsDelegate<AppI18n> {

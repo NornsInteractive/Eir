@@ -331,6 +331,9 @@ class RoomSession extends ChangeNotifier {
   bool _peerVerified = false;
   bool get peerVerified => _peerVerified;
 
+  /// Whether WebRTC P2P direct data channel is established and verified with peer.
+  bool get isP2pConnected => _dc != null && _dcStateOpen() == true && _peerVerified;
+
   /// Access to the lazily-created P2P media service for integration tests.
   @visibleForTesting
   LocalMediaService? get debugMediaService => _media;

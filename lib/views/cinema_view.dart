@@ -46,6 +46,11 @@ class _CinemaViewState extends State<CinemaView> {
   String? _gestureHudType;
   Timer? _gestureHudTimer;
   double? _draggingSliderValue;
+  double? _optimisticSeekRatio;
+  Timer? _optimisticSeekTimer;
+  String? _playerToastMessage;
+  IconData? _playerToastIcon;
+  Timer? _playerToastTimer;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration>? _durationSub;
   StreamSubscription<bool>? _completedSub;
@@ -126,7 +131,17 @@ class _CinemaViewState extends State<CinemaView> {
     _durationSub?.cancel();
     _completedSub?.cancel();
     _bufferingSub?.cancel();
-    _positionSub = player.stream.position.listen((_) {
+    _positionSub = player.stream.position.listen((pos) {
+      if (_optimisticSeekRatio != null) {
+        final dur = player.state.duration;
+        if (dur > Duration.zero) {
+          final targetMs = (dur.inMilliseconds * _optimisticSeekRatio!).round();
+          if ((pos.inMilliseconds - targetMs).abs() < 1000) {
+            _optimisticSeekRatio = null;
+            _optimisticSeekTimer?.cancel();
+          }
+        }
+      }
       if (mounted) setState(() {});
     });
     _durationSub = player.stream.duration.listen((_) {
@@ -157,6 +172,8 @@ class _CinemaViewState extends State<CinemaView> {
     }
     _controlsTimer?.cancel();
     _gestureHudTimer?.cancel();
+    _playerToastTimer?.cancel();
+    _optimisticSeekTimer?.cancel();
     hideLiquidGlassSnackBar();
     widget.session.removeListener(_onSessionStateChanged);
     _positionSub?.cancel();
@@ -308,6 +325,26 @@ class _CinemaViewState extends State<CinemaView> {
     _restartControlsTimer();
   }
 
+  void _onSliderSeek(double val, Duration mediaDuration) {
+    if (mediaDuration.inMilliseconds <= 0) return;
+    _restartControlsTimer();
+    final clamped = val.clamp(0.0, 1.0);
+    final targetMs = (clamped * mediaDuration.inMilliseconds).round();
+    _optimisticSeekTimer?.cancel();
+    setState(() {
+      _draggingSliderValue = null;
+      _optimisticSeekRatio = clamped;
+    });
+    _optimisticSeekTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        setState(() => _optimisticSeekRatio = null);
+      }
+    });
+    try {
+      widget.session.seek(Duration(milliseconds: targetMs));
+    } catch (_) {}
+  }
+
   void _cycleAspectRatio() {
     setState(() {
       if (_aspectFit == BoxFit.contain) {
@@ -319,6 +356,10 @@ class _CinemaViewState extends State<CinemaView> {
       }
     });
     _restartControlsTimer();
+    final fitName = _aspectFit == BoxFit.contain
+        ? '适应'
+        : (_aspectFit == BoxFit.cover ? '铺满' : '拉伸');
+    _showPlayerToast('画面比例: $fitName', Icons.aspect_ratio_rounded);
   }
 
   PlaylistItem? get _currentPlaylistItem {
@@ -732,6 +773,22 @@ class _CinemaViewState extends State<CinemaView> {
     );
   }
 
+  void _showPlayerToast(String message, [IconData? icon]) {
+    setState(() {
+      _playerToastMessage = message;
+      _playerToastIcon = icon;
+    });
+    _playerToastTimer?.cancel();
+    _playerToastTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (mounted && _playerToastMessage == message) {
+        setState(() {
+          _playerToastMessage = null;
+          _playerToastIcon = null;
+        });
+      }
+    });
+  }
+
   void _cycleLoopMode() {
     final cur = widget.session.loopMode;
     final next = switch (cur) {
@@ -746,17 +803,12 @@ class _CinemaViewState extends State<CinemaView> {
       PlaybackLoopMode.loopOne => i18n.loopModeOne,
       PlaybackLoopMode.sequential => i18n.loopModeSeq,
     };
-    showLiquidGlassSnackBar(
-      context,
-      owner: this,
-      message: modeName,
-      icon: next == PlaybackLoopMode.loopOne
-          ? Icons.repeat_one_rounded
-          : (next == PlaybackLoopMode.sequential
-              ? Icons.playlist_play_rounded
-              : Icons.repeat_rounded),
-      duration: const Duration(seconds: 1),
-    );
+    final icon = next == PlaybackLoopMode.loopOne
+        ? Icons.repeat_one_rounded
+        : (next == PlaybackLoopMode.sequential
+            ? Icons.playlist_play_rounded
+            : Icons.repeat_rounded);
+    _showPlayerToast(modeName, icon);
   }
 
   void _showSpeedMenu(BuildContext context) {
@@ -1040,6 +1092,188 @@ class _CinemaViewState extends State<CinemaView> {
     );
   }
 
+  void _showMoreSettingsSheet(BuildContext context) {
+    final i18n = AppI18n.of(context);
+    final tc = ThemeColors.of(context);
+    final session = widget.session;
+    final isHostOrAdmin = session.role == RoomRole.owner || session.role == RoomRole.admin;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final loopMode = session.loopMode;
+          final loopTitle = switch (loopMode) {
+            PlaybackLoopMode.loopAll => i18n.loopModeAll,
+            PlaybackLoopMode.loopOne => i18n.loopModeOne,
+            PlaybackLoopMode.sequential => i18n.loopModeSeq,
+          };
+          final loopIcon = switch (loopMode) {
+            PlaybackLoopMode.loopAll => Icons.repeat_rounded,
+            PlaybackLoopMode.loopOne => Icons.repeat_one_rounded,
+            PlaybackLoopMode.sequential => Icons.playlist_play_rounded,
+          };
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Container(
+                margin: const EdgeInsets.all(16),
+                child: GlassContainer.card(
+                  surfaceStyle: GlassSurfaceStyle.solid,
+                  color: tc.cardBackground,
+                  shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.tune_rounded, size: 20, color: tc.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            i18n.moreSettings,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: tc.textPrimary,
+                            ),
+                          ),
+                          const Spacer(),
+                          GlassIconButton(
+                            icon: Icon(Icons.close_rounded, size: 18, color: tc.textSecondary),
+                            onPressed: () => Navigator.of(ctx).pop(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // 1. Danmaku Toggle
+                      ListTile(
+                        key: const ValueKey('cinema-danmaku-btn'),
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        leading: Icon(
+                          _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
+                          color: _danmakuEnabled ? tc.primary : tc.textSecondary,
+                          size: 20,
+                        ),
+                        title: Text(i18n.danmakuToggle, style: TextStyle(color: tc.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                        trailing: Switch.adaptive(
+                          value: _danmakuEnabled,
+                          activeColor: tc.primary,
+                          onChanged: (val) {
+                            setState(() => _danmakuEnabled = val);
+                            setSheetState(() {});
+                            _showPlayerToast(val ? i18n.danmakuEnabled : i18n.danmakuDisabled, val ? Icons.subtitles_rounded : Icons.subtitles_off_rounded);
+                          },
+                        ),
+                        onTap: () {
+                          final nextVal = !_danmakuEnabled;
+                          setState(() => _danmakuEnabled = nextVal);
+                          setSheetState(() {});
+                          _showPlayerToast(nextVal ? i18n.danmakuEnabled : i18n.danmakuDisabled, nextVal ? Icons.subtitles_rounded : Icons.subtitles_off_rounded);
+                        },
+                      ),
+
+                      // 2. Loop Mode
+                      ListTile(
+                        key: const ValueKey('cinema-loop-mode-btn'),
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        leading: Icon(loopIcon, color: tc.primary, size: 20),
+                        title: Text(loopTitle, style: TextStyle(color: tc.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                        trailing: Icon(Icons.chevron_right_rounded, color: tc.textTertiary, size: 20),
+                        onTap: () {
+                          _cycleLoopMode();
+                          setSheetState(() {});
+                        },
+                      ),
+
+                      // 3. Subtitles & Audio Tracks
+                      ListTile(
+                        key: const ValueKey('cinema-tracks-btn'),
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        leading: Icon(Icons.closed_caption_rounded, color: tc.primary, size: 20),
+                        title: Text('${i18n.subtitleTrack} / ${i18n.audioTrack}', style: TextStyle(color: tc.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                        trailing: Icon(Icons.chevron_right_rounded, color: tc.textTertiary, size: 20),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _showTrackSelectionDialog(context);
+                        },
+                      ),
+
+                      // 4. Aspect Ratio
+                      ListTile(
+                        key: const ValueKey('cinema-aspect-ratio-btn'),
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        leading: Icon(Icons.aspect_ratio_rounded, color: tc.primary, size: 20),
+                        title: Text(
+                          '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? "适应" : (_aspectFit == BoxFit.cover ? "铺满" : "拉伸")}',
+                          style: TextStyle(color: tc.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600),
+                        ),
+                        trailing: Icon(Icons.swap_horiz_rounded, color: tc.textTertiary, size: 20),
+                        onTap: () {
+                          _cycleAspectRatio();
+                          setSheetState(() {});
+                        },
+                      ),
+
+                      // 5. Volume Mute Toggle
+                      ListTile(
+                        key: const ValueKey('cinema-volume-mute-btn'),
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        leading: Icon(
+                          _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                          color: _isMuted ? tc.warning : tc.primary,
+                          size: 20,
+                        ),
+                        title: Text(
+                          _isMuted ? i18n.unmuteTooltip : i18n.muteTooltip,
+                          style: TextStyle(color: tc.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600),
+                        ),
+                        trailing: Switch.adaptive(
+                          value: !_isMuted,
+                          activeColor: tc.primary,
+                          onChanged: (val) {
+                            setState(() => _isMuted = !val);
+                            setSheetState(() {});
+                            session.player.setVolume(_isMuted ? 0.0 : _volume * 100.0);
+                          },
+                        ),
+                        onTap: () {
+                          setState(() => _isMuted = !_isMuted);
+                          setSheetState(() {});
+                          session.player.setVolume(_isMuted ? 0.0 : _volume * 100.0);
+                        },
+                      ),
+
+                      if (!isHostOrAdmin) ...[
+                        const SizedBox(height: 6),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            i18n.readOnlyControlTooltip,
+                            style: TextStyle(color: tc.textTertiary, fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
@@ -1100,12 +1334,9 @@ class _CinemaViewState extends State<CinemaView> {
     } else if (event.logicalKey == LogicalKeyboardKey.keyD) {
       setState(() => _danmakuEnabled = !_danmakuEnabled);
       final i18n = AppI18n.of(context);
-      showLiquidGlassSnackBar(
-        context,
-        owner: this,
-        message: _danmakuEnabled ? i18n.danmakuEnabled : i18n.danmakuDisabled,
-        icon: _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
-        duration: const Duration(seconds: 1),
+      _showPlayerToast(
+        _danmakuEnabled ? i18n.danmakuEnabled : i18n.danmakuDisabled,
+        _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
       );
       return KeyEventResult.handled;
     } else if (event.logicalKey == LogicalKeyboardKey.bracketLeft) {
@@ -1650,49 +1881,61 @@ class _CinemaViewState extends State<CinemaView> {
 
     Color dotColor;
     String label;
+    String tooltip;
 
     switch (state) {
       case RoomConnectionState.connected:
-        dotColor = tc.success;
-        label = i18n.stateConnected;
+        if (widget.session.isP2pConnected) {
+          dotColor = tc.success;
+          label = 'P2P';
+          tooltip = i18n.connectionP2pTooltip;
+        } else {
+          dotColor = tc.primary;
+          label = i18n.connectionServer;
+          tooltip = i18n.connectionServerTooltip;
+        }
         break;
       case RoomConnectionState.connecting:
         dotColor = tc.primary;
         label = i18n.stateConnecting;
+        tooltip = i18n.stateConnecting;
         break;
       case RoomConnectionState.reconnecting:
         dotColor = tc.warning;
         label = i18n.stateReconnecting;
+        tooltip = i18n.stateReconnecting;
         break;
       case RoomConnectionState.disconnected:
         dotColor = tc.error;
         label = i18n.stateDisconnected;
+        tooltip = i18n.stateDisconnected;
         break;
     }
 
-    final tag = LiquidGlassTag(
-      color: dotColor.withValues(alpha: 0.14),
-      padding: EdgeInsets.symmetric(horizontal: isNarrow ? 6 : 8, vertical: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
-          ),
-          if (!isNarrow) ...[
+    final tag = Tooltip(
+      message: tooltip,
+      child: LiquidGlassTag(
+        color: dotColor.withValues(alpha: 0.14),
+        padding: EdgeInsets.symmetric(horizontal: isNarrow ? 6 : 8, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+            ),
             const SizedBox(width: 5),
             Text(
               label,
               style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
+                fontSize: isNarrow ? 9.5 : 10.5,
+                fontWeight: FontWeight.w700,
                 color: dotColor,
               ),
             ),
           ],
-        ],
+        ),
       ),
     );
 
@@ -1824,10 +2067,11 @@ class _CinemaViewState extends State<CinemaView> {
     final i18n = AppI18n.of(context);
     final tc = ThemeColors.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
-    final displayPos = (_draggingSliderValue != null && mediaDuration.inMilliseconds > 0)
-        ? Duration(milliseconds: (_draggingSliderValue! * mediaDuration.inMilliseconds).round())
+    final effectiveRatio = _draggingSliderValue ?? _optimisticSeekRatio ?? progressRatio;
+    final displayPos = (effectiveRatio != progressRatio && mediaDuration.inMilliseconds > 0)
+        ? Duration(milliseconds: (effectiveRatio * mediaDuration.inMilliseconds).round())
         : currentPos;
-    final displayRatio = (_draggingSliderValue ?? progressRatio).clamp(0.0, 1.0);
+    final displayRatio = effectiveRatio.clamp(0.0, 1.0);
 
     return GlassContainer.card(
       surfaceStyle: GlassSurfaceStyle.solid,
@@ -2219,6 +2463,48 @@ class _CinemaViewState extends State<CinemaView> {
                 ),
               ),
 
+            // Floating In-Player Mini Toast HUD
+            if (_playerToastMessage != null)
+              Positioned(
+                top: isShort ? 44 : 58,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white24),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black45,
+                          blurRadius: 16,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_playerToastIcon != null) ...[
+                          Icon(_playerToastIcon, color: tc.primary, size: 18),
+                          const SizedBox(width: 8),
+                        ],
+                        Text(
+                          _playerToastMessage!,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isShort ? 11.5 : 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
             // Floating Screen Lock Button (Left edge)
             Positioned(
               left: isShort ? 12 : 18,
@@ -2239,16 +2525,9 @@ class _CinemaViewState extends State<CinemaView> {
                             _restartControlsTimer();
                           }
                         });
-                        showLiquidGlassSnackBar(
-                          context,
-                          owner: this,
-                          message: _isLocked
-                              ? i18n.screenLocked
-                              : i18n.screenUnlocked,
-                          icon: _isLocked
-                              ? Icons.lock_rounded
-                              : Icons.lock_open_rounded,
-                          duration: const Duration(seconds: 1),
+                        _showPlayerToast(
+                          _isLocked ? i18n.screenLocked : i18n.screenUnlocked,
+                          _isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
                         );
                       },
                       child: Container(
@@ -2370,168 +2649,135 @@ class _CinemaViewState extends State<CinemaView> {
                         ),
                         const SizedBox(width: 6),
                       ],
-                      // Common Top Action: Danmaku Toggle
-                      Tooltip(
-                        message: _danmakuEnabled ? i18n.danmakuEnabled : i18n.danmakuDisabled,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            key: const ValueKey('cinema-danmaku-btn'),
-                            padding: EdgeInsets.zero,
-                            constraints: BoxConstraints(
-                              minWidth: isShort ? 28 : 32,
-                              minHeight: isShort ? 28 : 32,
-                            ),
-                            icon: Icon(
-                              _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
-                              color: _danmakuEnabled ? tc.primary : Colors.white38,
-                              size: isShort ? 16 : 18,
-                            ),
-                            onPressed: () {
-                              _restartControlsTimer();
-                              setState(() => _danmakuEnabled = !_danmakuEnabled);
-                              showLiquidGlassSnackBar(
-                                context,
-                                owner: this,
-                                message: _danmakuEnabled ? i18n.danmakuEnabled : i18n.danmakuDisabled,
-                                icon: _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
-                                duration: const Duration(seconds: 1),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-
-                      // Common Top Action: Loop Mode
-                      Tooltip(
-                        message: widget.session.loopMode == PlaybackLoopMode.loopOne
-                            ? i18n.loopModeOne
-                            : (widget.session.loopMode == PlaybackLoopMode.sequential
-                                ? i18n.loopModeSeq
-                                : i18n.loopModeAll),
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            key: const ValueKey('cinema-loop-mode-btn'),
-                            padding: EdgeInsets.zero,
-                            constraints: BoxConstraints(
-                              minWidth: isShort ? 28 : 32,
-                              minHeight: isShort ? 28 : 32,
-                            ),
-                            icon: Icon(
-                              widget.session.loopMode == PlaybackLoopMode.loopOne
-                                  ? Icons.repeat_one_rounded
-                                  : (widget.session.loopMode == PlaybackLoopMode.sequential
-                                      ? Icons.playlist_play_rounded
-                                      : Icons.repeat_rounded),
-                              color: Colors.white70,
-                              size: isShort ? 16 : 18,
-                            ),
-                            onPressed: () {
-                              _restartControlsTimer();
-                              _cycleLoopMode();
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-
-                      // Common Top Action: Tracks & Subtitles
-                      Tooltip(
-                        message: '${i18n.subtitleTrack} / ${i18n.audioTrack}',
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            key: const ValueKey('cinema-tracks-btn'),
-                            padding: EdgeInsets.zero,
-                            constraints: BoxConstraints(
-                              minWidth: isShort ? 28 : 32,
-                              minHeight: isShort ? 28 : 32,
-                            ),
-                            icon: Icon(
-                              Icons.tune_rounded,
-                              color: Colors.white70,
-                              size: isShort ? 16 : 18,
-                            ),
-                            onPressed: () {
-                              _restartControlsTimer();
-                              _showTrackSelectionDialog(context);
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
                       if (!isFullscreen && !_isLandscape) ...[
-                        // Portrait Top Quick Action: Aspect Ratio
+                        // Collapsed into single "···" More Settings button in portrait/narrow mode
                         Tooltip(
-                          message:
-                              '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? "适应" : (_aspectFit == BoxFit.cover ? "铺满" : "拉伸")}',
+                          message: i18n.moreSettings,
                           child: Container(
                             decoration: const BoxDecoration(
                               color: Colors.black54,
                               shape: BoxShape.circle,
                             ),
                             child: IconButton(
-                              key: const ValueKey('cinema-aspect-ratio-btn'),
+                              key: const ValueKey('cinema-more-btn'),
                               padding: EdgeInsets.zero,
                               constraints: BoxConstraints(
-                                minWidth: isShort ? 28 : 32,
-                                minHeight: isShort ? 28 : 32,
+                                minWidth: isShort ? 28 : 34,
+                                minHeight: isShort ? 28 : 34,
                               ),
                               icon: Icon(
-                                Icons.aspect_ratio_rounded,
-                                color: Colors.white70,
-                                size: isShort ? 16 : 18,
-                              ),
-                              onPressed: _cycleAspectRatio,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        // Portrait Top Quick Action: Volume Mute
-                        Tooltip(
-                          message: _isMuted
-                              ? i18n.unmuteTooltip
-                              : i18n.muteTooltip,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              key: const ValueKey('cinema-volume-mute-btn'),
-                              padding: EdgeInsets.zero,
-                              constraints: BoxConstraints(
-                                minWidth: isShort ? 28 : 32,
-                                minHeight: isShort ? 28 : 32,
-                              ),
-                              icon: Icon(
-                                _isMuted
-                                    ? Icons.volume_off_rounded
-                                    : Icons.volume_up_rounded,
-                                color: Colors.white70,
-                                size: isShort ? 16 : 18,
+                                Icons.more_horiz_rounded,
+                                color: Colors.white,
+                                size: isShort ? 18 : 20,
                               ),
                               onPressed: () {
                                 _restartControlsTimer();
-                                setState(() => _isMuted = !_isMuted);
-                                widget.session.player.setVolume(
-                                    _isMuted ? 0.0 : _volume * 100.0);
+                                _showMoreSettingsSheet(context);
                               },
                             ),
                           ),
                         ),
                       ] else ...[
+                        // Fullscreen or Landscape mode: expanded quick actions + more button
+                        // Common Top Action: Danmaku Toggle
+                        Tooltip(
+                          message: _danmakuEnabled ? i18n.danmakuEnabled : i18n.danmakuDisabled,
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              key: const ValueKey('cinema-danmaku-btn'),
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(
+                                minWidth: isShort ? 28 : 32,
+                                minHeight: isShort ? 28 : 32,
+                              ),
+                              icon: Icon(
+                                _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
+                                color: _danmakuEnabled ? tc.primary : Colors.white38,
+                                size: isShort ? 16 : 18,
+                              ),
+                              onPressed: () {
+                                _restartControlsTimer();
+                                setState(() => _danmakuEnabled = !_danmakuEnabled);
+                                _showPlayerToast(
+                                  _danmakuEnabled ? i18n.danmakuEnabled : i18n.danmakuDisabled,
+                                  _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+
+                        // Common Top Action: Loop Mode
+                        Tooltip(
+                          message: widget.session.loopMode == PlaybackLoopMode.loopOne
+                              ? i18n.loopModeOne
+                              : (widget.session.loopMode == PlaybackLoopMode.sequential
+                                  ? i18n.loopModeSeq
+                                  : i18n.loopModeAll),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              key: const ValueKey('cinema-loop-mode-btn'),
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(
+                                minWidth: isShort ? 28 : 32,
+                                minHeight: isShort ? 28 : 32,
+                              ),
+                              icon: Icon(
+                                widget.session.loopMode == PlaybackLoopMode.loopOne
+                                    ? Icons.repeat_one_rounded
+                                    : (widget.session.loopMode == PlaybackLoopMode.sequential
+                                        ? Icons.playlist_play_rounded
+                                        : Icons.repeat_rounded),
+                                color: Colors.white70,
+                                size: isShort ? 16 : 18,
+                              ),
+                              onPressed: () {
+                                _restartControlsTimer();
+                                _cycleLoopMode();
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+
+                        // Common Top Action: Tracks & Subtitles
+                        Tooltip(
+                          message: '${i18n.subtitleTrack} / ${i18n.audioTrack}',
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              key: const ValueKey('cinema-tracks-btn'),
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(
+                                minWidth: isShort ? 28 : 32,
+                                minHeight: isShort ? 28 : 32,
+                              ),
+                              icon: Icon(
+                                Icons.tune_rounded,
+                                color: Colors.white70,
+                                size: isShort ? 16 : 18,
+                              ),
+                              onPressed: () {
+                                _restartControlsTimer();
+                                _showTrackSelectionDialog(context);
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+
                         // Fullscreen Top Right: Aspect Ratio & Orientation Toggle
                         Tooltip(
                           message:
@@ -2588,6 +2834,35 @@ class _CinemaViewState extends State<CinemaView> {
                             ),
                           ),
                         ],
+                        const SizedBox(width: 6),
+
+                        // More Settings Sheet in Landscape / Fullscreen too
+                        Tooltip(
+                          message: i18n.moreSettings,
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              key: const ValueKey('cinema-more-btn-expanded'),
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(
+                                minWidth: isShort ? 28 : 34,
+                                minHeight: isShort ? 28 : 34,
+                              ),
+                              icon: Icon(
+                                Icons.more_horiz_rounded,
+                                color: Colors.white70,
+                                size: isShort ? 18 : 20,
+                              ),
+                              onPressed: () {
+                                _restartControlsTimer();
+                                _showMoreSettingsSheet(context);
+                              },
+                            ),
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -2771,67 +3046,79 @@ class _CinemaViewState extends State<CinemaView> {
                               ),
                               const SizedBox(width: 6),
 
-                              // 弹性自适应进度条
+                              // 弹性自适应进度条 (点击即跳，绝无回弹)
                               Expanded(
                                 child: Material(
                                   type: MaterialType.transparency,
-                                  child: SliderTheme(
-                                    data: SliderTheme.of(context).copyWith(
-                                      activeTrackColor: tc.primary,
-                                      inactiveTrackColor: Colors.white24,
-                                      secondaryActiveTrackColor:
-                                          tc.primary.withValues(alpha: 0.35),
-                                      thumbColor: Colors.white,
-                                      thumbShape: RoundSliderThumbShape(
-                                        enabledThumbRadius:
-                                            isShort ? 4.5 : 5.5,
-                                      ),
-                                      overlayShape: RoundSliderOverlayShape(
-                                        overlayRadius: isShort ? 9 : 11,
-                                      ),
-                                      trackHeight: isShort ? 2.5 : 3.0,
-                                    ),
-                                    child: Slider(
-                                      key: const ValueKey(
-                                          'cinema-timeline-slider'),
-                                      value: displayRatio,
-                                      secondaryTrackValue:
-                                          (syncTargetRatio > 0.0 &&
-                                                  syncTargetRatio !=
-                                                      displayRatio &&
-                                                  _draggingSliderValue == null)
-                                              ? syncTargetRatio
-                                              : null,
-                                      onChanged: (isHostOrAdmin &&
-                                              mediaDuration.inMilliseconds > 0)
-                                          ? (val) {
-                                              _restartControlsTimer();
-                                              setState(() =>
-                                                  _draggingSliderValue =
-                                                      val.clamp(0.0, 1.0));
-                                            }
-                                          : null,
-                                      onChangeEnd: (isHostOrAdmin &&
-                                              mediaDuration.inMilliseconds > 0)
-                                          ? (val) async {
-                                              _restartControlsTimer();
-                                              final clamped =
-                                                  val.clamp(0.0, 1.0);
-                                              final targetMs = (clamped *
-                                                      mediaDuration
-                                                          .inMilliseconds)
-                                                  .round();
-                                              setState(() =>
-                                                  _draggingSliderValue = null);
-                                              try {
-                                                await widget.session.seek(
-                                                    Duration(
-                                                        milliseconds:
-                                                            targetMs));
-                                              } catch (_) {}
-                                            }
-                                          : null,
-                                    ),
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return GestureDetector(
+                                        behavior: HitTestBehavior.translucent,
+                                        onTapDown: (isHostOrAdmin && mediaDuration.inMilliseconds > 0)
+                                            ? (details) {
+                                                final width = constraints.maxWidth;
+                                                if (width > 0) {
+                                                  final ratio = (details.localPosition.dx / width).clamp(0.0, 1.0);
+                                                  _onSliderSeek(ratio, mediaDuration);
+                                                }
+                                              }
+                                            : null,
+                                        child: SliderTheme(
+                                          data: SliderTheme.of(context).copyWith(
+                                            activeTrackColor: tc.primary,
+                                            inactiveTrackColor: Colors.white24,
+                                            secondaryActiveTrackColor:
+                                                tc.primary.withValues(alpha: 0.35),
+                                            thumbColor: Colors.white,
+                                            thumbShape: RoundSliderThumbShape(
+                                              enabledThumbRadius:
+                                                  isShort ? 4.5 : 5.5,
+                                            ),
+                                            overlayShape: RoundSliderOverlayShape(
+                                              overlayRadius: isShort ? 9 : 11,
+                                            ),
+                                            trackHeight: isShort ? 2.5 : 3.0,
+                                            allowedInteraction: SliderInteraction.tapAndSlide,
+                                          ),
+                                          child: Slider(
+                                            key: const ValueKey(
+                                                'cinema-timeline-slider'),
+                                            value: displayRatio,
+                                            secondaryTrackValue:
+                                                (syncTargetRatio > 0.0 &&
+                                                        syncTargetRatio !=
+                                                            displayRatio &&
+                                                        _draggingSliderValue == null)
+                                                    ? syncTargetRatio
+                                                    : null,
+                                            onChangeStart: (isHostOrAdmin &&
+                                                    mediaDuration.inMilliseconds > 0)
+                                                ? (val) {
+                                                    _restartControlsTimer();
+                                                    _optimisticSeekTimer?.cancel();
+                                                    setState(() {
+                                                      _draggingSliderValue = val.clamp(0.0, 1.0);
+                                                      _optimisticSeekRatio = val.clamp(0.0, 1.0);
+                                                    });
+                                                  }
+                                                : null,
+                                            onChanged: (isHostOrAdmin &&
+                                                    mediaDuration.inMilliseconds > 0)
+                                                ? (val) {
+                                                    _restartControlsTimer();
+                                                    setState(() =>
+                                                        _draggingSliderValue =
+                                                            val.clamp(0.0, 1.0));
+                                                  }
+                                                : null,
+                                            onChangeEnd: (isHostOrAdmin &&
+                                                    mediaDuration.inMilliseconds > 0)
+                                                ? (val) => _onSliderSeek(val, mediaDuration)
+                                                : null,
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               ),
@@ -2931,67 +3218,78 @@ class _CinemaViewState extends State<CinemaView> {
                                   Expanded(
                                     child: Material(
                                       type: MaterialType.transparency,
-                                      child: SliderTheme(
-                                        data: SliderTheme.of(context).copyWith(
-                                          activeTrackColor: tc.primary,
-                                          inactiveTrackColor: Colors.white24,
-                                          secondaryActiveTrackColor: tc.primary
-                                              .withValues(alpha: 0.35),
-                                          thumbColor: Colors.white,
-                                          thumbShape: RoundSliderThumbShape(
-                                              enabledThumbRadius:
-                                                  isShort ? 4.5 : 6),
-                                          overlayShape: RoundSliderOverlayShape(
-                                              overlayRadius: isShort ? 9 : 12),
-                                          trackHeight: isShort ? 2.5 : 3.5,
-                                        ),
-                                        child: Slider(
-                                          key: const ValueKey(
-                                              'cinema-timeline-slider'),
-                                          value: displayRatio,
-                                          secondaryTrackValue:
-                                              (syncTargetRatio > 0.0 &&
-                                                      syncTargetRatio !=
-                                                          displayRatio &&
-                                                      _draggingSliderValue ==
-                                                          null)
-                                                  ? syncTargetRatio
-                                                  : null,
-                                          onChanged: (isHostOrAdmin &&
-                                                  mediaDuration
-                                                          .inMilliseconds >
-                                                      0)
-                                              ? (val) {
-                                                  _restartControlsTimer();
-                                                  setState(() =>
-                                                      _draggingSliderValue = val
-                                                          .clamp(0.0, 1.0));
-                                                }
-                                              : null,
-                                          onChangeEnd: (isHostOrAdmin &&
-                                                  mediaDuration
-                                                          .inMilliseconds >
-                                                      0)
-                                              ? (val) async {
-                                                  _restartControlsTimer();
-                                                  final clamped =
-                                                      val.clamp(0.0, 1.0);
-                                                  final targetMs = (clamped *
-                                                          mediaDuration
-                                                              .inMilliseconds)
-                                                      .round();
-                                                  setState(() =>
-                                                      _draggingSliderValue =
-                                                          null);
-                                                  try {
-                                                    await widget.session.seek(
-                                                        Duration(
-                                                            milliseconds:
-                                                                targetMs));
-                                                  } catch (_) {}
-                                                }
-                                              : null,
-                                        ),
+                                      child: LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          return GestureDetector(
+                                            behavior: HitTestBehavior.translucent,
+                                            onTapDown: (isHostOrAdmin && mediaDuration.inMilliseconds > 0)
+                                                ? (details) {
+                                                    final width = constraints.maxWidth;
+                                                    if (width > 0) {
+                                                      final ratio = (details.localPosition.dx / width).clamp(0.0, 1.0);
+                                                      _onSliderSeek(ratio, mediaDuration);
+                                                    }
+                                                  }
+                                                : null,
+                                            child: SliderTheme(
+                                              data: SliderTheme.of(context).copyWith(
+                                                activeTrackColor: tc.primary,
+                                                inactiveTrackColor: Colors.white24,
+                                                secondaryActiveTrackColor: tc.primary
+                                                    .withValues(alpha: 0.35),
+                                                thumbColor: Colors.white,
+                                                thumbShape: RoundSliderThumbShape(
+                                                    enabledThumbRadius:
+                                                        isShort ? 4.5 : 6),
+                                                overlayShape: RoundSliderOverlayShape(
+                                                    overlayRadius: isShort ? 9 : 12),
+                                                trackHeight: isShort ? 2.5 : 3.5,
+                                                allowedInteraction: SliderInteraction.tapAndSlide,
+                                              ),
+                                              child: Slider(
+                                                key: const ValueKey(
+                                                    'cinema-timeline-slider'),
+                                                value: displayRatio,
+                                                secondaryTrackValue:
+                                                    (syncTargetRatio > 0.0 &&
+                                                            syncTargetRatio !=
+                                                                displayRatio &&
+                                                            _draggingSliderValue ==
+                                                                null)
+                                                        ? syncTargetRatio
+                                                        : null,
+                                                onChangeStart: (isHostOrAdmin &&
+                                                        mediaDuration.inMilliseconds > 0)
+                                                    ? (val) {
+                                                        _restartControlsTimer();
+                                                        _optimisticSeekTimer?.cancel();
+                                                        setState(() {
+                                                          _draggingSliderValue = val.clamp(0.0, 1.0);
+                                                          _optimisticSeekRatio = val.clamp(0.0, 1.0);
+                                                        });
+                                                      }
+                                                    : null,
+                                                onChanged: (isHostOrAdmin &&
+                                                        mediaDuration
+                                                                .inMilliseconds >
+                                                            0)
+                                                    ? (val) {
+                                                        _restartControlsTimer();
+                                                        setState(() =>
+                                                            _draggingSliderValue = val
+                                                                .clamp(0.0, 1.0));
+                                                      }
+                                                    : null,
+                                                onChangeEnd: (isHostOrAdmin &&
+                                                        mediaDuration
+                                                                .inMilliseconds >
+                                                            0)
+                                                    ? (val) => _onSliderSeek(val, mediaDuration)
+                                                    : null,
+                                              ),
+                                            ),
+                                          );
+                                        },
                                       ),
                                     ),
                                   ),
