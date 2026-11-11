@@ -8,6 +8,8 @@ export 'core/room_session.dart'
         RoomRole,
         RoomConnectionState,
         PlaybackMode,
+        PlaybackLoopMode,
+        DanmakuMessage,
         DeviceIdentityInfo,
         RoomMember,
         PlaylistItem,

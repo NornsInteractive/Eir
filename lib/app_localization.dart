@@ -342,6 +342,20 @@ class AppI18n {
   String get footerText => isZh
       ? 'Eir · P2P 画面同步影厅 · 纯正 Apple Liquid Glass HIG 规范'
       : 'Eir · P2P Synchronized Cinema · Pure Apple Liquid Glass HIG';
+
+  String get danmakuToggle => isZh ? '弹幕' : 'Danmaku';
+  String get danmakuEnabled => isZh ? '弹幕已开启' : 'Danmaku enabled';
+  String get danmakuDisabled => isZh ? '弹幕已关闭' : 'Danmaku disabled';
+  String get sendDanmaku => isZh ? '发个弹幕吧...' : 'Send a danmaku...';
+  String get loopModeAll => isZh ? '列表循环' : 'Loop All';
+  String get loopModeOne => isZh ? '单曲循环' : 'Loop One';
+  String get loopModeSeq => isZh ? '顺序播放' : 'Sequential';
+  String get subtitleTrack => isZh ? '字幕设置' : 'Subtitles';
+  String get audioTrack => isZh ? '音轨设置' : 'Audio Tracks';
+  String get noSubtitle => isZh ? '关闭字幕' : 'No Subtitles';
+  String get autoSubtitle => isZh ? '自动选择' : 'Auto Subtitle';
+  String get loadExternalSubtitle => isZh ? '加载本地字幕文件...' : 'Load external subtitle...';
+  String get fastForwarding2x => isZh ? '2.0x 快速播放中' : '2.0x Fast Forwarding';
 }
 
 class AppLocalizationsDelegate extends LocalizationsDelegate<AppI18n> {

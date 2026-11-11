@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +9,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../models.dart';
+import 'danmaku_overlay.dart';
 import 'settings_dialog.dart';
 import 'profile_view.dart';
 
@@ -48,6 +51,11 @@ class _CinemaViewState extends State<CinemaView> {
   StreamSubscription<bool>? _completedSub;
   StreamSubscription<bool>? _bufferingSub;
   String? _lastReportedCinemaError;
+  bool _danmakuEnabled = true;
+  final TextEditingController _danmakuInputController = TextEditingController();
+  final FocusNode _keyboardFocusNode = FocusNode();
+  bool _isLongPressSpeeding = false;
+  double _preSpeedRate = 1.0;
 
   @override
   void initState() {
@@ -155,6 +163,8 @@ class _CinemaViewState extends State<CinemaView> {
     _durationSub?.cancel();
     _completedSub?.cancel();
     _bufferingSub?.cancel();
+    _keyboardFocusNode.dispose();
+    _danmakuInputController.dispose();
     // Note: widget.session.player is owned by widget.session, do not dispose player here!
     super.dispose();
   }
@@ -722,22 +732,487 @@ class _CinemaViewState extends State<CinemaView> {
     );
   }
 
-  void _cyclePlaybackRate() {
-    const rates = <double>[0.5, 1.0, 1.25, 1.5, 2.0];
+  void _cycleLoopMode() {
+    final cur = widget.session.loopMode;
+    final next = switch (cur) {
+      PlaybackLoopMode.loopAll => PlaybackLoopMode.loopOne,
+      PlaybackLoopMode.loopOne => PlaybackLoopMode.sequential,
+      PlaybackLoopMode.sequential => PlaybackLoopMode.loopAll,
+    };
+    widget.session.setLoopMode(next);
+    final i18n = AppI18n.of(context);
+    final modeName = switch (next) {
+      PlaybackLoopMode.loopAll => i18n.loopModeAll,
+      PlaybackLoopMode.loopOne => i18n.loopModeOne,
+      PlaybackLoopMode.sequential => i18n.loopModeSeq,
+    };
+    showLiquidGlassSnackBar(
+      context,
+      owner: this,
+      message: modeName,
+      icon: next == PlaybackLoopMode.loopOne
+          ? Icons.repeat_one_rounded
+          : (next == PlaybackLoopMode.sequential
+              ? Icons.playlist_play_rounded
+              : Icons.repeat_rounded),
+      duration: const Duration(seconds: 1),
+    );
+  }
+
+  void _showSpeedMenu(BuildContext context) {
+    final i18n = AppI18n.of(context);
+    final tc = ThemeColors.of(context);
+    const rates = <double>[0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0];
     final current = widget.session.playback.rate;
-    int nextIdx = 0;
-    for (int i = 0; i < rates.length; i++) {
-      if ((rates[i] - current).abs() < 0.05) {
-        nextIdx = (i + 1) % rates.length;
-        break;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            child: GlassContainer.card(
+              surfaceStyle: GlassSurfaceStyle.solid,
+              color: tc.cardBackground,
+              shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.speed_rounded, size: 20, color: tc.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        i18n.playbackRate,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: tc.textPrimary,
+                        ),
+                      ),
+                      const Spacer(),
+                      GlassIconButton(
+                        icon: Icon(Icons.close_rounded, size: 18, color: tc.textSecondary),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.center,
+                    children: rates.map((r) {
+                      final isSelected = (r - current).abs() < 0.05;
+                      return LiquidGlassActionButton(
+                        key: ValueKey('speed-option-$r'),
+                        isPrimary: isSelected,
+                        height: 38,
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          widget.session.setRate(r);
+                          _restartControlsTimer();
+                        },
+                        child: Text(
+                          '${r}x',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? Colors.white : tc.textPrimary,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showTrackSelectionDialog(BuildContext context) async {
+    final i18n = AppI18n.of(context);
+    final tc = ThemeColors.of(context);
+    final player = widget.session.player;
+    final tracks = player.state.tracks;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final liveTrack = player.state.track;
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480, maxHeight: 520),
+              child: Container(
+                margin: const EdgeInsets.all(16),
+                child: GlassContainer.card(
+                  surfaceStyle: GlassSurfaceStyle.solid,
+                  color: tc.cardBackground,
+                  shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.tune_rounded, size: 20, color: tc.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${i18n.subtitleTrack} / ${i18n.audioTrack}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: tc.textPrimary,
+                            ),
+                          ),
+                          const Spacer(),
+                          GlassIconButton(
+                            icon: Icon(Icons.close_rounded, size: 18, color: tc.textSecondary),
+                            onPressed: () => Navigator.of(ctx).pop(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // ─── Subtitles Section ───
+                              Text(
+                                i18n.subtitleTrack,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: tc.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ListTile(
+                                dense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                                title: Text(i18n.noSubtitle, style: TextStyle(color: tc.textPrimary, fontSize: 13)),
+                                trailing: liveTrack.subtitle == SubtitleTrack.no()
+                                    ? Icon(Icons.check_rounded, color: tc.primary, size: 18)
+                                    : null,
+                                onTap: () async {
+                                  await player.setSubtitleTrack(SubtitleTrack.no());
+                                  setDialogState(() {});
+                                },
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                                title: Text(i18n.autoSubtitle, style: TextStyle(color: tc.textPrimary, fontSize: 13)),
+                                trailing: liveTrack.subtitle == SubtitleTrack.auto()
+                                    ? Icon(Icons.check_rounded, color: tc.primary, size: 18)
+                                    : null,
+                                onTap: () async {
+                                  await player.setSubtitleTrack(SubtitleTrack.auto());
+                                  setDialogState(() {});
+                                },
+                              ),
+                              for (final st in tracks.subtitle)
+                                if (st != SubtitleTrack.no() && st != SubtitleTrack.auto())
+                                  ListTile(
+                                    dense: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                                    title: Text(
+                                      st.title ?? st.language ?? 'Subtitle ${st.id}',
+                                      style: TextStyle(color: tc.textPrimary, fontSize: 13),
+                                    ),
+                                    trailing: liveTrack.subtitle == st
+                                        ? Icon(Icons.check_rounded, color: tc.primary, size: 18)
+                                        : null,
+                                    onTap: () async {
+                                      await player.setSubtitleTrack(st);
+                                      setDialogState(() {});
+                                    },
+                                  ),
+                              const SizedBox(height: 6),
+                              LiquidGlassActionButton(
+                                key: const ValueKey('cinema-load-external-sub-btn'),
+                                height: 36,
+                                onTap: () async {
+                                  try {
+                                    final result = await FilePicker.platform.pickFiles(
+                                      type: FileType.custom,
+                                      allowedExtensions: ['srt', 'vtt', 'ass'],
+                                      withData: true,
+                                    );
+                                    if (result != null && result.files.isNotEmpty) {
+                                      final picked = result.files.first;
+                                      if (kIsWeb || picked.path == null) {
+                                        if (picked.bytes != null) {
+                                          final content = utf8.decode(picked.bytes!);
+                                          await player.setSubtitleTrack(
+                                            SubtitleTrack.data(content, title: picked.name),
+                                          );
+                                        }
+                                      } else {
+                                        await player.setSubtitleTrack(
+                                          SubtitleTrack.uri(picked.path!, title: picked.name),
+                                        );
+                                      }
+                                      setDialogState(() {});
+                                    }
+                                  } catch (e) {
+                                    debugPrint('External subtitle picker error: $e');
+                                  }
+                                },
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.file_upload_outlined, size: 16),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      i18n.loadExternalSubtitle,
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const Divider(height: 28),
+
+                              // ─── Audio Tracks Section ───
+                              Text(
+                                i18n.audioTrack,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: tc.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ListTile(
+                                dense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                                title: Text(i18n.autoSubtitle, style: TextStyle(color: tc.textPrimary, fontSize: 13)),
+                                trailing: liveTrack.audio == AudioTrack.auto()
+                                    ? Icon(Icons.check_rounded, color: tc.primary, size: 18)
+                                    : null,
+                                onTap: () async {
+                                  await player.setAudioTrack(AudioTrack.auto());
+                                  setDialogState(() {});
+                                },
+                              ),
+                              for (final at in tracks.audio)
+                                if (at != AudioTrack.no() && at != AudioTrack.auto())
+                                  ListTile(
+                                    dense: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                                    title: Text(
+                                      at.title ?? at.language ?? 'Audio Track ${at.id}',
+                                      style: TextStyle(color: tc.textPrimary, fontSize: 13),
+                                    ),
+                                    trailing: liveTrack.audio == at
+                                        ? Icon(Icons.check_rounded, color: tc.primary, size: 18)
+                                        : null,
+                                    onTap: () async {
+                                      await player.setAudioTrack(at);
+                                      setDialogState(() {});
+                                    },
+                                  ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    final primaryFocus = FocusManager.instance.primaryFocus;
+    if (primaryFocus != null && primaryFocus.context?.widget is EditableText) {
+      return KeyEventResult.ignored;
+    }
+
+    final isHostOrAdmin = widget.session.role == RoomRole.owner ||
+        widget.session.role == RoomRole.admin;
+    final isPlaying = widget.session.playback.mode == PlaybackMode.playing;
+
+    if (event.logicalKey == LogicalKeyboardKey.space) {
+      if (isHostOrAdmin) {
+        if (isPlaying) {
+          widget.session.pause();
+        } else {
+          widget.session.play();
+        }
+        _restartControlsTimer();
+        return KeyEventResult.handled;
+      }
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      if (isHostOrAdmin) {
+        _seekRelative(-10);
+        return KeyEventResult.handled;
+      }
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      if (isHostOrAdmin) {
+        _seekRelative(10);
+        return KeyEventResult.handled;
+      }
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      setState(() {
+        _volume = (_volume + 0.1).clamp(0.0, 1.0);
+        if (_isMuted && _volume > 0) _isMuted = false;
+      });
+      widget.session.player.setVolume(_volume * 100.0);
+      _showGestureHud('volume');
+      _restartControlsTimer();
+      return KeyEventResult.handled;
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      setState(() {
+        _volume = (_volume - 0.1).clamp(0.0, 1.0);
+      });
+      widget.session.player.setVolume(_volume * 100.0);
+      _showGestureHud('volume');
+      _restartControlsTimer();
+      return KeyEventResult.handled;
+    } else if (event.logicalKey == LogicalKeyboardKey.keyF) {
+      _setFullscreen(!_isFullscreen);
+      return KeyEventResult.handled;
+    } else if (event.logicalKey == LogicalKeyboardKey.keyM) {
+      setState(() => _isMuted = !_isMuted);
+      widget.session.player.setVolume(_isMuted ? 0.0 : _volume * 100.0);
+      _restartControlsTimer();
+      return KeyEventResult.handled;
+    } else if (event.logicalKey == LogicalKeyboardKey.keyD) {
+      setState(() => _danmakuEnabled = !_danmakuEnabled);
+      final i18n = AppI18n.of(context);
+      showLiquidGlassSnackBar(
+        context,
+        owner: this,
+        message: _danmakuEnabled ? i18n.danmakuEnabled : i18n.danmakuDisabled,
+        icon: _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
+        duration: const Duration(seconds: 1),
+      );
+      return KeyEventResult.handled;
+    } else if (event.logicalKey == LogicalKeyboardKey.bracketLeft) {
+      if (isHostOrAdmin) {
+        final cur = widget.session.playback.rate;
+        widget.session.setRate((cur - 0.25).clamp(0.5, 3.0));
+        _restartControlsTimer();
+        return KeyEventResult.handled;
+      }
+    } else if (event.logicalKey == LogicalKeyboardKey.bracketRight) {
+      if (isHostOrAdmin) {
+        final cur = widget.session.playback.rate;
+        widget.session.setRate((cur + 0.25).clamp(0.5, 3.0));
+        _restartControlsTimer();
+        return KeyEventResult.handled;
       }
     }
-    widget.session.setRate(rates[nextIdx]);
+
+    return KeyEventResult.ignored;
+  }
+
+  Widget _buildDanmakuInputBar(BuildContext context, {bool isShort = false}) {
+    final i18n = AppI18n.of(context);
+    final tc = ThemeColors.of(context);
+
+    return Container(
+      height: isShort ? 34 : 38,
+      decoration: BoxDecoration(
+        color: tc.inputBackground,
+        borderRadius: BorderRadius.circular(isShort ? 17 : 19),
+        border: Border.all(color: tc.glassBorderSubtle),
+      ),
+      padding: EdgeInsets.symmetric(horizontal: isShort ? 8 : 12),
+      child: Row(
+        children: [
+          Icon(
+            Icons.chat_bubble_outline_rounded,
+            size: isShort ? 14 : 16,
+            color: tc.textTertiary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              key: const ValueKey('cinema-danmaku-input-field'),
+              controller: _danmakuInputController,
+              textInputAction: TextInputAction.send,
+              style: TextStyle(
+                fontSize: isShort ? 11.5 : 12.5,
+                color: tc.textPrimary,
+              ),
+              decoration: InputDecoration(
+                hintText: i18n.sendDanmaku,
+                hintStyle: TextStyle(
+                  fontSize: isShort ? 11.5 : 12.5,
+                  color: tc.textTertiary,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              onSubmitted: (text) {
+                if (text.trim().isNotEmpty) {
+                  widget.session.sendDanmaku(text);
+                  _danmakuInputController.clear();
+                }
+              },
+            ),
+          ),
+          const SizedBox(width: 6),
+          Semantics(
+            button: true,
+            label: i18n.sendDanmaku,
+            child: GestureDetector(
+              key: const ValueKey('cinema-danmaku-send-btn'),
+              onTap: () {
+                final text = _danmakuInputController.text;
+                if (text.trim().isNotEmpty) {
+                  widget.session.sendDanmaku(text);
+                  _danmakuInputController.clear();
+                }
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: isShort ? 8 : 10, vertical: isShort ? 3 : 5),
+                decoration: BoxDecoration(
+                  color: tc.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.send_rounded,
+                  size: 13,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
+    return Focus(
+      focusNode: _keyboardFocusNode,
+      autofocus: true,
+      onKeyEvent: _handleKeyEvent,
+      child: AnimatedBuilder(
       animation: Listenable.merge([widget.session, AppSettings.instance]),
       builder: (context, _) {
         final i18n = AppI18n.of(context);
@@ -1076,11 +1551,16 @@ class _CinemaViewState extends State<CinemaView> {
                             ),
                           ),
 
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
+
+                          // Danmaku Input Bar
+                          _buildDanmakuInputBar(context, isShort: true),
+
+                          const SizedBox(height: 8),
 
                           // Bottom Dock (Tabs: Playlist / Peers / Info) (Dedicated height so items are fully visible & scrollable)
                           SizedBox(
-                            height: 240,
+                            height: 220,
                             child: _buildInspectorDock(
                               context,
                               isMobile: isMobile,
@@ -1136,7 +1616,12 @@ class _CinemaViewState extends State<CinemaView> {
                           ),
                         ),
 
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
+
+                        // Danmaku Input Bar
+                        _buildDanmakuInputBar(context, isShort: false),
+
+                        const SizedBox(height: 10),
 
                         // Bottom Dock (Tabs: Playlist / Peers / Info)
                         Expanded(
@@ -1155,7 +1640,8 @@ class _CinemaViewState extends State<CinemaView> {
         ),
       );
     },
-  );
+  ),
+);
 }
 
   Widget _buildConnectionIndicator(BuildContext context, RoomConnectionState state, {bool isNarrow = false}) {
@@ -1362,6 +1848,17 @@ class _CinemaViewState extends State<CinemaView> {
               ),
             ),
 
+            // Danmaku Overlay Layer
+            if (_danmakuEnabled)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DanmakuOverlay(
+                    danmakuStream: widget.session.danmakuStream,
+                    enabled: _danmakuEnabled,
+                  ),
+                ),
+              ),
+
             // Simulated Brightness Dimmer Overlay
             if (_brightness < 1.0)
               IgnorePointer(
@@ -1371,17 +1868,36 @@ class _CinemaViewState extends State<CinemaView> {
                 ),
               ),
 
-            // 2. Gesture Detection Layer (Double-tap skip, Drag brightness/volume, Horizontal drag seek)
+            // 2. Gesture Detection Layer (Double-tap skip, Drag brightness/volume, Horizontal drag seek, Long-press 2.0x)
             Positioned.fill(
               child: Row(
                 children: [
-                  // Left half: Double-tap rewind 10s, vertical drag brightness, horizontal drag seek
+                  // Left half: Double-tap rewind 10s, vertical drag brightness, horizontal drag seek, long-press 2.0x
                   Expanded(
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: _toggleControls,
                       onDoubleTap:
                           isHostOrAdmin ? () => _seekRelative(-10) : null,
+                      onLongPressStart: isHostOrAdmin
+                          ? (_) {
+                              _preSpeedRate = widget.session.playback.rate;
+                              widget.session.setRate(2.0);
+                              setState(() => _isLongPressSpeeding = true);
+                            }
+                          : null,
+                      onLongPressEnd: (_) {
+                        if (_isLongPressSpeeding) {
+                          widget.session.setRate(_preSpeedRate);
+                          setState(() => _isLongPressSpeeding = false);
+                        }
+                      },
+                      onLongPressCancel: () {
+                        if (_isLongPressSpeeding) {
+                          widget.session.setRate(_preSpeedRate);
+                          setState(() => _isLongPressSpeeding = false);
+                        }
+                      },
                       onVerticalDragUpdate: _isLocked
                           ? null
                           : (d) {
@@ -1399,13 +1915,32 @@ class _CinemaViewState extends State<CinemaView> {
                       child: const SizedBox.expand(),
                     ),
                   ),
-                  // Right half: Double-tap forward 10s, vertical drag volume, horizontal drag seek
+                  // Right half: Double-tap forward 10s, vertical drag volume, horizontal drag seek, long-press 2.0x
                   Expanded(
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: _toggleControls,
                       onDoubleTap:
                           isHostOrAdmin ? () => _seekRelative(10) : null,
+                      onLongPressStart: isHostOrAdmin
+                          ? (_) {
+                              _preSpeedRate = widget.session.playback.rate;
+                              widget.session.setRate(2.0);
+                              setState(() => _isLongPressSpeeding = true);
+                            }
+                          : null,
+                      onLongPressEnd: (_) {
+                        if (_isLongPressSpeeding) {
+                          widget.session.setRate(_preSpeedRate);
+                          setState(() => _isLongPressSpeeding = false);
+                        }
+                      },
+                      onLongPressCancel: () {
+                        if (_isLongPressSpeeding) {
+                          widget.session.setRate(_preSpeedRate);
+                          setState(() => _isLongPressSpeeding = false);
+                        }
+                      },
                       onVerticalDragUpdate: _isLocked
                           ? null
                           : (d) {
@@ -1644,6 +2179,46 @@ class _CinemaViewState extends State<CinemaView> {
                 ),
               ),
 
+            // Floating 2.0x Long Press Acceleration HUD
+            if (_isLongPressSpeeding)
+              Positioned(
+                top: isShort ? 44 : 58,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: tc.primary.withValues(alpha: 0.8)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black45,
+                          blurRadius: 10,
+                          offset: Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.fast_forward_rounded, color: tc.primary, size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          i18n.fastForwarding2x,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isShort ? 11 : 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
             // Floating Screen Lock Button (Left edge)
             Positioned(
               left: isShort ? 12 : 18,
@@ -1795,6 +2370,107 @@ class _CinemaViewState extends State<CinemaView> {
                         ),
                         const SizedBox(width: 6),
                       ],
+                      // Common Top Action: Danmaku Toggle
+                      Tooltip(
+                        message: _danmakuEnabled ? i18n.danmakuEnabled : i18n.danmakuDisabled,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            key: const ValueKey('cinema-danmaku-btn'),
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints(
+                              minWidth: isShort ? 28 : 32,
+                              minHeight: isShort ? 28 : 32,
+                            ),
+                            icon: Icon(
+                              _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
+                              color: _danmakuEnabled ? tc.primary : Colors.white38,
+                              size: isShort ? 16 : 18,
+                            ),
+                            onPressed: () {
+                              _restartControlsTimer();
+                              setState(() => _danmakuEnabled = !_danmakuEnabled);
+                              showLiquidGlassSnackBar(
+                                context,
+                                owner: this,
+                                message: _danmakuEnabled ? i18n.danmakuEnabled : i18n.danmakuDisabled,
+                                icon: _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
+                                duration: const Duration(seconds: 1),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+
+                      // Common Top Action: Loop Mode
+                      Tooltip(
+                        message: widget.session.loopMode == PlaybackLoopMode.loopOne
+                            ? i18n.loopModeOne
+                            : (widget.session.loopMode == PlaybackLoopMode.sequential
+                                ? i18n.loopModeSeq
+                                : i18n.loopModeAll),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            key: const ValueKey('cinema-loop-mode-btn'),
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints(
+                              minWidth: isShort ? 28 : 32,
+                              minHeight: isShort ? 28 : 32,
+                            ),
+                            icon: Icon(
+                              widget.session.loopMode == PlaybackLoopMode.loopOne
+                                  ? Icons.repeat_one_rounded
+                                  : (widget.session.loopMode == PlaybackLoopMode.sequential
+                                      ? Icons.playlist_play_rounded
+                                      : Icons.repeat_rounded),
+                              color: Colors.white70,
+                              size: isShort ? 16 : 18,
+                            ),
+                            onPressed: () {
+                              _restartControlsTimer();
+                              _cycleLoopMode();
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+
+                      // Common Top Action: Tracks & Subtitles
+                      Tooltip(
+                        message: '${i18n.subtitleTrack} / ${i18n.audioTrack}',
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            key: const ValueKey('cinema-tracks-btn'),
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints(
+                              minWidth: isShort ? 28 : 32,
+                              minHeight: isShort ? 28 : 32,
+                            ),
+                            icon: Icon(
+                              Icons.tune_rounded,
+                              color: Colors.white70,
+                              size: isShort ? 16 : 18,
+                            ),
+                            onPressed: () {
+                              _restartControlsTimer();
+                              _showTrackSelectionDialog(context);
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
                       if (!isFullscreen && !_isLandscape) ...[
                         // Portrait Top Quick Action: Aspect Ratio
                         Tooltip(
@@ -2176,7 +2852,7 @@ class _CinemaViewState extends State<CinemaView> {
                                     onTap: isHostOrAdmin
                                         ? () {
                                             _restartControlsTimer();
-                                            _cyclePlaybackRate();
+                                            _showSpeedMenu(context);
                                           }
                                         : null,
                                     child: Container(
@@ -2489,7 +3165,7 @@ class _CinemaViewState extends State<CinemaView> {
                                         onTap: isHostOrAdmin
                                             ? () {
                                                 _restartControlsTimer();
-                                                _cyclePlaybackRate();
+                                                _showSpeedMenu(context);
                                               }
                                             : null,
                                         child: Container(
@@ -2689,16 +3365,25 @@ class _CinemaViewState extends State<CinemaView> {
                     ),
                   ),
                 )
-              : ListView.separated(
-                  cacheExtent: 400,
+              : ReorderableListView.builder(
+                  buildDefaultDragHandles: false,
                   itemCount: playlist.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  onReorder: (oldIndex, newIndex) {
+                    if (!isHostOrAdmin) return;
+                    if (oldIndex < newIndex) {
+                      newIndex -= 1;
+                    }
+                    final item = playlist[oldIndex];
+                    widget.session.reorderItem(item.itemId, newIndex);
+                  },
                   itemBuilder: (context, index) {
                     final item = playlist[index];
                     final isCurrent = item.itemId == currentItemId;
                     final isOffline = widget.session.isItemSourceOffline(item);
 
                     return Container(
+                      key: ValueKey(item.itemId),
+                      margin: const EdgeInsets.only(bottom: 6),
                       decoration: BoxDecoration(
                         color: isCurrent
                             ? tc.primary.withValues(alpha: 0.12)
@@ -2711,6 +3396,17 @@ class _CinemaViewState extends State<CinemaView> {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       child: Row(
                         children: [
+                          if (isHostOrAdmin)
+                            ReorderableDragStartListener(
+                              index: index,
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.grab,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: Icon(Icons.drag_indicator_rounded, size: 16, color: tc.textTertiary),
+                                ),
+                              ),
+                            ),
                           Icon(
                             item.sourceType == 'local' ? Icons.folder_rounded : Icons.link_rounded,
                             size: 16,

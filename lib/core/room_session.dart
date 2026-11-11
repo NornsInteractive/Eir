@@ -215,6 +215,28 @@ const List<String> kStableErrorCodes = <String>[
   'source_offline',
 ];
 
+enum PlaybackLoopMode {
+  loopAll,
+  loopOne,
+  sequential,
+}
+
+class DanmakuMessage {
+  DanmakuMessage({
+    required this.id,
+    required this.sender,
+    required this.text,
+    required this.timestamp,
+    this.colorHex,
+  });
+
+  final String id;
+  final String sender;
+  final String text;
+  final DateTime timestamp;
+  final String? colorHex;
+}
+
 class RoomSession extends ChangeNotifier {
   RoomSession({
     DeviceIdentityStore? identityStore,
@@ -437,7 +459,12 @@ class RoomSession extends ChangeNotifier {
     }
     _acl = RoomAcl(ownerDeviceId: _keyPair!.identity.deviceId);
     _chain = CommitChain(genesisHash: _genesisHash ?? '0' * 64);
-    _player = _injectedPlayer ?? Player();
+    _player = _injectedPlayer ??
+        Player(
+          configuration: const PlayerConfiguration(
+            bufferSize: 32 * 1024 * 1024,
+          ),
+        );
     _mediaCompletedSub = _player!.stream.completed.listen(_onPlayerCompleted);
     _mediaErrorSub = _player!.stream.error.listen(_onPlayerError);
     _signaling.messages.listen(_onSignalingMessage);
@@ -543,6 +570,66 @@ class RoomSession extends ChangeNotifier {
       ),
     );
     return !member.online;
+  }
+
+  PlaybackLoopMode _loopMode = PlaybackLoopMode.loopAll;
+  PlaybackLoopMode get loopMode => _loopMode;
+  void setLoopMode(PlaybackLoopMode mode) {
+    _loopMode = mode;
+    notifyListeners();
+  }
+
+  final StreamController<DanmakuMessage> _danmakuController =
+      StreamController<DanmakuMessage>.broadcast();
+  Stream<DanmakuMessage> get danmakuStream => _danmakuController.stream;
+
+  void sendDanmaku(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+    final senderName = AppSettings.instance.nickname.isNotEmpty
+        ? AppSettings.instance.nickname
+        : (_keyPair?.identity.deviceId.substring(0, 6) ?? 'User');
+    final msg = DanmakuMessage(
+      id: _uuid.v4(),
+      sender: senderName,
+      text: trimmed,
+      timestamp: DateTime.now(),
+    );
+    _danmakuController.add(msg);
+    final payload = <String, dynamic>{
+      'type': 'danmaku_msg',
+      'id': msg.id,
+      'sender': msg.sender,
+      'text': msg.text,
+      'timestamp': msg.timestamp.toIso8601String(),
+    };
+    unawaited(_sendDc(payload));
+    if (_roomId != null) {
+      _signaling.send({
+        'type': 'signal',
+        'roomId': _roomId,
+        'kind': 'danmaku',
+        'payload': payload,
+      });
+    }
+  }
+
+  void _handleIncomingDanmaku(Map<String, dynamic> msg) {
+    final text = msg['text'] as String?;
+    final sender = msg['sender'] as String? ?? 'Peer';
+    final id = msg['id'] as String? ?? _uuid.v4();
+    final timeStr = msg['timestamp'] as String?;
+    final time = timeStr != null
+        ? (DateTime.tryParse(timeStr) ?? DateTime.now())
+        : DateTime.now();
+    if (text != null && text.trim().isNotEmpty) {
+      _danmakuController.add(DanmakuMessage(
+        id: id,
+        sender: sender,
+        text: text.trim(),
+        timestamp: time,
+      ));
+    }
   }
 
   PlaylistItem? _findNextPlayableItem([String? fromItemId]) {
@@ -1510,6 +1597,13 @@ class RoomSession extends ChangeNotifier {
       await _flushPendingIce();
       return;
     }
+    if (kind == 'danmaku') {
+      final payload = (msg['payload'] as Map?)?.cast<String, dynamic>();
+      if (payload != null) {
+        _handleIncomingDanmaku(payload);
+      }
+      return;
+    }
     if (kind == 'ice') {
       final candMap = (msg['candidate'] as Map?)?.cast<String, dynamic>();
       if (candMap == null) return;
@@ -1781,6 +1875,9 @@ class RoomSession extends ChangeNotifier {
       return;
     }
     switch (type) {
+      case 'danmaku_msg':
+        _handleIncomingDanmaku(msg);
+        return;
       case 'handshake_hello':
         await _handleHandshakeHello(msg);
         return;
@@ -3182,16 +3279,45 @@ class RoomSession extends ChangeNotifier {
     if (!completed) return;
     if (role != RoomRole.owner || _currentItemId == null) return;
     if (_playback.mode != PlaybackMode.playing) return;
-    final currentIndex =
-        _playlist.indexWhere((e) => e.itemId == _currentItemId);
-    final nextIndex = currentIndex + 1;
-    if (currentIndex >= 0 && nextIndex < _playlist.length) {
-      final next = _playlist[nextIndex];
+
+    if (_loopMode == PlaybackLoopMode.loopOne) {
       unawaited(_publishCommit(
         requestId: _uuid.v4(),
         action: 'switch_item',
         params: <String, Object?>{
-          'itemId': next.itemId,
+          'itemId': _currentItemId,
+          'positionMs': 0,
+          'mode': 'playing',
+        },
+      ));
+      return;
+    }
+
+    final currentIndex =
+        _playlist.indexWhere((e) => e.itemId == _currentItemId);
+
+    PlaylistItem? nextItem;
+    if (currentIndex >= 0 && _playlist.isNotEmpty) {
+      for (var offset = 1; offset < _playlist.length; offset++) {
+        final targetIdx = (currentIndex + offset) % _playlist.length;
+        if (_loopMode == PlaybackLoopMode.sequential &&
+            currentIndex + offset >= _playlist.length) {
+          break; // end reached in sequential mode
+        }
+        final candidate = _playlist[targetIdx];
+        if (!isItemSourceOffline(candidate)) {
+          nextItem = candidate;
+          break;
+        }
+      }
+    }
+
+    if (nextItem != null) {
+      unawaited(_publishCommit(
+        requestId: _uuid.v4(),
+        action: 'switch_item',
+        params: <String, Object?>{
+          'itemId': nextItem.itemId,
           'positionMs': 0,
           'mode': 'playing',
         },

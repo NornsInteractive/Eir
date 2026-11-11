@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,6 +51,33 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
 
   @override
   String? lastErrorCode;
+
+  @override
+  PlaybackLoopMode loopMode = PlaybackLoopMode.loopAll;
+
+  final StreamController<DanmakuMessage> _danmakuController =
+      StreamController<DanmakuMessage>.broadcast();
+
+  @override
+  Stream<DanmakuMessage> get danmakuStream => _danmakuController.stream;
+
+  @override
+  void setLoopMode(PlaybackLoopMode mode) {
+    loopMode = mode;
+    notifyListeners();
+  }
+
+  @override
+  void sendDanmaku(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+    _danmakuController.add(DanmakuMessage(
+      id: 'fake-${DateTime.now().microsecondsSinceEpoch}',
+      sender: 'Tester',
+      text: trimmed,
+      timestamp: DateTime.now(),
+    ));
+  }
 
   @override
   final Player player = Player();
@@ -345,6 +374,7 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
   @override
   void dispose() {
     isDisposed = true;
+    _danmakuController.close();
     player.dispose();
     super.dispose();
   }
@@ -562,11 +592,11 @@ void main() {
     // Sample One appears in both player HUD title pill and playlist item tile
     expect(find.text('Sample One.mp4'), findsNWidgets(2));
     expect(
-      find.descendant(of: find.byType(ListView), matching: find.text('Sample One.mp4')),
+      find.descendant(of: find.byType(ReorderableListView), matching: find.text('Sample One.mp4')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: find.byType(ListView), matching: find.text('Sample Two.mp4')),
+      find.descendant(of: find.byType(ReorderableListView), matching: find.text('Sample Two.mp4')),
       findsOneWidget,
     );
 

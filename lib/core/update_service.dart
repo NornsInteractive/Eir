@@ -92,8 +92,8 @@ class UpdateInfo {
 /// Service connecting to Yggdrasil Distribution Gateway (https://ygg.norns.cc.cd)
 class UpdateService {
   static const String appId = 'com.norns.eir';
-  static int _runtimeVersionCode = 7;
-  static String _runtimeVersionName = '1.0.6';
+  static int _runtimeVersionCode = 8;
+  static String _runtimeVersionName = '1.0.7';
 
   static int get currentVersionCode => _runtimeVersionCode;
   static String get currentVersionName => _runtimeVersionName;
