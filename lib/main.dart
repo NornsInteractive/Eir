@@ -168,6 +168,11 @@ class _EirRootPageState extends State<EirRootPage> {
           _isInitialized = true;
           _initError = null;
         });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _session.roomId == null) {
+            UpdateService.checkDailyUpdate(context);
+          }
+        });
       }
     } catch (e) {
       if (mounted) {

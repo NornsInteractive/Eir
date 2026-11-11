@@ -21,6 +21,8 @@ class AppSettings extends ChangeNotifier {
   static const String _kSignalingUrlKey = 'eir_setting_signaling_url';
   static const String _kNicknameKey = 'eir_user_nickname';
   static const String _kAvatarKey = 'eir_user_avatar';
+  static const String _kHasPendingUpdateKey = 'eir_has_pending_update';
+  static const String _kLastUpdateCheckDateKey = 'eir_last_update_check_date';
 
   static const List<String> _adjectives = [
     'Starlight', 'Velvet', 'Neon', 'Cosmic', 'Solar', 'Lunar', 'Silent',
@@ -97,6 +99,13 @@ class AppSettings extends ChangeNotifier {
 
   String _avatar = defaultAvatar;
   String get avatar => _avatar;
+
+  // Pending Update & Daily Check
+  bool _hasPendingUpdate = false;
+  bool get hasPendingUpdate => _hasPendingUpdate;
+
+  String _lastUpdateCheckDate = '';
+  String get lastUpdateCheckDate => _lastUpdateCheckDate;
 
   /// Effective display name: returns trimmed nickname if non-empty, otherwise empty
   String get effectiveDisplayName => _nickname.trim();
@@ -214,10 +223,41 @@ class AppSettings extends ChangeNotifier {
         _avatar = defaultAvatar;
         debugPrint('[AppSettings] Reset corrupted avatar setting: $e');
       }
+
+      // 8. Pending Update Flag (Isolated try-catch)
+      try {
+        _hasPendingUpdate = prefs.getBool(_kHasPendingUpdateKey) ?? false;
+      } catch (e) {
+        _hasPendingUpdate = false;
+        debugPrint('[AppSettings] Reset corrupted pending update flag: $e');
+      }
+
+      // 9. Last Update Check Date (Isolated try-catch)
+      try {
+        _lastUpdateCheckDate = prefs.getString(_kLastUpdateCheckDateKey) ?? '';
+      } catch (e) {
+        _lastUpdateCheckDate = '';
+        debugPrint('[AppSettings] Reset corrupted last update check date: $e');
+      }
     }
 
     _isInitialized = true;
     notifyListeners();
+  }
+
+  Future<void> setPendingUpdate(bool value) async {
+    if (_hasPendingUpdate != value) {
+      _hasPendingUpdate = value;
+      notifyListeners();
+      await _saveBool(_kHasPendingUpdateKey, value);
+    }
+  }
+
+  Future<void> setLastUpdateCheckDate(String dateStr) async {
+    if (_lastUpdateCheckDate != dateStr) {
+      _lastUpdateCheckDate = dateStr;
+      await _saveString(_kLastUpdateCheckDateKey, dateStr).catchError((_) => null);
+    }
   }
 
   void setLocale(Locale? loc) {
@@ -360,5 +400,12 @@ class AppSettings extends ChangeNotifier {
     if (!await prefs.setString(key, val)) {
       throw StateError('could not persist signaling configuration');
     }
+  }
+
+  Future<void> _saveBool(String key, bool val) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(key, val);
+    } catch (_) {}
   }
 }

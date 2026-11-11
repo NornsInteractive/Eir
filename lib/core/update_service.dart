@@ -59,7 +59,9 @@ class UpdateInfo {
     Map<String, dynamic> json, {
     int? activeVersionCode,
   }) {
-    final latestCode = (json['latest_version_code'] as num?)?.toInt() ?? 0;
+    final latestCode = (json['latest_version_code'] as num?)?.toInt() ??
+        (json['version_code'] as num?)?.toInt() ??
+        0;
     final currentCode = activeVersionCode ??
         (json['current_version_code'] as num?)?.toInt() ??
         UpdateService.currentVersionCode;
@@ -73,7 +75,9 @@ class UpdateInfo {
       appName: json['app_name'] as String? ?? 'Eir',
       currentVersionCode: currentCode,
       latestVersionCode: latestCode,
-      latestVersionName: json['latest_version_name'] as String? ?? '',
+      latestVersionName: (json['latest_version_name'] as String?) ??
+          (json['version_name'] as String?) ??
+          '',
       changelog: json['changelog'] as String? ?? '',
       downloadUrl: json['download_url'] as String? ?? '',
       shortDownloadUrl: json['short_download_url'] as String? ?? '',
@@ -88,8 +92,8 @@ class UpdateInfo {
 /// Service connecting to Yggdrasil Distribution Gateway (https://ygg.norns.cc.cd)
 class UpdateService {
   static const String appId = 'com.norns.eir';
-  static int _runtimeVersionCode = 4;
-  static String _runtimeVersionName = '1.0.3';
+  static int _runtimeVersionCode = 5;
+  static String _runtimeVersionName = '1.0.4';
 
   static int get currentVersionCode => _runtimeVersionCode;
   static String get currentVersionName => _runtimeVersionName;
@@ -161,6 +165,38 @@ class UpdateService {
     } catch (e) {
       debugPrint('[UpdateService] checkUpdate error: $e');
       return null;
+    }
+  }
+
+  /// Checks for updates automatically once per day upon launch.
+  /// If an update is available:
+  /// - Pops up the update download dialog.
+  /// - If the user chooses not to update/dismisses, the red dot pending update flag is preserved.
+  static Future<void> checkDailyUpdate(BuildContext context) async {
+    try {
+      final now = DateTime.now();
+      final todayStr =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final lastCheck = AppSettings.instance.lastUpdateCheckDate;
+      if (lastCheck == todayStr) {
+        // Already checked today
+        return;
+      }
+
+      // Mark today as checked to avoid repeated automatic dialog popups
+      AppSettings.instance.setLastUpdateCheckDate(todayStr);
+
+      final update = await checkUpdate();
+      if (update != null && update.hasUpdate) {
+        AppSettings.instance.setPendingUpdate(true);
+        if (context.mounted) {
+          UpdateDialog.show(context, update);
+        }
+      } else if (update != null && !update.hasUpdate) {
+        AppSettings.instance.setPendingUpdate(false);
+      }
+    } catch (e) {
+      debugPrint('[UpdateService] checkDailyUpdate error: $e');
     }
   }
 
@@ -297,7 +333,7 @@ class UpdateService {
       try {
         final res = await _mediaPickerChannel.invokeMethod<bool>(
           'installApk',
-          {'path': filePath},
+          {'filePath': filePath, 'path': filePath},
         );
         return res ?? true;
       } catch (e) {
@@ -437,7 +473,10 @@ class _UpdateDialogState extends State<UpdateDialog> {
         _downloadedFilePath = file.path;
       });
       // Automatically trigger native installation immediately
-      await UpdateService.installDownloadedFile(file.path);
+      final success = await UpdateService.installDownloadedFile(file.path);
+      if (success) {
+        AppSettings.instance.setPendingUpdate(false);
+      }
     } else {
       setState(() {
         _isDownloading = false;
@@ -449,7 +488,10 @@ class _UpdateDialogState extends State<UpdateDialog> {
   Future<void> _install() async {
     final path = _downloadedFilePath;
     if (path != null) {
-      await UpdateService.installDownloadedFile(path);
+      final success = await UpdateService.installDownloadedFile(path);
+      if (success) {
+        AppSettings.instance.setPendingUpdate(false);
+      }
     }
   }
 
@@ -707,6 +749,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                           decoration: BoxDecoration(
                             color: tc.inputBackground,
                             borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: tc.glassBorderSubtle),
                           ),
                           alignment: Alignment.center,
                           child: Text(
@@ -714,7 +757,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: tc.textSecondary,
+                              color: tc.textPrimary,
                             ),
                           ),
                         ),
@@ -745,6 +788,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                         : _downloadComplete
                             ? LiquidGlassActionButton(
                                 height: 42,
+                                isPrimary: true,
                                 onTap: _install,
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -765,6 +809,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                               )
                             : LiquidGlassActionButton(
                                 height: 42,
+                                isPrimary: true,
                                 onTap: _startDownload,
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,

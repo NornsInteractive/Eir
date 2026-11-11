@@ -331,9 +331,14 @@ class _LobbyViewState extends State<LobbyView> {
                     },
                     child: Padding(
                       padding: const EdgeInsets.only(right: 6),
-                      child: UserAvatar(
-                        avatarKey: AppSettings.instance.avatar,
-                        size: 28,
+                      child: Badge(
+                        isLabelVisible: AppSettings.instance.hasPendingUpdate,
+                        backgroundColor: Colors.redAccent,
+                        smallSize: 8,
+                        child: UserAvatar(
+                          avatarKey: AppSettings.instance.avatar,
+                          size: 28,
+                        ),
                       ),
                     ),
                   ),
@@ -369,7 +374,18 @@ class _LobbyViewState extends State<LobbyView> {
                       label: i18n.mobileNavLobby,
                     ),
                     GlassTab(
-                      icon: const Icon(Icons.person_outline_rounded),
+                      icon: Badge(
+                        isLabelVisible: AppSettings.instance.hasPendingUpdate,
+                        backgroundColor: Colors.redAccent,
+                        smallSize: 8,
+                        child: const Icon(Icons.person_outline_rounded),
+                      ),
+                      activeIcon: Badge(
+                        isLabelVisible: AppSettings.instance.hasPendingUpdate,
+                        backgroundColor: Colors.redAccent,
+                        smallSize: 8,
+                        child: const Icon(Icons.person_rounded),
+                      ),
                       label: i18n.mobileNavProfile,
                     ),
                   ],

@@ -468,8 +468,10 @@ class _ProfileViewState extends State<ProfileView> {
       if (!mounted) return;
       setState(() => _isCheckingUpdate = false);
       if (update != null && update.hasUpdate) {
+        AppSettings.instance.setPendingUpdate(true);
         UpdateDialog.show(context, update);
       } else {
+        AppSettings.instance.setPendingUpdate(false);
         _showFeedback(AppI18n.of(context).latestVersionAlready);
       }
     } catch (_) {
@@ -777,6 +779,7 @@ class _ProfileViewState extends State<ProfileView> {
                           icon: Icons.system_update_rounded,
                           iconColor: const Color(0xFF007AFF),
                           title: i18n.checkUpdate,
+                          showRedDot: settings.hasPendingUpdate,
                           subtitle: _isCheckingUpdate
                               ? i18n.checkingUpdate
                               : '${i18n.currentVersion} v${UpdateService.currentVersionName} (${UpdateService.currentPlatform})',
@@ -787,7 +790,33 @@ class _ProfileViewState extends State<ProfileView> {
                                   height: 16,
                                   child: CircularProgressIndicator(strokeWidth: 2),
                                 )
-                              : Icon(Icons.chevron_right_rounded, color: tc.textTertiary, size: 20),
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (settings.hasPendingUpdate) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.redAccent,
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        child: const Text(
+                                          'NEW',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    Icon(Icons.chevron_right_rounded,
+                                        color: tc.textTertiary, size: 20),
+                                  ],
+                                ),
                         ),
                       ],
                     ),
@@ -861,6 +890,7 @@ class _ProfileViewState extends State<ProfileView> {
     required String subtitle,
     VoidCallback? onTap,
     Widget? trailing,
+    bool showRedDot = false,
   }) {
     final tc = ThemeColors.of(context);
 
@@ -885,13 +915,28 @@ class _ProfileViewState extends State<ProfileView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: tc.textPrimary,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: tc.textPrimary,
+                        ),
+                      ),
+                      if (showRedDot) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: const BoxDecoration(
+                            color: Colors.redAccent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
