@@ -50,11 +50,28 @@ class SignalingServer {
   final Map<String, _Room> _rooms = <String, _Room>{};
   final Map<String, String> _codeToRoomId = <String, String>{};
   final Map<String, String> _roomIdToCode = <String, String>{};
+  final Map<String, Timer> _roomReapTimers = <String, Timer>{};
+  static const Duration kReapGracePeriod = Duration(minutes: 5);
   bool _stopping = false;
   String? webRoot;
 
   int get port => _http?.port ?? 0;
   int get roomCount => _rooms.length;
+
+  void _scheduleRoomReap(String roomId) {
+    _cancelRoomReap(roomId);
+    _roomReapTimers[roomId] = Timer(kReapGracePeriod, () {
+      _roomReapTimers.remove(roomId);
+      final room = _rooms[roomId];
+      if (room != null && room.peers.isEmpty) {
+        _removeRoom(roomId);
+      }
+    });
+  }
+
+  void _cancelRoomReap(String roomId) {
+    _roomReapTimers.remove(roomId)?.cancel();
+  }
 
   String _generateRoomCode() {
     final rnd = math.Random();
@@ -269,6 +286,7 @@ class SignalingServer {
       if (existing.ownerDeviceId == deviceId &&
           existing.genesisHash == msg['genesisHash'] &&
           existing.sessionId == msg['sessionId']) {
+        _cancelRoomReap(roomId);
         existing.attach(conn, deviceId);
         conn.roomId = roomId;
         conn.deviceId = deviceId;
@@ -290,7 +308,12 @@ class SignalingServer {
       return;
     }
     final digest = _sha256Hex(token);
-    final roomCode = _generateRoomCode();
+    final requestedCode = (msg['roomCode'] as String?)?.trim();
+    final roomCode = (requestedCode != null &&
+            RegExp(r'^\d{6}$').hasMatch(requestedCode) &&
+            !_codeToRoomId.containsKey(requestedCode))
+        ? requestedCode
+        : _generateRoomCode();
     _codeToRoomId[roomCode] = roomId;
     _roomIdToCode[roomId] = roomCode;
 
@@ -385,6 +408,7 @@ class SignalingServer {
       conn.sendError('room_not_found');
       return;
     }
+    _cancelRoomReap(roomId);
     if (epoch != room.inviteEpoch) {
       conn.sendError('invite_stale');
       return;
@@ -562,6 +586,7 @@ class SignalingServer {
   }
 
   void _removeRoom(String roomId) {
+    _cancelRoomReap(roomId);
     _rooms.remove(roomId);
     final code = _roomIdToCode.remove(roomId);
     if (code != null) _codeToRoomId.remove(code);
@@ -569,7 +594,7 @@ class SignalingServer {
 
   void _maybeReapRoom(_Room room) {
     if (room.peers.isEmpty) {
-      _removeRoom(room.roomId);
+      _scheduleRoomReap(room.roomId);
     }
   }
 

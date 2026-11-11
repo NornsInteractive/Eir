@@ -56,7 +56,16 @@ void main() {
     await session.setSignalingUrl(signalingUrl);
     await session.createRoom();
 
-    final path = '/home/user/Videos/big_movie.mp4';
+    final tempDir = await Directory.systemTemp.createTemp('eir_direct_local_');
+    addTearDown(() async {
+      try {
+        await tempDir.delete(recursive: true);
+      } catch (_) {}
+    });
+    final mediaFile = File('${tempDir.path}/big_movie.mp4');
+    await mediaFile.writeAsBytes(List<int>.filled(4096, 0));
+
+    final path = mediaFile.path;
     await session.addDirectLocalMedia(
       path: path,
       title: 'big_movie.mp4',
@@ -68,6 +77,6 @@ void main() {
     expect(item.title, equals('big_movie.mp4'));
     expect(item.sourceType, equals('local'));
     expect(item.localPath, equals(path));
-    expect(item.sizeBytes, equals(3000000000));
+    expect(item.sizeBytes, equals(await mediaFile.length()));
   });
 }

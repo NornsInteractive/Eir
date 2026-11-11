@@ -124,6 +124,28 @@ export class SignalingCoordinator {
     this.rooms = new Map(); // roomId -> Room
     this.codeToRoomId = new Map(); // roomCode -> roomId
     this.roomIdToCode = new Map(); // roomId -> roomCode
+    this.reapTimers = new Map(); // roomId -> timer
+    this.kReapGraceMs = 5 * 60 * 1000; // 5 minutes grace period for empty rooms
+  }
+
+  scheduleRoomReap(roomId) {
+    this.cancelRoomReap(roomId);
+    const timer = setTimeout(() => {
+      this.reapTimers.delete(roomId);
+      const room = this.rooms.get(roomId);
+      if (room && room.peers.size === 0) {
+        this.removeRoom(roomId);
+      }
+    }, this.kReapGraceMs);
+    this.reapTimers.set(roomId, timer);
+  }
+
+  cancelRoomReap(roomId) {
+    const timer = this.reapTimers.get(roomId);
+    if (timer) {
+      clearTimeout(timer);
+      this.reapTimers.delete(roomId);
+    }
   }
 
   generateRoomCode() {
@@ -135,6 +157,7 @@ export class SignalingCoordinator {
   }
 
   removeRoom(roomId) {
+    this.cancelRoomReap(roomId);
     this.rooms.delete(roomId);
     const code = this.roomIdToCode.get(roomId);
     if (code) {
@@ -203,13 +226,16 @@ export class SignalingCoordinator {
       deviceId: conn.deviceId,
     });
     if (room.peers.size === 0) {
-      this.removeRoom(room.roomId);
+      this.scheduleRoomReap(room.roomId);
     }
   }
 
   async handleMessage(conn, msg) {
     const type = msg.type;
     switch (type) {
+      case 'ping':
+        conn.send({ type: 'pong' });
+        break;
       case 'create_room':
         await this.handleCreateRoom(conn, msg);
         break;
@@ -234,7 +260,7 @@ export class SignalingCoordinator {
   }
 
   async handleCreateRoom(conn, msg) {
-    const { roomId, token, deviceId, ownerPublicKey, sessionId, genesisHash, inviteEpoch, protocolVersion } = msg;
+    const { roomId, token, deviceId, ownerPublicKey, sessionId, genesisHash, inviteEpoch, protocolVersion, roomCode: requestedCode } = msg;
     if (protocolVersion !== kProtocolVersion) return conn.sendError('protocol_version');
     if (!roomId || !UUID_V4.test(roomId)) return conn.sendError('invalid_message');
     if (!token || !TOKEN_PATTERN.test(token)) return conn.sendError('invalid_message');
@@ -248,13 +274,15 @@ export class SignalingCoordinator {
       if (existing.ownerDeviceId === deviceId &&
           existing.genesisHash === genesisHash &&
           existing.sessionId === sessionId) {
+        this.cancelRoomReap(roomId);
         existing.attach(conn, deviceId);
         conn.roomId = roomId;
         conn.deviceId = deviceId;
+        const currentCode = existing.roomCode || this.roomIdToCode.get(roomId);
         conn.send({
           type: 'room_created',
           roomId,
-          roomCode: existing.roomCode || this.roomIdToCode.get(roomId),
+          roomCode: currentCode,
           sessionId: existing.sessionId,
           inviteEpoch: existing.inviteEpoch,
           rejoined: true,
@@ -267,7 +295,9 @@ export class SignalingCoordinator {
     if (this.rooms.size >= kMaxRooms) return conn.sendError('server_full');
 
     const digest = await sha256Hex(token);
-    const roomCode = this.generateRoomCode();
+    let roomCode = (typeof requestedCode === 'string' && /^\d{6}$/.test(requestedCode) && !this.codeToRoomId.has(requestedCode))
+      ? requestedCode
+      : this.generateRoomCode();
     this.codeToRoomId.set(roomCode, roomId);
     this.roomIdToCode.set(roomId, roomCode);
 
@@ -336,6 +366,7 @@ export class SignalingCoordinator {
 
     const room = this.rooms.get(roomId);
     if (!room) return conn.sendError('room_not_found');
+    this.cancelRoomReap(roomId);
     if (inviteEpoch !== room.inviteEpoch) return conn.sendError('invite_stale');
 
     const digest = await sha256Hex(token);
@@ -454,7 +485,7 @@ export class SignalingCoordinator {
       deviceId,
     });
     if (room.peers.size === 0) {
-      this.removeRoom(room.roomId);
+      this.scheduleRoomReap(room.roomId);
     }
   }
 
@@ -464,6 +495,7 @@ export class SignalingCoordinator {
     if (!room) return conn.sendError('not_in_room');
     if (room.ownerDeviceId !== conn.deviceId) return conn.sendError('permission_denied');
 
+    this.cancelRoomReap(room.roomId);
     this.removeRoom(room.roomId);
     for (const peer of room.peers.values()) {
       peer.send({

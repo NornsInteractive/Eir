@@ -10,12 +10,29 @@ class SignalingClient {
   static const int maxMessageBytes = 32 * 1024;
 
   WebSocketChannel? _channel;
+  Timer? _pingTimer;
   final _messages = StreamController<Map<String, dynamic>>.broadcast();
   final _connection = StreamController<bool>.broadcast();
 
   Stream<Map<String, dynamic>> get messages => _messages.stream;
   Stream<bool> get connection => _connection.stream;
   bool get isConnected => _channel != null;
+
+  void _startPing() {
+    _pingTimer?.cancel();
+    _pingTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (_channel != null) {
+        try {
+          send(<String, dynamic>{'type': 'ping'});
+        } catch (_) {}
+      }
+    });
+  }
+
+  void _stopPing() {
+    _pingTimer?.cancel();
+    _pingTimer = null;
+  }
 
   Future<void> connect(String url) async {
     await disconnect();
@@ -28,6 +45,7 @@ class SignalingClient {
         return;
       }
       _connection.add(true);
+      _startPing();
       channel.stream.listen(
         (data) {
           if (!identical(_channel, channel)) return;
@@ -35,16 +53,19 @@ class SignalingClient {
           if (data.length > maxMessageBytes) return;
           try {
             final m = jsonDecode(data) as Map<String, dynamic>;
+            if (m['type'] == 'pong') return;
             _messages.add(m);
           } catch (_) {}
         },
         onDone: () {
           if (!identical(_channel, channel)) return;
+          _stopPing();
           _channel = null;
           _connection.add(false);
         },
         onError: (_) {
           if (!identical(_channel, channel)) return;
+          _stopPing();
           _channel = null;
           _connection.add(false);
         },
@@ -67,6 +88,7 @@ class SignalingClient {
   }
 
   Future<void> disconnect() async {
+    _stopPing();
     final channel = _channel;
     _channel = null;
     if (channel != null) _connection.add(false);

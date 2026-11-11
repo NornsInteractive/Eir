@@ -5,7 +5,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:uuid/uuid.dart';
@@ -222,10 +222,15 @@ class RoomSession extends ChangeNotifier {
   final SignalingClient _signaling;
   final Player? _injectedPlayer;
   final String? Function(String url)? _urlProbeOverride;
+  _LifecycleObserver? _lifecycleObserver;
 
   static const List<String> iceServers = <String>[
-    'stun:stun.l.google.com:19302',
+    'stun:stun.miwifi.com:3478',
+    'stun:stun.chat.bilibili.com:3478',
+    'stun:stun.hitv.com:3478',
     'stun:stun.cloudflare.com:3478',
+    'stun:stun1.l.google.com:19302',
+    'stun:stun.l.google.com:19302',
   ];
   static const Duration inviteLifetime = Duration(hours: 72);
   static const Duration handshakeTimeout = Duration(seconds: 10);
@@ -430,6 +435,20 @@ class RoomSession extends ChangeNotifier {
     _signaling.messages.listen(_onSignalingMessage);
     _signaling.connection.listen(_onConnectionState);
     AppSettings.instance.addListener(updateLocalProfile);
+    _lifecycleObserver = _LifecycleObserver(this);
+    WidgetsBinding.instance.addObserver(_lifecycleObserver!);
+  }
+
+  void _handleAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (_roomId != null && !_closing && !_signaling.isConnected) {
+        if (_connectionState != RoomConnectionState.reconnecting) {
+          _connectionState = RoomConnectionState.reconnecting;
+          notifyListeners();
+        }
+        unawaited(retry());
+      }
+    }
   }
 
   void updateLocalProfile() {
@@ -966,7 +985,7 @@ class RoomSession extends ChangeNotifier {
         // and we sync back to its epoch in the room_created handler.
         _inviteEpoch += 1;
       }
-      await _signaling.send({
+      final payload = <String, Object?>{
         'type': 'create_room',
         'protocolVersion': kProtocolVersion,
         'roomId': _roomId,
@@ -976,7 +995,11 @@ class RoomSession extends ChangeNotifier {
         'sessionId': _sessionId,
         'genesisHash': _genesisHash,
         'inviteEpoch': _inviteEpoch,
-      });
+      };
+      if (_roomCode != null && _roomCode!.isNotEmpty) {
+        payload['roomCode'] = _roomCode;
+      }
+      await _signaling.send(payload);
     } else {
       await _signaling.send({
         'type': 'join_room',
@@ -3831,8 +3854,8 @@ class RoomSession extends ChangeNotifier {
     }
   }
 
-  /// Adds a direct local media reference to the playlist instantly without
-  /// performing blocking chunked file hashes or copying to temporary directories.
+  /// Adds a direct local media reference to the playlist using a deterministic
+  /// MediaManifest without copying whole files to temporary directories.
   Future<void> addDirectLocalMedia({
     String? path,
     XFile? file,
@@ -3854,61 +3877,88 @@ class RoomSession extends ChangeNotifier {
       _localMediaPaths[itemId] = path;
     }
 
-    // Fast 64-hex media ID based on metadata and device identity
-    final fastMediaId = crypto.sha256
-        .convert(utf8.encode('${effectiveTitle}_${sizeBytes ?? 0}_${_keyPair!.identity.deviceId}'))
-        .toString();
+    MediaManifest manifest;
+    final svc = await _ensureMediaService();
 
-    if (path != null && path.isNotEmpty) {
-      _localMediaPaths[fastMediaId] = path;
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        path != null &&
+        path.startsWith('content://')) {
+      // Hardware-accelerated native manifest calculation with zero disk copying
+      try {
+        const channel = MethodChannel('com.norns.eir/media_picker');
+        final raw = await channel.invokeMethod<Map>('buildMediaManifest', {
+          'uri': path,
+          'title': effectiveTitle,
+          'sourceDeviceId': _keyPair!.identity.deviceId,
+        });
+        if (raw == null) {
+          throw MediaException('unsupported_media', 'native manifest failed');
+        }
+        final map = raw.cast<String, dynamic>();
+        manifest = MediaManifest.fromJson(map);
+
+        await svc.registerCustomSource(
+          manifest: manifest,
+          reader: (offset, length) async {
+            final res = await channel.invokeMethod<Uint8List>('readContentChunk', {
+              'uri': path,
+              'offset': offset,
+              'length': length,
+            });
+            return res ?? Uint8List(0);
+          },
+        );
+      } catch (e, st) {
+        debugPrint('[RoomSession] Native manifest calculation failed: $e\n$st');
+        _lastErrorCode = 'unsupported_media';
+        notifyListeners();
+        return;
+      }
+    } else if (file != null) {
+      manifest = await svc.registerFile(file, title: effectiveTitle);
+    } else if (path != null && path.isNotEmpty && !kIsWeb) {
+      manifest = await svc.registerFile(
+        XFile(path, name: effectiveTitle),
+        title: effectiveTitle,
+      );
+    } else {
+      _lastErrorCode = 'unsupported_media';
+      notifyListeners();
+      return;
     }
 
-    // Fast signature to satisfy commit validation
-    final sigPayload = <String, Object?>{
-      'mediaId': fastMediaId,
-      'title': effectiveTitle,
-      'size': sizeBytes ?? 0,
-    };
+    final realMediaId = manifest.mediaId;
+    _localMediaPaths[realMediaId] = path ?? (file?.path ?? '');
+    _localMediaPaths[itemId] = path ?? (file?.path ?? '');
+    _knownLocalMediaIds.add(realMediaId);
+    _knownLocalMediaSources[realMediaId] = _keyPair!.identity.deviceId;
+
     final signature = await signDomain(
       'media_manifest',
-      sigPayload,
+      manifest.toJson(),
       _keyPair!,
       identityStore: _identityStore,
     );
+    _manifestSignatures[realMediaId] = signature;
 
     final item = <String, Object?>{
       'itemId': itemId,
       'title': effectiveTitle,
       'sourceType': 'local',
-      'localMediaId': fastMediaId,
-      'localPath': ?path,
+      'localMediaId': realMediaId,
+      'localPath': path,
       'url': null,
-      'sizeBytes': ?sizeBytes,
+      'sizeBytes': manifest.size,
       'manifestSource': _keyPair!.identity.deviceId,
     };
-
-    _knownLocalMediaIds.add(fastMediaId);
-    _knownLocalMediaSources[fastMediaId] = _keyPair!.identity.deviceId;
-    _manifestSignatures[fastMediaId] = signature;
-
-    // Asynchronously register in LocalMediaService if file is provided, without blocking UI
-    if (file != null) {
-      _ensureMediaService().then((service) {
-        service.registerFile(file, title: effectiveTitle).then((manifest) {
-          service.registerAlias(fastMediaId, manifest.mediaId);
-          _knownLocalMediaIds.add(manifest.mediaId);
-          _knownLocalMediaSources[manifest.mediaId] = _keyPair!.identity.deviceId;
-          if (path != null && path.isNotEmpty) {
-            _localMediaPaths[manifest.mediaId] = path;
-          }
-        }).catchError((_) {});
-      }).catchError((_) {});
-    }
 
     final params = <String, Object?>{
       'item': item,
       'manifestSource': _keyPair!.identity.deviceId,
       'manifestSignature': signature,
+      if (manifest.toJson().toString().length <= kMaxInlineManifestBytes)
+        'manifest': manifest.toJson(),
     };
 
     if (_lastErrorCode != null) {
@@ -4160,6 +4210,10 @@ class RoomSession extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_lifecycleObserver != null) {
+      WidgetsBinding.instance.removeObserver(_lifecycleObserver!);
+      _lifecycleObserver = null;
+    }
     AppSettings.instance.removeListener(updateLocalProfile);
     _closing = true;
     _reconnectTimer?.cancel();
@@ -4177,5 +4231,15 @@ class RoomSession extends ChangeNotifier {
     unawaited(_player?.dispose() ?? Future<void>.value());
     unawaited(_signaling.disconnect());
     super.dispose();
+  }
+}
+
+class _LifecycleObserver with WidgetsBindingObserver {
+  _LifecycleObserver(this.session);
+  final RoomSession session;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    session._handleAppLifecycleState(state);
   }
 }

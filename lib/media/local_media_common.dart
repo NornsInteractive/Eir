@@ -79,10 +79,13 @@ class _ManifestReassembly {
   bool cancelled = false;
 }
 
+typedef MediaChunkReader = Future<Uint8List> Function(int offset, int length);
+
 class _SourceFile {
-  _SourceFile({required this.manifest, required this.file});
+  _SourceFile({required this.manifest, this.file, this.customReader});
   final MediaManifest manifest;
-  final XFile file;
+  final XFile? file;
+  final MediaChunkReader? customReader;
 }
 
 String localDeviceIdRequired(String? localDeviceId) {
@@ -244,6 +247,29 @@ abstract class BaseLocalMediaService {
     return Uint8List.fromList(out);
   }
 
+  Future<Uint8List> _readFromSource(_SourceFile source, int start, int end) async {
+    final len = end - start;
+    if (source.customReader != null) {
+      return await source.customReader!(start, len);
+    }
+    if (source.file != null) {
+      return await _readExact(source.file!, start, end);
+    }
+    throw MediaException('source_offline', 'no file or custom reader');
+  }
+
+  Future<MediaManifest> registerCustomSource({
+    required MediaManifest manifest,
+    required MediaChunkReader reader,
+  }) async {
+    _sources[manifest.mediaId] = _SourceFile(
+      manifest: manifest,
+      customReader: reader,
+    );
+    await _cacheFor(manifest);
+    return manifest;
+  }
+
   Future<List<int>> _readMediaHeader(XFile file) async {
     final out = <int>[];
     await for (final part in file.openRead(0, defaultMagicNumbersMaxLength)) {
@@ -372,7 +398,10 @@ abstract class BaseLocalMediaService {
     try {
       final json = jsonDecode(utf8.decode(raw)) as Map<String, dynamic>;
       final manifest = MediaManifest.fromJson(json);
-      if (manifest.mediaId != msg['mediaId'] && msg['mediaId'] != null) throw MediaException('invalid_manifest', 'mediaId mismatch');
+      final matchId = msg['mediaId'];
+      if (matchId != null && manifest.mediaId != matchId && _aliases[matchId] != manifest.mediaId) {
+        throw MediaException('invalid_manifest', 'mediaId mismatch');
+      }
       final authorizer = _manifestAuthorizer;
       if (authorizer == null) throw MediaException('untrusted_manifest');
       final authOk = await authorizer(manifest);
@@ -532,7 +561,7 @@ abstract class BaseLocalMediaService {
         if (f.cancelled) return;
         final chunkEnd = ((offset ~/ manifest.chunkSize) + 1) * manifest.chunkSize;
         final sliceEnd = chunkEnd.clamp(offset, f.end);
-        final slice = await _readExact(source.file, offset, sliceEnd);
+        final slice = await _readFromSource(source, offset, sliceEnd);
         var sent = 0;
         while (sent < slice.length) {
           if (f.cancelled) return;
@@ -585,7 +614,7 @@ abstract class BaseLocalMediaService {
       final source = _sources[_resolveMediaId(mediaId)];
       if (source != null) {
         final start = chunkIndex * manifest.chunkSize;
-        final bytes = await _readExact(source.file, start, start + manifest.chunkLength(chunkIndex));
+        final bytes = await _readFromSource(source, start, start + manifest.chunkLength(chunkIndex));
         final sum = crypto.sha256.convert(bytes).toString();
         if (sum != expected) throw MediaException('chunk_hash_mismatch');
         try {
