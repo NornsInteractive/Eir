@@ -22,12 +22,17 @@ class SettingsDialog extends StatefulWidget {
 
 class _SettingsDialogState extends State<SettingsDialog> {
   late final TextEditingController _signalingController;
+  late final TextEditingController _turnServerController;
+  late final TextEditingController _turnUsernameController;
+  late final TextEditingController _turnCredentialController;
   bool _isCleaningCache = false;
   String? _cacheCleanMessage;
   bool? _cacheCleanSuccess;
   bool _isSavingSignaling = false;
   String? _signalingFeedback;
   bool _signalingFeedbackIsError = false;
+  bool _isSavingTurn = false;
+  String? _turnFeedback;
 
   static const List<Map<String, dynamic>> _lightPresets = [
     {'key': 'blue', 'color': Color(0xFF007AFF)},
@@ -53,13 +58,38 @@ class _SettingsDialogState extends State<SettingsDialog> {
     _signalingController =
         TextEditingController(text: AppSettings.instance.signalingUrl);
     _signalingController.addListener(_onSignalingDraftChanged);
+    _turnServerController =
+        TextEditingController(text: AppSettings.instance.turnServer);
+    _turnUsernameController =
+        TextEditingController(text: AppSettings.instance.turnUsername);
+    _turnCredentialController =
+        TextEditingController(text: AppSettings.instance.turnCredential);
   }
 
   @override
   void dispose() {
     _signalingController.removeListener(_onSignalingDraftChanged);
     _signalingController.dispose();
+    _turnServerController.dispose();
+    _turnUsernameController.dispose();
+    _turnCredentialController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleSaveTurnConfig() async {
+    setState(() => _isSavingTurn = true);
+    await AppSettings.instance.setTurnConfig(
+      server: _turnServerController.text,
+      username: _turnUsernameController.text,
+      credential: _turnCredentialController.text,
+    );
+    if (!mounted) return;
+    setState(() {
+      _isSavingTurn = false;
+      _turnFeedback = AppI18n.of(context).isZh
+          ? 'TURN 配置已保存'
+          : 'TURN configuration saved';
+    });
   }
 
   void _onSignalingDraftChanged() {
@@ -581,7 +611,153 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                 ),
                                 const SizedBox(height: 18),
 
-                                // 5. Background Keep-Alive
+                                // 5. Transport Engine & Traversal
+                                _buildSectionHeader(
+                                  context,
+                                  icon: Icons.hub_rounded,
+                                  title: i18n.transportEngine,
+                                ),
+                                const SizedBox(height: 8),
+                                GlassContainer.card(
+                                  surfaceStyle: GlassSurfaceStyle.solid,
+                                  color: tc.inputBackground,
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        i18n.transportEngine,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: tc.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      GlassSegmentedControl(
+                                        selectedIndex:
+                                            settings.isTailcatEngine ? 1 : 0,
+                                        onSegmentSelected: (index) {
+                                          settings.setTransportEngine(
+                                              index == 1 ? "tailcat" : "webrtc");
+                                        },
+                                        segments: [
+                                          GlassSegment(
+                                              label: i18n.transportWebrtc),
+                                          GlassSegment(
+                                              label: i18n.transportTailcat),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 14),
+                                      Divider(height: 1, color: tc.glassBorder),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        i18n.turnServer,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: tc.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      GlassTextField(
+                                        controller: _turnServerController,
+                                        placeholder:
+                                            "turn:turn.example.com:3478",
+                                        height: 38,
+                                        surfaceStyle: GlassSurfaceStyle.solid,
+                                        color: Colors.transparent,
+                                        textStyle: TextStyle(
+                                            color: tc.textPrimary,
+                                            fontSize: 12),
+                                        placeholderStyle: TextStyle(
+                                            color: tc.textTertiary,
+                                            fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: GlassTextField(
+                                              controller:
+                                                  _turnUsernameController,
+                                              placeholder: i18n.turnUsername,
+                                              height: 38,
+                                              surfaceStyle:
+                                                  GlassSurfaceStyle.solid,
+                                              color: Colors.transparent,
+                                              textStyle: TextStyle(
+                                                  color: tc.textPrimary,
+                                                  fontSize: 12),
+                                              placeholderStyle: TextStyle(
+                                                  color: tc.textTertiary,
+                                                  fontSize: 12),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: GlassTextField(
+                                              controller:
+                                                  _turnCredentialController,
+                                              placeholder: i18n.turnCredential,
+                                              obscureText: true,
+                                              height: 38,
+                                              surfaceStyle:
+                                                  GlassSurfaceStyle.solid,
+                                              color: Colors.transparent,
+                                              textStyle: TextStyle(
+                                                  color: tc.textPrimary,
+                                                  fontSize: 12),
+                                              placeholderStyle: TextStyle(
+                                                  color: tc.textTertiary,
+                                                  fontSize: 12),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: LiquidGlassActionButton(
+                                          height: 32,
+                                          onTap: _isSavingTurn
+                                              ? () {}
+                                              : _handleSaveTurnConfig,
+                                          child: _isSavingTurn
+                                              ? SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation<
+                                                                Color>(
+                                                            tc.textPrimary),
+                                                  ),
+                                                )
+                                              : Text(
+                                                  i18n.save,
+                                                  style: const TextStyle(
+                                                      fontSize: 12),
+                                                ),
+                                        ),
+                                      ),
+                                      if (_turnFeedback != null) ...[
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          _turnFeedback!,
+                                          style: TextStyle(
+                                              fontSize: 11, color: tc.success),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+
+                                // 6. Background Keep-Alive
                                 _buildSectionHeader(
                                   context,
                                   icon: Icons.power_settings_new_rounded,

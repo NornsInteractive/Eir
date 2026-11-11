@@ -361,6 +361,20 @@ class AppI18n {
   String get connectionP2pTooltip => isZh ? '当前为端到端 P2P 直连通道' : 'Connected via P2P direct channel';
   String get connectionServerTooltip => isZh ? '当前通过边缘信令服务器连接' : 'Connected via edge signaling server';
   String get moreSettings => isZh ? '更多设置' : 'More Settings';
+  String get p2pConnecting => isZh ? 'P2P连接中' : 'P2P Connecting';
+  String get p2pConnectingTooltip => isZh ? '正在尝试建立 P2P 端到端直连 (UDP 打洞中)...' : 'Attempting to establish P2P direct channel (UDP punching)...';
+  String get p2pFailedPill => isZh ? '服务器 (P2P未通)' : 'Server (P2P Failed)';
+  String get p2pFailedTooltip => isZh ? 'P2P 直连打洞超时（UDP 受阻）。在线视频已走服务器中继同步；如播放本地视频需配置 TURN 或切换 Tailcat。' : 'P2P direct channel timed out (UDP blocked). Online videos sync via server; for local files configure TURN or switch to Tailcat.';
+  String get p2pBlockedLocalNotice => isZh ? '当前网络 UDP 打洞受阻（对称型 NAT / 移动 4G/5G），无法直接读取本地文件。可在设置中配置 TURN 中继，或改用在线视频。' : 'UDP hole-punching blocked by network (Symmetric NAT / 4G/5G). Cannot stream local media. Configure TURN in Settings or use an online URL video.';
+  String get retryP2p => isZh ? '重试 P2P 打洞' : 'Retry P2P Hole Punching';
+  String get turnServer => isZh ? 'TURN 中继服务器' : 'TURN Relay Server';
+  String get turnUsername => isZh ? 'TURN 用户名' : 'TURN Username';
+  String get turnCredential => isZh ? 'TURN 密码凭据' : 'TURN Password / Credential';
+  String get transportEngine => isZh ? '传输引擎 / 穿透模式' : 'Transport Engine / NAT Mode';
+  String get transportWebrtc => isZh ? 'WebRTC 原生模式 (默认)' : 'WebRTC Native (Default)';
+  String get transportTailcat => isZh ? 'Tailcat 穿透引擎 (跨网推荐)' : 'Tailcat Magicsock (Recommended for WAN)';
+  String get transportWebrtcDesc => isZh ? '超轻量无额外体积，原生支持 Web 浏览器，适合同 Wi-Fi 或具备公网条件的环境。' : 'Lightweight, native browser support, best for same LAN or reachable IP networks.';
+  String get transportTailcatDesc => isZh ? '内置 Tailscale Magicsock + WireGuard，直连失败自动走全球 DERP 节点（走 443 端口），抗丢包穿透率 99.9%。' : 'WireGuard + Magicsock with automatic global DERP fallback (HTTPS 443), 99.9% NAT traversal.';
 }
 
 class AppLocalizationsDelegate extends LocalizationsDelegate<AppI18n> {

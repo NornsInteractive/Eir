@@ -1889,6 +1889,14 @@ class _CinemaViewState extends State<CinemaView> {
           dotColor = tc.success;
           label = 'P2P';
           tooltip = i18n.connectionP2pTooltip;
+        } else if (widget.session.isP2pConnecting) {
+          dotColor = tc.primary;
+          label = i18n.p2pConnecting;
+          tooltip = i18n.p2pConnectingTooltip;
+        } else if (widget.session.isP2pFailed) {
+          dotColor = tc.warning;
+          label = i18n.p2pFailedPill;
+          tooltip = i18n.p2pFailedTooltip;
         } else {
           dotColor = tc.primary;
           label = i18n.connectionServer;
@@ -2267,6 +2275,82 @@ class _CinemaViewState extends State<CinemaView> {
                             color: Colors.white.withValues(alpha: 0.7)),
                       ),
                     ],
+                  ),
+                ),
+              ),
+
+            // P2P Blocked Local Media Overlay
+            if (_currentPlaylistItem != null &&
+                _currentPlaylistItem!.sourceType == 'local' &&
+                widget.session.isP2pFailed &&
+                !widget.session.isP2pConnected &&
+                widget.session.lastErrorCode != 'source_offline')
+              Container(
+                color: Colors.black87,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.wifi_tethering_off_rounded, size: 44, color: tc.warning),
+                        const SizedBox(height: 12),
+                        Text(
+                          i18n.p2pFailedPill,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          i18n.p2pBlockedLocalNotice,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            height: 1.4,
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            LiquidGlassActionButton(
+                              onTap: () => widget.session.retryP2p(),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.refresh_rounded, size: 16, color: Colors.white),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    i18n.retryP2p,
+                                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            LiquidGlassActionButton(
+                              onTap: () => SettingsDialog.show(context, session: widget.session),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.settings_rounded, size: 16, color: Colors.white),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    i18n.settingsTitle,
+                                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

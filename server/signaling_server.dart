@@ -439,6 +439,7 @@ class SignalingServer {
         'type': 'member_joined',
         'roomId': roomId,
         'deviceId': deviceId,
+        'publicKey': conn.publicKey,
         'rejoined': true,
       }, exceptDeviceId: deviceId);
       return;
@@ -475,6 +476,7 @@ class SignalingServer {
       'type': 'member_joined',
       'roomId': roomId,
       'deviceId': deviceId,
+      'publicKey': conn.publicKey,
       'rejoined': false,
     }, exceptDeviceId: deviceId);
   }
@@ -486,7 +488,7 @@ class SignalingServer {
       return;
     }
     final kind = msg['kind'];
-    if (kind != 'offer' && kind != 'answer' && kind != 'ice') {
+    if (kind != 'offer' && kind != 'answer' && kind != 'ice' && kind != 'room_msg' && kind != 'tailcat_addr') {
       conn.sendError('invalid_message');
       return;
     }
@@ -513,6 +515,32 @@ class SignalingServer {
         'from': conn.deviceId,
         'kind': kind,
         'sdp': <String, Object?>{'type': type, 'sdp': body},
+      };
+    } else if (kind == 'tailcat_addr') {
+      final addr = msg['addr'];
+      if (addr is! String || addr.isEmpty || addr.length > 2048) {
+        conn.sendError('invalid_message');
+        return;
+      }
+      outbound = <String, Object?>{
+        'type': 'signal',
+        'roomId': room.roomId,
+        'from': conn.deviceId,
+        'kind': 'tailcat_addr',
+        'addr': addr,
+      };
+    } else if (kind == 'room_msg') {
+      final payload = msg['payload'];
+      if (payload is! Map) {
+        conn.sendError('invalid_message');
+        return;
+      }
+      outbound = <String, Object?>{
+        'type': 'signal',
+        'roomId': room.roomId,
+        'from': conn.deviceId,
+        'kind': 'room_msg',
+        'payload': payload,
       };
     } else {
       // ice

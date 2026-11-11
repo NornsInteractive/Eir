@@ -24,6 +24,10 @@ class AppSettings extends ChangeNotifier {
   static const String _kHasPendingUpdateKey = 'eir_has_pending_update';
   static const String _kLastUpdateCheckDateKey = 'eir_last_update_check_date';
   static const String _kBackgroundKeepAliveKey = 'eir_setting_background_keep_alive';
+  static const String _kTurnServerKey = 'eir_setting_turn_server';
+  static const String _kTurnUsernameKey = 'eir_setting_turn_username';
+  static const String _kTurnCredentialKey = 'eir_setting_turn_credential';
+  static const String _kTransportEngineKey = 'eir_setting_transport_engine';
 
   static const List<String> _adjectives = [
     'Starlight', 'Velvet', 'Neon', 'Cosmic', 'Solar', 'Lunar', 'Silent',
@@ -111,6 +115,19 @@ class AppSettings extends ChangeNotifier {
   // Background Keep-Alive
   bool _backgroundKeepAlive = true;
   bool get backgroundKeepAlive => _backgroundKeepAlive;
+
+  // TURN Relay Server Configuration
+  String _turnServer = '';
+  String get turnServer => _turnServer;
+  String _turnUsername = '';
+  String get turnUsername => _turnUsername;
+  String _turnCredential = '';
+  String get turnCredential => _turnCredential;
+
+  // Transport Engine Preference: 'webrtc' | 'tailcat'
+  String _transportEngine = 'webrtc';
+  String get transportEngine => _transportEngine;
+  bool get isTailcatEngine => _transportEngine == 'tailcat';
 
   /// Effective display name: returns trimmed nickname if non-empty, otherwise empty
   String get effectiveDisplayName => _nickname.trim();
@@ -252,6 +269,27 @@ class AppSettings extends ChangeNotifier {
         _backgroundKeepAlive = true;
         debugPrint('[AppSettings] Reset corrupted background keep-alive setting: $e');
       }
+
+      // 11. TURN Relay Server Configuration (Isolated try-catch)
+      try {
+        _turnServer = prefs.getString(_kTurnServerKey) ?? '';
+        _turnUsername = prefs.getString(_kTurnUsernameKey) ?? '';
+        _turnCredential = prefs.getString(_kTurnCredentialKey) ?? '';
+      } catch (e) {
+        _turnServer = '';
+        _turnUsername = '';
+        _turnCredential = '';
+        debugPrint('[AppSettings] Reset corrupted TURN settings: $e');
+      }
+
+      // 12. Transport Engine Preference (Isolated try-catch)
+      try {
+        final engine = prefs.getString(_kTransportEngineKey) ?? 'webrtc';
+        _transportEngine = engine == 'tailcat' ? 'tailcat' : 'webrtc';
+      } catch (e) {
+        _transportEngine = 'webrtc';
+        debugPrint('[AppSettings] Reset corrupted transport engine setting: $e');
+      }
     }
 
     _isInitialized = true;
@@ -278,6 +316,39 @@ class AppSettings extends ChangeNotifier {
     if (_lastUpdateCheckDate != dateStr) {
       _lastUpdateCheckDate = dateStr;
       await _saveString(_kLastUpdateCheckDateKey, dateStr).catchError((_) => null);
+    }
+  }
+
+  Future<void> setTurnConfig({
+    required String server,
+    required String username,
+    required String credential,
+  }) async {
+    _turnServer = server.trim();
+    _turnUsername = username.trim();
+    _turnCredential = credential.trim();
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kTurnServerKey, _turnServer);
+      await prefs.setString(_kTurnUsernameKey, _turnUsername);
+      await prefs.setString(_kTurnCredentialKey, _turnCredential);
+    } catch (e) {
+      debugPrint('[AppSettings] Failed to persist TURN config: $e');
+    }
+  }
+
+  Future<void> setTransportEngine(String engine) async {
+    final valid = engine == 'tailcat' ? 'tailcat' : 'webrtc';
+    if (_transportEngine != valid) {
+      _transportEngine = valid;
+      notifyListeners();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_kTransportEngineKey, valid);
+      } catch (e) {
+        debugPrint('[AppSettings] Failed to persist transport engine: $e');
+      }
     }
   }
 

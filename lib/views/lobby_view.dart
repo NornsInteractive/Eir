@@ -586,6 +586,39 @@ class _LobbyViewState extends State<LobbyView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Transport Mode Selector
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    children: [
+                      Text(
+                        i18n.transportEngine,
+                        style: TextStyle(
+                          fontSize: isShort ? 11 : 12,
+                          fontWeight: FontWeight.w600,
+                          color: tc.textSecondary,
+                        ),
+                      ),
+                      const Spacer(),
+                      SizedBox(
+                        width: isShort ? 160 : 190,
+                        child: GlassSegmentedControl(
+                          selectedIndex:
+                              AppSettings.instance.isTailcatEngine ? 1 : 0,
+                          onSegmentSelected: (index) {
+                            AppSettings.instance.setTransportEngine(
+                                index == 1 ? 'tailcat' : 'webrtc');
+                          },
+                          segments: const [
+                            GlassSegment(label: '⚡ WebRTC'),
+                            GlassSegment(label: '🚀 Tailcat'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 // Create Room Button
                 Semantics(
                   button: true,

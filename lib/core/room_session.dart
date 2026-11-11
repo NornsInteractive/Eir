@@ -28,6 +28,8 @@ import 'commit_log.dart';
 import 'identity.dart';
 import 'invite.dart';
 import 'protocol.dart';
+import 'transport/tailcat_stub.dart'
+    if (dart.library.ffi) 'transport/tailcat_ffi.dart';
 
 export '../platform/signaling_client.dart' show SignalingClient;
 export 'identity.dart'
@@ -262,6 +264,26 @@ class RoomSession extends ChangeNotifier {
     'stun:stun1.l.google.com:19302',
     'stun:stun.l.google.com:19302',
   ];
+
+  static List<Map<String, dynamic>> get effectiveIceServers {
+    final list = <Map<String, dynamic>>[
+      {'urls': iceServers},
+    ];
+    final turn = AppSettings.instance.turnServer.trim();
+    if (turn.isNotEmpty) {
+      final turnEntry = <String, dynamic>{
+        'urls': turn.startsWith('turn:') || turn.startsWith('turns:') ? turn : 'turn:$turn',
+      };
+      if (AppSettings.instance.turnUsername.isNotEmpty) {
+        turnEntry['username'] = AppSettings.instance.turnUsername;
+      }
+      if (AppSettings.instance.turnCredential.isNotEmpty) {
+        turnEntry['credential'] = AppSettings.instance.turnCredential;
+      }
+      list.add(turnEntry);
+    }
+    return list;
+  }
   static const Duration inviteLifetime = Duration(hours: 72);
   static const Duration handshakeTimeout = Duration(seconds: 10);
   static const Duration requestTimeout = Duration(seconds: 8);
@@ -331,8 +353,35 @@ class RoomSession extends ChangeNotifier {
   bool _peerVerified = false;
   bool get peerVerified => _peerVerified;
 
-  /// Whether WebRTC P2P direct data channel is established and verified with peer.
-  bool get isP2pConnected => _dc != null && _dcStateOpen() == true && _peerVerified;
+  bool _p2pConnecting = false;
+  bool _p2pFailed = false;
+  Timer? _p2pTimeoutTimer;
+
+  TailcatTransport? _tailcatTransport;
+  TailcatTransport? get tailcatTransport => _tailcatTransport;
+  String? _tailcatAddr;
+  String? get tailcatAddr => _tailcatAddr;
+
+  /// Whether WebRTC P2P direct data channel or Tailcat tunnel is established and verified.
+  bool get isP2pConnected =>
+      (_tailcatTransport != null && _tailcatTransport!.isOpen) ||
+      (_dc != null && _dcStateOpen() == true && _peerVerified);
+
+  /// Whether P2P direct hole-punching is in progress.
+  bool get isP2pConnecting => _p2pConnecting && !isP2pConnected;
+
+  /// Whether P2P direct connection attempt has timed out (e.g. blocked by UDP / Symmetric NAT).
+  bool get isP2pFailed => _p2pFailed && !isP2pConnected;
+
+  /// Retries WebRTC P2P direct hole-punching.
+  Future<void> retryP2p() async {
+    if (_roomId == null || _closing) return;
+    _p2pFailed = false;
+    _p2pConnecting = true;
+    _iceRestartAttempts = 0;
+    notifyListeners();
+    await _startWebRtc(isOwner: role == RoomRole.owner);
+  }
 
   /// Access to the lazily-created P2P media service for integration tests.
   @visibleForTesting
@@ -753,6 +802,29 @@ class RoomSession extends ChangeNotifier {
     _connectionState = RoomConnectionState.connected;
     _lastErrorCode = null;
     unawaited(syncKeepAlive());
+
+    if (AppSettings.instance.isTailcatEngine && TailcatTransport.isAvailable) {
+      try {
+        final t = TailcatTransport();
+        final addr = await t.startServer();
+        _tailcatTransport = t;
+        _tailcatAddr = addr;
+        t.textStream.listen((text) {
+          try {
+            final decoded = jsonDecode(text);
+            if (decoded is Map) {
+              unawaited(_handleDcMessage(Map<String, Object?>.from(decoded)));
+            }
+          } catch (_) {}
+        });
+        t.binaryStream.listen((bytes) {
+          _media?.onBinary(bytes);
+        });
+      } catch (e) {
+        debugPrint('[RoomSession] Tailcat startServer error: $e');
+      }
+    }
+
     notifyListeners();
   }
 
@@ -1275,8 +1347,8 @@ class RoomSession extends ChangeNotifier {
           joined.complete();
         } else {
           _connectionState = RoomConnectionState.connected;
-          notifyListeners();
         }
+        _handleJoinAccepted(msg);
         return;
       case 'member_joined':
         _handleMemberJoined(msg);
@@ -1301,16 +1373,55 @@ class RoomSession extends ChangeNotifier {
     }
   }
 
+  void _handleJoinAccepted(Map<String, dynamic> msg) {
+    _connectionState = RoomConnectionState.connected;
+    final membersRaw = msg['members'];
+    if (membersRaw is List) {
+      for (final m in membersRaw) {
+        if (m is String && m.isNotEmpty) {
+          _upsertMember(m, online: true);
+        } else if (m is Map) {
+          final deviceId = m['deviceId'] as String?;
+          if (deviceId != null && deviceId.isNotEmpty) {
+            final joinedAt = (m['joinedAt'] as num?)?.toInt();
+            final online = m['online'] as bool? ?? true;
+            _upsertMember(deviceId, online: online, joinedAt: joinedAt);
+          }
+        }
+      }
+    }
+    if (_selfId != null && !_members.any((m) => m.deviceId == _selfId)) {
+      _upsertMember(_selfId!, online: true);
+    }
+    _startRoomTimers();
+    notifyListeners();
+  }
+
   void _handleMemberJoined(Map<String, dynamic> msg) {
     final deviceId = msg['deviceId'] as String?;
     if (deviceId == null || deviceId == _selfId) return;
+    final publicKey = msg['publicKey'] as String?;
     if (role == RoomRole.owner) {
       _peerDeviceId ??= deviceId;
+      if (publicKey != null && publicKey.isNotEmpty) {
+        _peerPublicKey ??= publicKey;
+      }
     }
     _upsertMember(deviceId, online: true, joinedAt: msg['joinedAt'] as int?);
     if (role == RoomRole.owner &&
         (!_peerVerified || _dcStateOpen() != true)) {
       unawaited(_startWebRtc(isOwner: true));
+    }
+    if (role == RoomRole.owner) {
+      unawaited(_sendSnapshot());
+      if (_tailcatAddr != null) {
+        unawaited(_signaling.send({
+          'type': 'signal',
+          'roomId': _roomId,
+          'kind': 'tailcat_addr',
+          'addr': _tailcatAddr,
+        }));
+      }
     }
     notifyListeners();
   }
@@ -1471,11 +1582,19 @@ class RoomSession extends ChangeNotifier {
   Future<void> _startWebRtc({required bool isOwner}) async {
     await _teardownPeer();
     _peerVerified = false;
+    _p2pConnecting = true;
+    _p2pFailed = false;
+    _p2pTimeoutTimer?.cancel();
+    _p2pTimeoutTimer = Timer(const Duration(seconds: 10), () {
+      if (!_peerVerified && _dcStateOpen() != true) {
+        _p2pConnecting = false;
+        _p2pFailed = true;
+        notifyListeners();
+      }
+    });
     _handshakeTimer?.cancel();
     final Map<String, dynamic> config = {
-      'iceServers': [
-        {'urls': iceServers},
-      ],
+      'iceServers': effectiveIceServers,
       'sdpSemantics': 'unified-plan',
     };
     final pc = await createPeerConnection(config);
@@ -1530,6 +1649,9 @@ class RoomSession extends ChangeNotifier {
     if (_dcStateOpen() == true) return; // surviving channel: keep it
     if (!isOwner) {
       if (_iceRestartAttempts >= 3) {
+        _p2pConnecting = false;
+        _p2pFailed = true;
+        _p2pTimeoutTimer?.cancel();
         _lastErrorCode = 'connection_failed';
         notifyListeners();
         return;
@@ -1538,12 +1660,18 @@ class RoomSession extends ChangeNotifier {
       await Future<void>.delayed(const Duration(seconds: 4));
       if (_closing || _roomId == null) return;
       if (_dcStateOpen() != true && !_peerVerified) {
+        _p2pConnecting = false;
+        _p2pFailed = true;
+        _p2pTimeoutTimer?.cancel();
         _lastErrorCode = 'connection_failed';
         notifyListeners();
       }
       return;
     }
     if (_iceRestartAttempts >= 3) {
+      _p2pConnecting = false;
+      _p2pFailed = true;
+      _p2pTimeoutTimer?.cancel();
       _lastErrorCode = 'connection_failed';
       notifyListeners();
       return;
@@ -1600,6 +1728,20 @@ class RoomSession extends ChangeNotifier {
       await _flushPendingIce();
       return;
     }
+    if (kind == 'tailcat_addr') {
+      final addr = msg['addr'] as String?;
+      if (addr != null && addr.isNotEmpty && TailcatTransport.isAvailable) {
+        unawaited(_connectTailcat(addr));
+      }
+      return;
+    }
+    if (kind == 'room_msg') {
+      final payload = (msg['payload'] as Map?)?.cast<String, Object?>();
+      if (payload != null) {
+        unawaited(_handleDcMessage(payload));
+      }
+      return;
+    }
     if (kind == 'danmaku') {
       final payload = (msg['payload'] as Map?)?.cast<String, dynamic>();
       if (payload != null) {
@@ -1623,6 +1765,28 @@ class RoomSession extends ChangeNotifier {
         if (_pendingIce.length < 64) _pendingIce.add(candidate);
       }
       return;
+    }
+  }
+
+  Future<void> _connectTailcat(String addr) async {
+    try {
+      final t = TailcatTransport();
+      await t.startClient(addr);
+      _tailcatTransport = t;
+      t.textStream.listen((text) {
+        try {
+          final decoded = jsonDecode(text);
+          if (decoded is Map) {
+            unawaited(_handleDcMessage(Map<String, Object?>.from(decoded)));
+          }
+        } catch (_) {}
+      });
+      t.binaryStream.listen((bytes) {
+        _media?.onBinary(bytes);
+      });
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[RoomSession] Tailcat connect error: $e');
     }
   }
 
@@ -1686,6 +1850,8 @@ class RoomSession extends ChangeNotifier {
 
   Future<void> _teardownPeer() async {
     _handshakeTimer?.cancel();
+    _p2pTimeoutTimer?.cancel();
+    _p2pTimeoutTimer = null;
     _stopRoomTimers();
     final dc = _dc;
     _dc = null;
@@ -1694,6 +1860,12 @@ class RoomSession extends ChangeNotifier {
     _remoteDescriptionSet = false;
     _pendingIce.clear();
     _peerVerified = false;
+    final tailcat = _tailcatTransport;
+    _tailcatTransport = null;
+    _tailcatAddr = null;
+    try {
+      await tailcat?.close();
+    } catch (_) {}
     try {
       await dc?.close();
     } catch (_) {}
@@ -1717,6 +1889,15 @@ class RoomSession extends ChangeNotifier {
   }
 
   Future<void> _sendMediaBinary(Uint8List frame) async {
+    final tailcat = _tailcatTransport;
+    if (tailcat != null && tailcat.isOpen) {
+      try {
+        await tailcat.sendBinary(frame);
+        return;
+      } catch (_) {
+        throw MediaException('source_offline', 'tailcat media send failed');
+      }
+    }
     final dc = _dc;
     if (dc == null || !_peerVerified) {
       throw MediaException('source_offline', 'media channel unavailable');
@@ -2024,6 +2205,10 @@ class RoomSession extends ChangeNotifier {
     }
     _peerDeviceId = senderId;
     _peerPublicKey = publicKey;
+    _peerVerified = true;
+    _p2pConnecting = false;
+    _p2pFailed = false;
+    _p2pTimeoutTimer?.cancel();
     _upsertMember(senderId, online: true);
 
     // Respond with our own authenticated done message, signing BOTH challenges.
@@ -2119,6 +2304,9 @@ class RoomSession extends ChangeNotifier {
       return;
     }
     _handshakeTimer?.cancel();
+    _p2pConnecting = false;
+    _p2pFailed = false;
+    _p2pTimeoutTimer?.cancel();
     _peerDeviceId = senderId;
     _peerPublicKey = publicKey;
     _peerVerified = true;
@@ -2152,14 +2340,32 @@ class RoomSession extends ChangeNotifier {
   }
 
   Future<bool> _sendDc(Map<String, Object?> message) async {
-    final dc = _dc;
-    if (dc == null) return false;
-    try {
-      await dc.send(RTCDataChannelMessage(jsonEncode(message)));
-      return true;
-    } catch (_) {
-      return false;
+    final tailcat = _tailcatTransport;
+    if (tailcat != null && tailcat.isOpen) {
+      try {
+        await tailcat.sendText(jsonEncode(message));
+        return true;
+      } catch (_) {}
     }
+    final dc = _dc;
+    if (dc != null && _dcStateOpen() == true) {
+      try {
+        await dc.send(RTCDataChannelMessage(jsonEncode(message)));
+        return true;
+      } catch (_) {}
+    }
+    if (_signaling.isConnected && _roomId != null) {
+      try {
+        await _signaling.send(<String, Object?>{
+          'type': 'signal',
+          'roomId': _roomId,
+          'kind': 'room_msg',
+          'payload': message,
+        });
+        return true;
+      } catch (_) {}
+    }
+    return false;
   }
 
   // ------------------------------------------------------------- timer
@@ -2605,9 +2811,7 @@ class RoomSession extends ChangeNotifier {
       sessionId: draft.sessionId,
       signature: signature,
     );
-      if (_dcStateOpen() == true) {
-        await _sendDc(signed.toWireMap());
-      }
+      await _sendDc(signed.toWireMap());
       if (_roomGeneration != generation) return null;
       await _handleCommitWire(Map<String, Object?>.from(signed.toWireMap()));
       return signed;
@@ -3433,7 +3637,8 @@ class RoomSession extends ChangeNotifier {
   }
 
   Future<void> _handleControlRequest(Map<String, Object?> msg) async {
-    if (role != RoomRole.owner || !_peerVerified) return;
+    if (role != RoomRole.owner) return;
+    if (!_peerVerified && _peerPublicKey == null) return;
     Map<String, Object?> request;
     try {
       request = parseRestrictedMap(msg, '\$control_request');
@@ -3553,7 +3758,7 @@ class RoomSession extends ChangeNotifier {
     String requestId,
     String code,
   ) async {
-    if (!_peerVerified) return;
+    if (!_peerVerified && !_signaling.isConnected) return;
     final payload = <String, Object?>{
       'protocolVersion': kProtocolVersion,
       'roomId': _roomId,
@@ -3577,7 +3782,7 @@ class RoomSession extends ChangeNotifier {
     String status,
     int seq,
   ) async {
-    if (!_peerVerified) return;
+    if (!_peerVerified && !_signaling.isConnected) return;
     final payload = <String, Object?>{
       'protocolVersion': kProtocolVersion,
       'roomId': _roomId,
@@ -3646,7 +3851,7 @@ class RoomSession extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    if (!_peerVerified) {
+    if (!_peerVerified && !_signaling.isConnected) {
       _lastErrorCode = 'signaling_unavailable';
       notifyListeners();
       return;
@@ -3809,6 +4014,8 @@ class RoomSession extends ChangeNotifier {
       _flagProtocolViolation();
       return;
     }
+    final effectiveOwnerKey = _peerPublicKey ?? _ownerPublicKey;
+    if (effectiveOwnerKey == null) return;
     final ok = await verifyDomain(
       'room_snapshot',
       {
@@ -3817,7 +4024,7 @@ class RoomSession extends ChangeNotifier {
           ..remove('type'),
       },
       snapshot['signature'] as String? ?? '',
-      _peerPublicKey!,
+      effectiveOwnerKey,
       identityStore: _identityStore,
     );
     if (_roomGeneration != generation) return;
@@ -4001,14 +4208,15 @@ class RoomSession extends ChangeNotifier {
       _knownLocalMediaIds.add(mediaId);
       return;
     }
-    if (expectedSource != _peerDeviceId || _peerPublicKey == null) {
+    final effectiveKey = (expectedSource == _peerDeviceId) ? (_peerPublicKey ?? _ownerPublicKey) : _peerPublicKey;
+    if (expectedSource != _peerDeviceId || effectiveKey == null) {
       throw const FormatException('manifest source is not the peer');
     }
     final ok = await verifyDomain(
       'media_manifest',
       manifestJson,
       signature,
-      _peerPublicKey!,
+      effectiveKey,
       identityStore: _identityStore,
     );
     if (_roomGeneration != generation) return;

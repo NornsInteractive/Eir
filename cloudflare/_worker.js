@@ -428,6 +428,7 @@ export class SignalingCoordinator {
         type: 'member_joined',
         roomId,
         deviceId,
+        publicKey: conn.publicKey,
         rejoined: true,
       }, deviceId);
       return;
@@ -462,6 +463,7 @@ export class SignalingCoordinator {
       type: 'member_joined',
       roomId,
       deviceId,
+      publicKey: conn.publicKey,
       rejoined: false,
     }, deviceId);
   }
@@ -472,7 +474,7 @@ export class SignalingCoordinator {
     if (!room) return conn.sendError('not_in_room');
 
     const kind = msg.kind;
-    if (kind !== 'offer' && kind !== 'answer' && kind !== 'ice') {
+    if (kind !== 'offer' && kind !== 'answer' && kind !== 'ice' && kind !== 'room_msg' && kind !== 'tailcat_addr') {
       return conn.sendError('invalid_message');
     }
 
@@ -490,6 +492,26 @@ export class SignalingCoordinator {
         from: conn.deviceId,
         kind,
         sdp: { type, sdp: body },
+      };
+    } else if (kind === 'tailcat_addr') {
+      const addr = msg.addr;
+      if (!addr || typeof addr !== 'string' || addr.length > 2048) return conn.sendError('invalid_message');
+      outbound = {
+        type: 'signal',
+        roomId: room.roomId,
+        from: conn.deviceId,
+        kind: 'tailcat_addr',
+        addr,
+      };
+    } else if (kind === 'room_msg') {
+      const payload = msg.payload;
+      if (!payload || typeof payload !== 'object') return conn.sendError('invalid_message');
+      outbound = {
+        type: 'signal',
+        roomId: room.roomId,
+        from: conn.deviceId,
+        kind: 'room_msg',
+        payload,
       };
     } else {
       const cand = msg.candidate;
