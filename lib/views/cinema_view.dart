@@ -1774,7 +1774,7 @@ class _CinemaViewState extends State<CinemaView> {
                           ),
                         ),
                       const Spacer(),
-                      if (!isHostOrAdmin)
+                      if (!isHostOrAdmin) ...[
                         Container(
                           padding: EdgeInsets.symmetric(
                             horizontal: isShort ? 8 : 10,
@@ -1788,10 +1788,131 @@ class _CinemaViewState extends State<CinemaView> {
                           child: Text(
                             i18n.readOnlyControlTooltip,
                             style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: isShort ? 9.5 : 11),
+                              color: Colors.white70,
+                              fontSize: isShort ? 9.5 : 11,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 6),
+                      ],
+                      if (!isFullscreen && !_isLandscape) ...[
+                        // Portrait Top Quick Action: Aspect Ratio
+                        Tooltip(
+                          message:
+                              '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? "适应" : (_aspectFit == BoxFit.cover ? "铺满" : "拉伸")}',
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              key: const ValueKey('cinema-aspect-ratio-btn'),
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(
+                                minWidth: isShort ? 28 : 32,
+                                minHeight: isShort ? 28 : 32,
+                              ),
+                              icon: Icon(
+                                Icons.aspect_ratio_rounded,
+                                color: Colors.white70,
+                                size: isShort ? 16 : 18,
+                              ),
+                              onPressed: _cycleAspectRatio,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        // Portrait Top Quick Action: Volume Mute
+                        Tooltip(
+                          message: _isMuted
+                              ? i18n.unmuteTooltip
+                              : i18n.muteTooltip,
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              key: const ValueKey('cinema-volume-mute-btn'),
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(
+                                minWidth: isShort ? 28 : 32,
+                                minHeight: isShort ? 28 : 32,
+                              ),
+                              icon: Icon(
+                                _isMuted
+                                    ? Icons.volume_off_rounded
+                                    : Icons.volume_up_rounded,
+                                color: Colors.white70,
+                                size: isShort ? 16 : 18,
+                              ),
+                              onPressed: () {
+                                _restartControlsTimer();
+                                setState(() => _isMuted = !_isMuted);
+                                widget.session.player.setVolume(
+                                    _isMuted ? 0.0 : _volume * 100.0);
+                              },
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        // Fullscreen Top Right: Aspect Ratio & Orientation Toggle
+                        Tooltip(
+                          message:
+                              '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? "适应" : (_aspectFit == BoxFit.cover ? "铺满" : "拉伸")}',
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              key: const ValueKey('cinema-aspect-ratio-btn'),
+                              padding: EdgeInsets.zero,
+                              constraints: BoxConstraints(
+                                minWidth: isShort ? 28 : 34,
+                                minHeight: isShort ? 28 : 34,
+                              ),
+                              icon: Icon(
+                                Icons.aspect_ratio_rounded,
+                                color: Colors.white70,
+                                size: isShort ? 16 : 18,
+                              ),
+                              onPressed: _cycleAspectRatio,
+                            ),
+                          ),
+                        ),
+                        if (!kIsWeb) ...[
+                          const SizedBox(width: 6),
+                          Tooltip(
+                            message: i18n.toggleOrientation,
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                key: const ValueKey('cinema-orientation-btn'),
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints(
+                                  minWidth: isShort ? 28 : 34,
+                                  minHeight: isShort ? 28 : 34,
+                                ),
+                                icon: Icon(
+                                  _isLandscape
+                                      ? Icons.stay_current_portrait_rounded
+                                      : Icons.screen_rotation_rounded,
+                                  color: Colors.white70,
+                                  size: isShort ? 16 : 18,
+                                ),
+                                onPressed: () {
+                                  _restartControlsTimer();
+                                  _toggleOrientation();
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ],
                   ),
                 ),
@@ -1834,6 +1955,56 @@ class _CinemaViewState extends State<CinemaView> {
                 ),
               ),
 
+            // Center Big Play Indicator (Youku / Bilibili Mainstream Style)
+            if (!isPlaying && !isBuffering && currentMedia != null && !_isLocked)
+              Center(
+                child: AnimatedOpacity(
+                  opacity: _showControls ? 1.0 : 0.85,
+                  duration: const Duration(milliseconds: 200),
+                  child: Semantics(
+                    button: true,
+                    enabled: isHostOrAdmin,
+                    label: i18n.playTooltip,
+                    child: GestureDetector(
+                      onTap: isHostOrAdmin
+                          ? () async {
+                              _restartControlsTimer();
+                              try {
+                                await widget.session.play();
+                              } catch (_) {}
+                            }
+                          : null,
+                      child: Container(
+                        width: isShort ? 46 : 56,
+                        height: isShort ? 46 : 56,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isHostOrAdmin
+                                ? tc.primary.withValues(alpha: 0.8)
+                                : Colors.white30,
+                            width: 2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              blurRadius: 16,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.play_arrow_rounded,
+                          size: isShort ? 30 : 36,
+                          color: isHostOrAdmin ? tc.primary : Colors.white70,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
             // Bottom Player Control Deck
             Positioned(
               left: 0,
@@ -1854,82 +2025,96 @@ class _CinemaViewState extends State<CinemaView> {
                     ),
                     padding: EdgeInsets.fromLTRB(
                       isShort ? 10 : 16,
-                      isShort ? 8 : 20,
+                      isShort ? 8 : 16,
                       isShort ? 10 : 16,
-                      isShort ? 6 : 12,
+                      isShort ? 6 : 10,
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Timeline Slider & Timestamps
+                    child: (!isFullscreen && !_isLandscape)
+                        ? // ─── 竖屏单行极简控制栏 (优酷/B站风格，弹性自适应绝不溢出) ───
                         Row(
-                          children: [
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  formatDuration(displayPos),
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: isShort ? 10.5 : 11.5,
-                                    fontFeatures: const [
-                                      FontFeature.tabularFigures()
-                                    ],
+                            children: [
+                              // 播放 / 暂停
+                              Semantics(
+                                button: true,
+                                enabled: isHostOrAdmin,
+                                label: !isHostOrAdmin
+                                    ? '${isPlaying ? i18n.pauseTooltip : i18n.playTooltip} (${i18n.readOnlyControlTooltip})'
+                                    : (isPlaying
+                                        ? i18n.pauseTooltip
+                                        : i18n.playTooltip),
+                                child: Tooltip(
+                                  message: !isHostOrAdmin
+                                      ? i18n.readOnlyControlTooltip
+                                      : (isPlaying
+                                          ? i18n.pauseTooltip
+                                          : i18n.playTooltip),
+                                  child: IconButton(
+                                    key: const ValueKey('cinema-play-pause-btn'),
+                                    padding: EdgeInsets.zero,
+                                    constraints: BoxConstraints(
+                                      minWidth: isShort ? 28 : 34,
+                                      minHeight: isShort ? 28 : 34,
+                                    ),
+                                    icon: Icon(
+                                      isPlaying
+                                          ? Icons.pause_circle_filled_rounded
+                                          : Icons.play_circle_fill_rounded,
+                                      color: isHostOrAdmin
+                                          ? tc.primary
+                                          : Colors.white38,
+                                      size: isShort ? 24 : 28,
+                                    ),
+                                    onPressed: isHostOrAdmin
+                                        ? () async {
+                                            _restartControlsTimer();
+                                            try {
+                                              if (isPlaying) {
+                                                await widget.session.pause();
+                                              } else {
+                                                await widget.session.play();
+                                              }
+                                            } catch (_) {}
+                                          }
+                                        : null,
                                   ),
                                 ),
-                                if (syncTargetPos > Duration.zero &&
-                                    (syncTargetPos - displayPos).abs() >
-                                        const Duration(seconds: 1) &&
-                                    _draggingSliderValue == null)
-                                  Text(
-                                    '${i18n.syncTargetLabel}: ${formatDuration(syncTargetPos)}',
-                                    style: TextStyle(
-                                      color: tc.primary,
-                                      fontSize: isShort ? 8.5 : 9.5,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures()
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Material(
-                                type: MaterialType.transparency,
-                                child: SliderTheme(
-                                  data: SliderTheme.of(context).copyWith(
-                                    activeTrackColor: tc.primary,
-                                    inactiveTrackColor: Colors.white24,
-                                    secondaryActiveTrackColor:
-                                        tc.primary.withValues(alpha: 0.35),
-                                    thumbColor: Colors.white,
-                                    thumbShape: RoundSliderThumbShape(
+                              ),
+                              const SizedBox(width: 4),
+
+                              // 当前时间 / 总时长
+                              Text(
+                                '${formatDuration(displayPos)} / ${formatDuration(mediaDuration)}',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontSize: isShort ? 10 : 11,
+                                  fontWeight: FontWeight.w600,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+
+                              // 弹性自适应进度条
+                              Expanded(
+                                child: Material(
+                                  type: MaterialType.transparency,
+                                  child: SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      activeTrackColor: tc.primary,
+                                      inactiveTrackColor: Colors.white24,
+                                      secondaryActiveTrackColor:
+                                          tc.primary.withValues(alpha: 0.35),
+                                      thumbColor: Colors.white,
+                                      thumbShape: RoundSliderThumbShape(
                                         enabledThumbRadius:
-                                            isShort ? 4.5 : 6),
-                                    overlayShape: RoundSliderOverlayShape(
-                                        overlayRadius: isShort ? 9 : 12),
-                                    trackHeight: isShort ? 2.5 : 3.5,
-                                  ),
-                                  child: Semantics(
-                                    slider: true,
-                                    enabled: isHostOrAdmin &&
-                                        mediaDuration.inMilliseconds > 0,
-                                    label: i18n.timelineLabel,
-                                    value:
-                                        '${formatDuration(displayPos)} / ${formatDuration(mediaDuration)} (${(displayRatio * 100).round()}%)',
-                                    hint: !isHostOrAdmin
-                                        ? i18n.readOnlyControlTooltip
-                                        : (mediaDuration.inMilliseconds <= 0
-                                            ? i18n.timelineEmptyHint
-                                            : (syncTargetPos > Duration.zero &&
-                                                    (syncTargetPos - displayPos)
-                                                            .abs() >
-                                                        const Duration(
-                                                            seconds: 1)
-                                                ? '${i18n.syncTargetLabel}: ${formatDuration(syncTargetPos)}. ${i18n.timelineSeekHint}'
-                                                : i18n.timelineSeekHint)),
+                                            isShort ? 4.5 : 5.5,
+                                      ),
+                                      overlayShape: RoundSliderOverlayShape(
+                                        overlayRadius: isShort ? 9 : 11,
+                                      ),
+                                      trackHeight: isShort ? 2.5 : 3.0,
+                                    ),
                                     child: Slider(
                                       key: const ValueKey(
                                           'cinema-timeline-slider'),
@@ -1974,282 +2159,420 @@ class _CinemaViewState extends State<CinemaView> {
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              formatDuration(mediaDuration),
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                fontSize: isShort ? 10.5 : 11.5,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures()
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                              const SizedBox(width: 6),
 
-                        SizedBox(height: isShort ? 2 : 6),
-
-                        // Controls Row
-                        Row(
-                          children: [
-                            // Rewind 10s button
-                            IconButton(
-                              key: const ValueKey('cinema-rewind-10-btn'),
-                              padding: isShort
-                                  ? const EdgeInsets.all(4)
-                                  : const EdgeInsets.all(6),
-                              constraints:
-                                  isShort ? const BoxConstraints() : null,
-                              icon: Icon(
-                                Icons.replay_10_rounded,
-                                color:
-                                    isHostOrAdmin ? Colors.white70 : Colors.white24,
-                                size: isShort ? 20 : 22,
-                              ),
-                              onPressed: isHostOrAdmin
-                                  ? () => _seekRelative(-10)
-                                  : null,
-                              tooltip: i18n.rewind10,
-                            ),
-
-                            // Shared Play / Pause Toggle (Host/Admin only)
-                            Semantics(
-                              button: true,
-                              enabled: isHostOrAdmin,
-                              label: !isHostOrAdmin
-                                  ? '${isPlaying ? i18n.pauseTooltip : i18n.playTooltip} (${i18n.readOnlyControlTooltip})'
-                                  : (isPlaying
-                                      ? i18n.pauseTooltip
-                                      : i18n.playTooltip),
-                              child: Tooltip(
-                                message: !isHostOrAdmin
-                                    ? i18n.readOnlyControlTooltip
-                                    : (isPlaying
-                                        ? i18n.pauseTooltip
-                                        : i18n.playTooltip),
-                                child: IconButton(
-                                  key: const ValueKey('cinema-play-pause-btn'),
-                                  padding: isShort
-                                      ? const EdgeInsets.all(4)
-                                      : const EdgeInsets.all(8),
-                                  constraints:
-                                      isShort ? const BoxConstraints() : null,
-                                  icon: Icon(
-                                    isPlaying
-                                        ? Icons.pause_circle_filled_rounded
-                                        : Icons.play_circle_fill_rounded,
-                                    color: isHostOrAdmin
-                                        ? tc.primary
-                                        : Colors.white38,
-                                    size: isShort ? 26 : 30,
-                                  ),
-                                  onPressed: isHostOrAdmin
-                                      ? () async {
-                                          _restartControlsTimer();
-                                          try {
-                                            if (isPlaying) {
-                                              await widget.session.pause();
-                                            } else {
-                                              await widget.session.play();
-                                            }
-                                          } catch (_) {}
-                                        }
-                                      : null,
-                                ),
-                              ),
-                            ),
-
-                            // Forward 10s button
-                            IconButton(
-                              key: const ValueKey('cinema-forward-10-btn'),
-                              padding: isShort
-                                  ? const EdgeInsets.all(4)
-                                  : const EdgeInsets.all(6),
-                              constraints:
-                                  isShort ? const BoxConstraints() : null,
-                              icon: Icon(
-                                Icons.forward_10_rounded,
-                                color:
-                                    isHostOrAdmin ? Colors.white70 : Colors.white24,
-                                size: isShort ? 20 : 22,
-                              ),
-                              onPressed: isHostOrAdmin
-                                  ? () => _seekRelative(10)
-                                  : null,
-                              tooltip: i18n.fastForward10,
-                            ),
-
-                            // Local Volume / Mute
-                            Semantics(
-                              button: true,
-                              enabled: true,
-                              label: _isMuted
-                                  ? i18n.unmuteTooltip
-                                  : i18n.muteTooltip,
-                              child: Tooltip(
-                                message: _isMuted
-                                    ? i18n.unmuteTooltip
-                                    : i18n.muteTooltip,
-                                child: IconButton(
-                                  key: const ValueKey('cinema-volume-mute-btn'),
-                                  padding: isShort
-                                      ? const EdgeInsets.all(4)
-                                      : const EdgeInsets.all(8),
-                                  constraints:
-                                      isShort ? const BoxConstraints() : null,
-                                  icon: Icon(
-                                    _isMuted
-                                        ? Icons.volume_off_rounded
-                                        : Icons.volume_up_rounded,
-                                    color: Colors.white70,
-                                    size: isShort ? 18 : 20,
-                                  ),
-                                  onPressed: () {
-                                    _restartControlsTimer();
-                                    setState(() => _isMuted = !_isMuted);
-                                    widget.session.player.setVolume(
-                                        _isMuted ? 0.0 : _volume * 100.0);
-                                  },
-                                ),
-                              ),
-                            ),
-
-                            // Playback Rate Selector (Host/Admin)
-                            Semantics(
-                              button: true,
-                              enabled: isHostOrAdmin,
-                              label:
-                                  '${i18n.playbackRate}: ${widget.session.playback.rate}x',
-                              hint: isHostOrAdmin
-                                  ? i18n.rateChangeHint
-                                  : i18n.readOnlyControlTooltip,
-                              child: Tooltip(
-                                message: isHostOrAdmin
-                                    ? '${i18n.playbackRate} (${widget.session.playback.rate}x)'
-                                    : '${i18n.playbackRate} (${i18n.readOnlyControlTooltip})',
-                                child: GestureDetector(
-                                  key: const ValueKey(
-                                      'cinema-playback-rate-btn'),
-                                  onTap: isHostOrAdmin
-                                      ? () {
-                                          _restartControlsTimer();
-                                          _cyclePlaybackRate();
-                                        }
-                                      : null,
-                                  child: Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: isShort ? 6 : 8,
-                                      vertical: isShort ? 3 : 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white12,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      '${widget.session.playback.rate}x',
-                                      style: TextStyle(
-                                        color: isHostOrAdmin
-                                            ? Colors.white
-                                            : Colors.white38,
-                                        fontSize: isShort ? 10 : 11,
-                                        fontWeight: FontWeight.w600,
+                              // 倍速胶囊
+                              Semantics(
+                                button: true,
+                                enabled: isHostOrAdmin,
+                                label:
+                                    '${i18n.playbackRate}: ${widget.session.playback.rate}x',
+                                child: Tooltip(
+                                  message:
+                                      '${i18n.playbackRate} (${widget.session.playback.rate}x)',
+                                  child: GestureDetector(
+                                    key: const ValueKey(
+                                        'cinema-playback-rate-btn'),
+                                    onTap: isHostOrAdmin
+                                        ? () {
+                                            _restartControlsTimer();
+                                            _cyclePlaybackRate();
+                                          }
+                                        : null,
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: isShort ? 5 : 7,
+                                        vertical: isShort ? 2.5 : 3.5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white12,
+                                        borderRadius:
+                                            BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '${widget.session.playback.rate}x',
+                                        style: TextStyle(
+                                          color: isHostOrAdmin
+                                              ? Colors.white
+                                              : Colors.white38,
+                                          fontSize: isShort ? 10 : 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
+                              const SizedBox(width: 4),
 
-                            const Spacer(),
-
-                            // Aspect Ratio Toggle
-                            Tooltip(
-                              message:
-                                  '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? "适应" : (_aspectFit == BoxFit.cover ? "铺满" : "拉伸")}',
-                              child: IconButton(
-                                key: const ValueKey('cinema-aspect-ratio-btn'),
-                                padding: isShort
-                                    ? const EdgeInsets.all(4)
-                                    : const EdgeInsets.all(8),
-                                constraints:
-                                    isShort ? const BoxConstraints() : null,
-                                icon: Icon(
-                                  Icons.aspect_ratio_rounded,
-                                  color: Colors.white70,
-                                  size: isShort ? 18 : 20,
-                                ),
-                                onPressed: _cycleAspectRatio,
-                              ),
-                            ),
-
-                            // Orientation Toggle (Landscape / Portrait)
-                            if (!kIsWeb)
+                              // 全屏按钮 (直接横屏全屏)
                               Semantics(
                                 button: true,
                                 enabled: true,
-                                label: i18n.toggleOrientation,
+                                label: i18n.fullscreenTooltip,
                                 child: Tooltip(
-                                  message: i18n.toggleOrientation,
+                                  message: i18n.fullscreenTooltip,
                                   child: IconButton(
-                                    key: const ValueKey('cinema-orientation-btn'),
-                                    padding: isShort
-                                        ? const EdgeInsets.all(4)
-                                        : const EdgeInsets.all(8),
-                                    constraints:
-                                        isShort ? const BoxConstraints() : null,
+                                    key: const ValueKey(
+                                        'cinema-fullscreen-btn'),
+                                    padding: EdgeInsets.zero,
+                                    constraints: BoxConstraints(
+                                      minWidth: isShort ? 28 : 34,
+                                      minHeight: isShort ? 28 : 34,
+                                    ),
                                     icon: Icon(
-                                      _isLandscape
-                                          ? Icons.stay_current_portrait_rounded
-                                          : Icons.screen_rotation_rounded,
+                                      Icons.fullscreen_rounded,
                                       color: Colors.white70,
-                                      size: isShort ? 18 : 20,
+                                      size: isShort ? 20 : 22,
                                     ),
                                     onPressed: () {
                                       _restartControlsTimer();
-                                      _toggleOrientation();
+                                      _setFullscreen(true);
                                     },
                                   ),
                                 ),
                               ),
-
-                            // Fullscreen Toggle (Local)
-                            Semantics(
-                              button: true,
-                              enabled: true,
-                              label: _isFullscreen
-                                  ? i18n.exitFullscreenTooltip
-                                  : i18n.fullscreenTooltip,
-                              child: Tooltip(
-                                message: _isFullscreen
-                                    ? i18n.exitFullscreenTooltip
-                                    : i18n.fullscreenTooltip,
-                                child: IconButton(
-                                  key: const ValueKey('cinema-fullscreen-btn'),
-                                  padding: isShort
-                                      ? const EdgeInsets.all(4)
-                                      : const EdgeInsets.all(8),
-                                  constraints:
-                                      isShort ? const BoxConstraints() : null,
-                                  icon: Icon(
-                                    _isFullscreen
-                                        ? Icons.fullscreen_exit_rounded
-                                        : Icons.fullscreen_rounded,
-                                    color: Colors.white70,
-                                    size: isShort ? 18 : 22,
+                            ],
+                          )
+                        : // ─── 横屏全屏模式双层控制台 (功能完整专业宽屏) ───
+                        Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Timeline Slider & Timestamps
+                              Row(
+                                children: [
+                                  Text(
+                                    formatDuration(displayPos),
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: isShort ? 10.5 : 11.5,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures()
+                                      ],
+                                    ),
                                   ),
-                                  onPressed: () {
-                                    _restartControlsTimer();
-                                    _setFullscreen(!_isFullscreen);
-                                  },
-                                ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Material(
+                                      type: MaterialType.transparency,
+                                      child: SliderTheme(
+                                        data: SliderTheme.of(context).copyWith(
+                                          activeTrackColor: tc.primary,
+                                          inactiveTrackColor: Colors.white24,
+                                          secondaryActiveTrackColor: tc.primary
+                                              .withValues(alpha: 0.35),
+                                          thumbColor: Colors.white,
+                                          thumbShape: RoundSliderThumbShape(
+                                              enabledThumbRadius:
+                                                  isShort ? 4.5 : 6),
+                                          overlayShape: RoundSliderOverlayShape(
+                                              overlayRadius: isShort ? 9 : 12),
+                                          trackHeight: isShort ? 2.5 : 3.5,
+                                        ),
+                                        child: Slider(
+                                          key: const ValueKey(
+                                              'cinema-timeline-slider'),
+                                          value: displayRatio,
+                                          secondaryTrackValue:
+                                              (syncTargetRatio > 0.0 &&
+                                                      syncTargetRatio !=
+                                                          displayRatio &&
+                                                      _draggingSliderValue ==
+                                                          null)
+                                                  ? syncTargetRatio
+                                                  : null,
+                                          onChanged: (isHostOrAdmin &&
+                                                  mediaDuration
+                                                          .inMilliseconds >
+                                                      0)
+                                              ? (val) {
+                                                  _restartControlsTimer();
+                                                  setState(() =>
+                                                      _draggingSliderValue = val
+                                                          .clamp(0.0, 1.0));
+                                                }
+                                              : null,
+                                          onChangeEnd: (isHostOrAdmin &&
+                                                  mediaDuration
+                                                          .inMilliseconds >
+                                                      0)
+                                              ? (val) async {
+                                                  _restartControlsTimer();
+                                                  final clamped =
+                                                      val.clamp(0.0, 1.0);
+                                                  final targetMs = (clamped *
+                                                          mediaDuration
+                                                              .inMilliseconds)
+                                                      .round();
+                                                  setState(() =>
+                                                      _draggingSliderValue =
+                                                          null);
+                                                  try {
+                                                    await widget.session.seek(
+                                                        Duration(
+                                                            milliseconds:
+                                                                targetMs));
+                                                  } catch (_) {}
+                                                }
+                                              : null,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    formatDuration(mediaDuration),
+                                    style: TextStyle(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.7),
+                                      fontSize: isShort ? 10.5 : 11.5,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures()
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+
+                              SizedBox(height: isShort ? 2 : 6),
+
+                              // Controls Row
+                              Row(
+                                children: [
+                                  // Rewind 10s button
+                                  IconButton(
+                                    key: const ValueKey(
+                                        'cinema-rewind-10-btn'),
+                                    padding: isShort
+                                        ? const EdgeInsets.all(4)
+                                        : const EdgeInsets.all(6),
+                                    constraints: isShort
+                                        ? const BoxConstraints()
+                                        : null,
+                                    icon: Icon(
+                                      Icons.replay_10_rounded,
+                                      color: isHostOrAdmin
+                                          ? Colors.white70
+                                          : Colors.white24,
+                                      size: isShort ? 20 : 22,
+                                    ),
+                                    onPressed: isHostOrAdmin
+                                        ? () => _seekRelative(-10)
+                                        : null,
+                                    tooltip: i18n.rewind10,
+                                  ),
+
+                                  // Shared Play / Pause Toggle
+                                  Semantics(
+                                    button: true,
+                                    enabled: isHostOrAdmin,
+                                    label: !isHostOrAdmin
+                                        ? '${isPlaying ? i18n.pauseTooltip : i18n.playTooltip} (${i18n.readOnlyControlTooltip})'
+                                        : (isPlaying
+                                            ? i18n.pauseTooltip
+                                            : i18n.playTooltip),
+                                    child: Tooltip(
+                                      message: !isHostOrAdmin
+                                          ? i18n.readOnlyControlTooltip
+                                          : (isPlaying
+                                              ? i18n.pauseTooltip
+                                              : i18n.playTooltip),
+                                      child: IconButton(
+                                        key: const ValueKey(
+                                            'cinema-play-pause-btn'),
+                                        padding: isShort
+                                            ? const EdgeInsets.all(4)
+                                            : const EdgeInsets.all(8),
+                                        constraints: isShort
+                                            ? const BoxConstraints()
+                                            : null,
+                                        icon: Icon(
+                                          isPlaying
+                                              ? Icons
+                                                  .pause_circle_filled_rounded
+                                              : Icons.play_circle_fill_rounded,
+                                          color: isHostOrAdmin
+                                              ? tc.primary
+                                              : Colors.white38,
+                                          size: isShort ? 26 : 30,
+                                        ),
+                                        onPressed: isHostOrAdmin
+                                            ? () async {
+                                                _restartControlsTimer();
+                                                try {
+                                                  if (isPlaying) {
+                                                    await widget.session
+                                                        .pause();
+                                                  } else {
+                                                    await widget.session.play();
+                                                  }
+                                                } catch (_) {}
+                                              }
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Forward 10s button
+                                  IconButton(
+                                    key: const ValueKey(
+                                        'cinema-forward-10-btn'),
+                                    padding: isShort
+                                        ? const EdgeInsets.all(4)
+                                        : const EdgeInsets.all(6),
+                                    constraints: isShort
+                                        ? const BoxConstraints()
+                                        : null,
+                                    icon: Icon(
+                                      Icons.forward_10_rounded,
+                                      color: isHostOrAdmin
+                                          ? Colors.white70
+                                          : Colors.white24,
+                                      size: isShort ? 20 : 22,
+                                    ),
+                                    onPressed: isHostOrAdmin
+                                        ? () => _seekRelative(10)
+                                        : null,
+                                    tooltip: i18n.fastForward10,
+                                  ),
+
+                                  // Local Volume / Mute
+                                  Semantics(
+                                    button: true,
+                                    enabled: true,
+                                    label: _isMuted
+                                        ? i18n.unmuteTooltip
+                                        : i18n.muteTooltip,
+                                    child: Tooltip(
+                                      message: _isMuted
+                                          ? i18n.unmuteTooltip
+                                          : i18n.muteTooltip,
+                                      child: IconButton(
+                                        key: const ValueKey(
+                                            'cinema-volume-mute-btn'),
+                                        padding: isShort
+                                            ? const EdgeInsets.all(4)
+                                            : const EdgeInsets.all(8),
+                                        constraints: isShort
+                                            ? const BoxConstraints()
+                                            : null,
+                                        icon: Icon(
+                                          _isMuted
+                                              ? Icons.volume_off_rounded
+                                              : Icons.volume_up_rounded,
+                                          color: Colors.white70,
+                                          size: isShort ? 18 : 20,
+                                        ),
+                                        onPressed: () {
+                                          _restartControlsTimer();
+                                          setState(() => _isMuted = !_isMuted);
+                                          widget.session.player.setVolume(
+                                              _isMuted ? 0.0 : _volume * 100.0);
+                                        },
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Playback Rate Selector
+                                  Semantics(
+                                    button: true,
+                                    enabled: isHostOrAdmin,
+                                    label:
+                                        '${i18n.playbackRate}: ${widget.session.playback.rate}x',
+                                    child: Tooltip(
+                                      message: isHostOrAdmin
+                                          ? '${i18n.playbackRate} (${widget.session.playback.rate}x)'
+                                          : '${i18n.playbackRate} (${i18n.readOnlyControlTooltip})',
+                                      child: GestureDetector(
+                                        key: const ValueKey(
+                                            'cinema-playback-rate-btn'),
+                                        onTap: isHostOrAdmin
+                                            ? () {
+                                                _restartControlsTimer();
+                                                _cyclePlaybackRate();
+                                              }
+                                            : null,
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: isShort ? 6 : 8,
+                                            vertical: isShort ? 3 : 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white12,
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            '${widget.session.playback.rate}x',
+                                            style: TextStyle(
+                                              color: isHostOrAdmin
+                                                  ? Colors.white
+                                                  : Colors.white38,
+                                              fontSize: isShort ? 10 : 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  const Spacer(),
+
+                                  // Aspect Ratio Toggle
+                                  Tooltip(
+                                    message:
+                                        '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? "适应" : (_aspectFit == BoxFit.cover ? "铺满" : "拉伸")}',
+                                    child: IconButton(
+                                      key: const ValueKey(
+                                          'cinema-aspect-ratio-btn'),
+                                      padding: isShort
+                                          ? const EdgeInsets.all(4)
+                                          : const EdgeInsets.all(8),
+                                      constraints: isShort
+                                          ? const BoxConstraints()
+                                          : null,
+                                      icon: Icon(
+                                        Icons.aspect_ratio_rounded,
+                                        color: Colors.white70,
+                                        size: isShort ? 18 : 20,
+                                      ),
+                                      onPressed: _cycleAspectRatio,
+                                    ),
+                                  ),
+
+                                  // Fullscreen Toggle (Exit)
+                                  Semantics(
+                                    button: true,
+                                    enabled: true,
+                                    label: i18n.exitFullscreenTooltip,
+                                    child: Tooltip(
+                                      message: i18n.exitFullscreenTooltip,
+                                      child: IconButton(
+                                        key: const ValueKey(
+                                            'cinema-fullscreen-btn'),
+                                        padding: isShort
+                                            ? const EdgeInsets.all(4)
+                                            : const EdgeInsets.all(8),
+                                        constraints: isShort
+                                            ? const BoxConstraints()
+                                            : null,
+                                        icon: Icon(
+                                          Icons.fullscreen_exit_rounded,
+                                          color: Colors.white70,
+                                          size: isShort ? 18 : 22,
+                                        ),
+                                        onPressed: () {
+                                          _restartControlsTimer();
+                                          _setFullscreen(false);
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                   ),
                 ),
               ),

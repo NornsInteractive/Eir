@@ -107,6 +107,7 @@ class MainActivity : FlutterActivity() {
                 val sourceDeviceId = call.argument<String>("sourceDeviceId")
                 var mime = call.argument<String>("mime")
                 val title = call.argument<String>("title")
+                val chunkSize = (call.argument<Number>("chunkSize"))?.toInt() ?: 262144
                 if (uriString.isNullOrEmpty() || sourceDeviceId.isNullOrEmpty()) {
                     result.error("INVALID_ARGS", "uri and sourceDeviceId required", null)
                     return@setMethodCallHandler
@@ -114,13 +115,35 @@ class MainActivity : FlutterActivity() {
                 thread(name = "ManifestBuilder") {
                     try {
                         val uri = Uri.parse(uriString)
-                        if (mime.isNullOrEmpty()) {
-                            mime = contentResolver.getType(uri) ?: "video/mp4"
+                        if (mime.isNullOrEmpty() || mime == "application/octet-stream") {
+                            val crType = contentResolver.getType(uri)
+                            if (!crType.isNullOrEmpty()) {
+                                mime = crType
+                            }
                         }
+                        if (mime.isNullOrEmpty() || mime == "application/octet-stream") {
+                            val lowerTitle = (title ?: "").lowercase()
+                            mime = when {
+                                lowerTitle.endsWith(".mp4") || lowerTitle.endsWith(".m4v") -> "video/mp4"
+                                lowerTitle.endsWith(".mkv") -> "video/x-matroska"
+                                lowerTitle.endsWith(".webm") -> "video/webm"
+                                lowerTitle.endsWith(".mov") -> "video/quicktime"
+                                lowerTitle.endsWith(".avi") -> "video/x-msvideo"
+                                lowerTitle.endsWith(".flv") -> "video/x-flv"
+                                lowerTitle.endsWith(".ts") -> "video/mp2t"
+                                lowerTitle.endsWith(".mp3") -> "audio/mpeg"
+                                lowerTitle.endsWith(".m4a") || lowerTitle.endsWith(".aac") -> "audio/mp4"
+                                lowerTitle.endsWith(".ogg") || lowerTitle.endsWith(".opus") -> "audio/ogg"
+                                lowerTitle.endsWith(".flac") -> "audio/flac"
+                                lowerTitle.endsWith(".wav") -> "audio/wav"
+                                else -> "video/mp4"
+                            }
+                        }
+                        mime = mime!!.lowercase().split(";")[0].trim()
                         if (mime == "application/x-matroska") mime = "video/x-matroska"
                         if (mime == "audio/mp3") mime = "audio/mpeg"
+                        if (mime == "audio/m4a") mime = "audio/mp4"
 
-                        val chunkSize = 131072 // 128 KiB
                         val chunkHashes = ArrayList<String>()
                         val fileDigest = MessageDigest.getInstance("SHA-256")
                         val chunkDigest = MessageDigest.getInstance("SHA-256")

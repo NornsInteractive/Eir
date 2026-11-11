@@ -15,7 +15,9 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../app_settings.dart';
 import '../media/local_media_service.dart';
-import '../media/media_limits.dart' show kMediaMaxMessageBytes, MediaException;
+import '../media/media_format.dart' show resolveMediaMime;
+import '../media/media_limits.dart'
+    show kMediaChunkSize, kMediaMaxMessageBytes, MediaException;
 import '../media/media_manifest.dart' show isHex64;
 import '../platform/dtls_fingerprint.dart';
 import '../platform/signaling_client.dart';
@@ -4070,10 +4072,17 @@ class RoomSession extends ChangeNotifier {
       // Hardware-accelerated native manifest calculation with zero disk copying
       try {
         const channel = MethodChannel('com.norns.eir/media_picker');
+        final resolvedMime = resolveMediaMime(
+          magicMime: null,
+          declaredMime: null,
+          fileName: effectiveTitle,
+        );
         final raw = await channel.invokeMethod<Map>('buildMediaManifest', {
           'uri': path,
           'title': effectiveTitle,
           'sourceDeviceId': _keyPair!.identity.deviceId,
+          'mime': resolvedMime,
+          'chunkSize': kMediaChunkSize,
         });
         if (raw == null) {
           throw MediaException('unsupported_media', 'native manifest failed');

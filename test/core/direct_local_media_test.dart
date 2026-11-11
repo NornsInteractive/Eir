@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:eir/core/room_session.dart';
+import 'package:eir/media/media_limits.dart' show MediaException, kMediaChunkSize;
+import 'package:eir/media/media_manifest.dart' show MediaManifest, mediaIdFor;
 import 'package:media_kit/media_kit.dart';
 import '../../server/signaling_server.dart';
 
@@ -78,5 +80,56 @@ void main() {
     expect(item.sourceType, equals('local'));
     expect(item.localPath, equals(path));
     expect(item.sizeBytes, equals(await mediaFile.length()));
+  });
+
+  test('MediaManifest correctly requires 262144 (256 KiB) chunkSize and accepts valid media mime', () {
+    const dummyHash = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    final dummyDeviceId = dummyHash;
+    final dummyFileSha = dummyHash;
+
+    // 1. With 128 KiB (131072), MediaManifest.fromJson throws unsupported_media
+    final badManifestMap = {
+      'v': 1,
+      'mediaId': dummyHash,
+      'sourceDeviceId': dummyDeviceId,
+      'fileSha256': dummyFileSha,
+      'mime': 'video/mp4',
+      'size': 262144,
+      'chunkSize': 131072,
+      'chunkCount': 2,
+      'chunkHashes': [dummyHash, dummyHash],
+    };
+    expect(
+      () => MediaManifest.fromJson(badManifestMap),
+      throwsA(predicate((e) => e is MediaException && e.code == 'unsupported_media')),
+    );
+
+    // 2. With 256 KiB (262144), mediaId computed matches and deserialization succeeds
+    final validChunkSize = kMediaChunkSize; // 262144
+    final computedMediaId = mediaIdFor(
+      v: 1,
+      mime: 'video/mp4',
+      size: 262144,
+      chunkSize: validChunkSize,
+      sourceDeviceId: dummyDeviceId,
+      fileSha256: dummyFileSha,
+      chunkHashes: [dummyHash],
+    );
+    final goodManifestMap = {
+      'v': 1,
+      'mediaId': computedMediaId,
+      'sourceDeviceId': dummyDeviceId,
+      'fileSha256': dummyFileSha,
+      'mime': 'video/mp4',
+      'size': 262144,
+      'chunkSize': validChunkSize,
+      'chunkCount': 1,
+      'chunkHashes': [dummyHash],
+      'title': 'test_video.mp4',
+    };
+    final manifest = MediaManifest.fromJson(goodManifestMap);
+    expect(manifest.chunkSize, equals(262144));
+    expect(manifest.mime, equals('video/mp4'));
+    expect(manifest.mediaId, equals(computedMediaId));
   });
 }
