@@ -349,11 +349,10 @@ export class SignalingCoordinator {
     room.attach(conn, deviceId);
     conn.roomId = roomId;
     conn.deviceId = deviceId;
-    conn.role = (deviceId === room.ownerDeviceId) ? 'owner' : 'member';
-    conn.publicKey = msg.publicKey || null;
-    conn.joinedAt = Date.now();
     conn.role = 'owner';
     conn.publicKey = ownerPublicKey;
+    conn.displayName = typeof msg.displayName === 'string' ? msg.displayName.trim() : '';
+    conn.avatar = typeof msg.avatar === 'string' ? msg.avatar.trim() : '';
     conn.joinedAt = Date.now();
 
     conn.send({
@@ -410,10 +409,20 @@ export class SignalingCoordinator {
     const digest = await sha256Hex(token);
     if (!ctEqualHex(room.tokenDigest, digest)) return conn.sendError('invalid_invite');
 
+    const getMembers = () => Array.from(room.peers.values()).map(p => ({
+      deviceId: p.deviceId,
+      role: p.role || 'member',
+      displayName: p.displayName || '',
+      avatar: p.avatar || '',
+      joinedAt: p.joinedAt || Date.now(),
+    }));
+
     if (room.peers.has(deviceId)) {
       room.attach(conn, deviceId);
       conn.roomId = roomId;
       conn.deviceId = deviceId;
+      if (typeof msg.displayName === 'string') conn.displayName = msg.displayName.trim();
+      if (typeof msg.avatar === 'string') conn.avatar = msg.avatar.trim();
       conn.send({
         type: 'join_accepted',
         roomId,
@@ -422,13 +431,16 @@ export class SignalingCoordinator {
         ownerPublicKey: room.ownerPublicKey,
         inviteEpoch: room.inviteEpoch,
         rejoined: true,
-        members: Array.from(room.peers.keys()),
+        members: getMembers(),
       });
       room.broadcast({
         type: 'member_joined',
         roomId,
         deviceId,
         publicKey: conn.publicKey,
+        displayName: conn.displayName || '',
+        avatar: conn.avatar || '',
+        joinedAt: conn.joinedAt || Date.now(),
         rejoined: true,
       }, deviceId);
       return;
@@ -447,6 +459,8 @@ export class SignalingCoordinator {
     conn.deviceId = deviceId;
     conn.role = (deviceId === room.ownerDeviceId) ? 'owner' : 'member';
     conn.publicKey = msg.publicKey || null;
+    conn.displayName = typeof msg.displayName === 'string' ? msg.displayName.trim() : '';
+    conn.avatar = typeof msg.avatar === 'string' ? msg.avatar.trim() : '';
     conn.joinedAt = Date.now();
 
     conn.send({
@@ -457,13 +471,16 @@ export class SignalingCoordinator {
       ownerPublicKey: room.ownerPublicKey,
       inviteEpoch: room.inviteEpoch,
       rejoined: false,
-      members: Array.from(room.peers.keys()),
+      members: getMembers(),
     });
     room.broadcast({
       type: 'member_joined',
       roomId,
       deviceId,
       publicKey: conn.publicKey,
+      displayName: conn.displayName || '',
+      avatar: conn.avatar || '',
+      joinedAt: conn.joinedAt || Date.now(),
       rejoined: false,
     }, deviceId);
   }

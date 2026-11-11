@@ -753,6 +753,8 @@ class RoomSession extends ChangeNotifier {
       'sessionId': sessionId,
       'genesisHash': _genesisHash,
       'inviteEpoch': _inviteEpoch,
+      'displayName': AppSettings.instance.effectiveDisplayName,
+      'avatar': AppSettings.instance.avatar,
     });
     try {
       await _roomCreated!.future.timeout(const Duration(seconds: 10));
@@ -917,6 +919,8 @@ class RoomSession extends ChangeNotifier {
       'deviceId': _keyPair!.identity.deviceId,
       'publicKey': _keyPair!.identity.publicKeyBase64,
       'inviteEpoch': inviteEpoch,
+      'displayName': AppSettings.instance.effectiveDisplayName,
+      'avatar': AppSettings.instance.avatar,
     });
 
     try {
@@ -1006,6 +1010,8 @@ class RoomSession extends ChangeNotifier {
       'deviceId': _keyPair!.identity.deviceId,
       'publicKey': _keyPair!.identity.publicKeyBase64,
       'inviteEpoch': invite.inviteEpoch,
+      'displayName': AppSettings.instance.effectiveDisplayName,
+      'avatar': AppSettings.instance.avatar,
     });
     try {
       await _joinAccepted!.future.timeout(const Duration(seconds: 10));
@@ -1244,6 +1250,8 @@ class RoomSession extends ChangeNotifier {
         'sessionId': _sessionId,
         'genesisHash': _genesisHash,
         'inviteEpoch': _inviteEpoch,
+        'displayName': AppSettings.instance.effectiveDisplayName,
+        'avatar': AppSettings.instance.avatar,
       };
       if (_roomCode != null && _roomCode!.isNotEmpty) {
         payload['roomCode'] = _roomCode;
@@ -1258,6 +1266,8 @@ class RoomSession extends ChangeNotifier {
         'deviceId': _keyPair!.identity.deviceId,
         'publicKey': _keyPair!.identity.publicKeyBase64,
         'inviteEpoch': _inviteEpoch,
+        'displayName': AppSettings.instance.effectiveDisplayName,
+        'avatar': AppSettings.instance.avatar,
       });
     }
   }
@@ -1385,7 +1395,15 @@ class RoomSession extends ChangeNotifier {
           if (deviceId != null && deviceId.isNotEmpty) {
             final joinedAt = (m['joinedAt'] as num?)?.toInt();
             final online = m['online'] as bool? ?? true;
-            _upsertMember(deviceId, online: online, joinedAt: joinedAt);
+            final displayName = (m['displayName'] as String?)?.trim();
+            final avatar = (m['avatar'] as String?)?.trim();
+            _upsertMember(
+              deviceId,
+              online: online,
+              joinedAt: joinedAt,
+              displayName: displayName,
+              avatar: avatar,
+            );
           }
         }
       }
@@ -1401,13 +1419,21 @@ class RoomSession extends ChangeNotifier {
     final deviceId = msg['deviceId'] as String?;
     if (deviceId == null || deviceId == _selfId) return;
     final publicKey = msg['publicKey'] as String?;
+    final displayName = (msg['displayName'] as String?)?.trim();
+    final avatar = (msg['avatar'] as String?)?.trim();
     if (role == RoomRole.owner) {
       _peerDeviceId ??= deviceId;
       if (publicKey != null && publicKey.isNotEmpty) {
         _peerPublicKey ??= publicKey;
       }
     }
-    _upsertMember(deviceId, online: true, joinedAt: msg['joinedAt'] as int?);
+    _upsertMember(
+      deviceId,
+      online: true,
+      joinedAt: msg['joinedAt'] as int?,
+      displayName: displayName,
+      avatar: avatar,
+    );
     if (role == RoomRole.owner &&
         (!_peerVerified || _dcStateOpen() != true)) {
       unawaited(_startWebRtc(isOwner: true));
@@ -2089,6 +2115,9 @@ class RoomSession extends ChangeNotifier {
       case 'peer_status':
         await _handlePeerStatus(msg);
         return;
+      case 'profile_update':
+        _handleProfileUpdate(msg);
+        return;
       case 'time_ping':
         await _handleTimePing(msg);
         return;
@@ -2236,6 +2265,7 @@ class RoomSession extends ChangeNotifier {
       identityStore: _identityStore,
     );
     unawaited(_sendDc(<String, Object?>{...donePayload, 'type': 'handshake_done', 'signature': doneSignature}));
+    unawaited(_sendProfileUpdate());
   }
 
   Future<void> _handleHandshakeDone(Map<String, Object?> msg) async {
@@ -2326,6 +2356,39 @@ class RoomSession extends ChangeNotifier {
     }
     unawaited(_requestResync(force: true));
     unawaited(_sendTimePing());
+    unawaited(_sendProfileUpdate());
+  }
+
+  Future<void> _sendProfileUpdate() async {
+    final self = _keyPair?.identity;
+    if (self == null || _roomId == null || _sessionId == null) return;
+    final payload = <String, Object?>{
+      'type': 'profile_update',
+      'protocolVersion': kProtocolVersion,
+      'roomId': _roomId,
+      'sessionId': _sessionId,
+      'senderId': self.deviceId,
+      'displayName': AppSettings.instance.effectiveDisplayName,
+      'avatar': AppSettings.instance.avatar,
+    };
+    unawaited(_sendDc(payload));
+  }
+
+  void _handleProfileUpdate(Map<String, Object?> msg) {
+    final senderId = msg['senderId'] as String?;
+    if (senderId == null || senderId.isEmpty || senderId == _selfId) return;
+    final displayName = (msg['displayName'] as String?)?.trim();
+    final avatar = (msg['avatar'] as String?)?.trim();
+    _upsertMember(
+      senderId,
+      online: true,
+      displayName: displayName,
+      avatar: avatar,
+    );
+    notifyListeners();
+    if (role == RoomRole.owner) {
+      unawaited(_sendSnapshot());
+    }
   }
 
   bool _fingerprintsMatch(String a, String b) {
@@ -3435,29 +3498,52 @@ class RoomSession extends ChangeNotifier {
     }
   }
 
-  void _upsertMember(String deviceId, {required bool online, int? joinedAt}) {
+  void _upsertMember(
+    String deviceId, {
+    required bool online,
+    int? joinedAt,
+    String? displayName,
+    String? avatar,
+  }) {
     final isMe = _selfId == deviceId ||
         (_keyPair != null && _keyPair!.identity.deviceId == deviceId);
     final localName = isMe ? AppSettings.instance.effectiveDisplayName : '';
     final localAvatar = isMe ? AppSettings.instance.avatar : '';
+    final cleanRemoteName = (displayName != null && displayName.trim().isNotEmpty)
+        ? displayName.trim()
+        : null;
+    final cleanRemoteAvatar = (avatar != null && avatar.trim().isNotEmpty)
+        ? avatar.trim()
+        : null;
+
     final idx = _members.indexWhere((m) => m.deviceId == deviceId);
     if (idx >= 0) {
-      _members[idx] = _members[idx].copyWith(
+      final prev = _members[idx];
+      _members[idx] = prev.copyWith(
         online: online,
         role: _roleFor(deviceId),
-        displayName: (isMe && localName.isNotEmpty) ? localName : null,
-        avatar: (isMe && localAvatar.isNotEmpty) ? localAvatar : null,
-        joinedAt: joinedAt,
+        displayName: isMe
+            ? (localName.isNotEmpty ? localName : prev.displayName)
+            : (cleanRemoteName ?? prev.displayName),
+        avatar: isMe
+            ? (localAvatar.isNotEmpty ? localAvatar : prev.avatar)
+            : (cleanRemoteAvatar ?? prev.avatar),
+        joinedAt: joinedAt ?? prev.joinedAt,
       );
       return;
     }
+
+    final effectiveName = isMe
+        ? (localName.isNotEmpty ? localName : _shortId(deviceId))
+        : (cleanRemoteName ?? _shortId(deviceId));
+    final effectiveAvatar = isMe ? localAvatar : (cleanRemoteAvatar ?? '');
+
     _members.add(RoomMember(
       deviceId: deviceId,
-      displayName:
-          (isMe && localName.isNotEmpty) ? localName : _shortId(deviceId),
+      displayName: effectiveName,
       role: _roleFor(deviceId),
       online: online,
-      avatar: localAvatar,
+      avatar: effectiveAvatar,
       joinedAt: joinedAt,
     ));
   }
@@ -3950,6 +4036,7 @@ class RoomSession extends ChangeNotifier {
               'deviceId': m.deviceId,
               'role': _roleName(m.role),
               'displayName': m.displayName,
+              'avatar': m.avatar,
               'online': m.online,
             })
         .toList();
@@ -4077,13 +4164,16 @@ class RoomSession extends ChangeNotifier {
             final isMe = id == _selfId;
             final localName = isMe ? AppSettings.instance.effectiveDisplayName : '';
             final localAvatar = isMe ? AppSettings.instance.avatar : '';
+            final remoteName = (entry['displayName'] as String?)?.trim() ?? '';
+            final remoteAvatar = (entry['avatar'] as String?)?.trim() ?? '';
             _members.add(RoomMember(
               deviceId: id,
-              displayName:
-                  (isMe && localName.isNotEmpty) ? localName : _shortId(id),
+              displayName: isMe
+                  ? (localName.isNotEmpty ? localName : _shortId(id))
+                  : (remoteName.isNotEmpty ? remoteName : _shortId(id)),
               role: role,
               online: entry['online'] == true,
-              avatar: localAvatar,
+              avatar: isMe ? localAvatar : remoteAvatar,
             ));
           }
         }

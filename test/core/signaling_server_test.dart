@@ -566,4 +566,38 @@ void main() {
     await ownerClient.close();
     await g.close();
   });
+
+  test('signaling forwards displayName and avatar to members', () async {
+    final owner = await newTestIdentity();
+    final guest = await newTestIdentity();
+    final ownerClient = await WsClient.connect(port);
+    await ownerClient.send({
+      ...createRoomMsg(roomId: roomId, token: token, identity: owner),
+      'displayName': 'AliceHost',
+      'avatar': 'preset:cyber',
+    });
+    await ownerClient.waitFor('room_created');
+
+    final guestClient = await WsClient.connect(port);
+    await guestClient.send({
+      ...joinRoomMsg(roomId: roomId, token: token, identity: guest),
+      'displayName': 'BobFriend',
+      'avatar': 'preset:rose',
+    });
+
+    final accepted = await guestClient.waitFor('join_accepted');
+    final members = (accepted['members'] as List).cast<Map>();
+    expect(members.length, 2);
+    final ownerEntry = members.firstWhere((m) => m['deviceId'] == owner.deviceId);
+    expect(ownerEntry['displayName'], 'AliceHost');
+    expect(ownerEntry['avatar'], 'preset:cyber');
+
+    final joined = await ownerClient.waitFor('member_joined');
+    expect(joined['deviceId'], guest.deviceId);
+    expect(joined['displayName'], 'BobFriend');
+    expect(joined['avatar'], 'preset:rose');
+
+    await ownerClient.close();
+    await guestClient.close();
+  });
 }

@@ -37,6 +37,7 @@ const int kMaxPeersPerRoom = 2;
 const int kRateBurst = 60;
 const int kRateRefillPerSecond = 20;
 const int kMaxDisplayNameBytes = 64;
+const int kMaxAvatarBytes = 128;
 
 final RegExp _uuidV4 = RegExp(
   r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
@@ -329,11 +330,15 @@ class SignalingServer {
       rawToken: token,
     );
     _rooms[roomId] = room;
-    room.attach(conn, deviceId);
+    final displayName = _cleanDisplayName(msg['displayName']);
+    final avatar = _cleanAvatar(msg['avatar']);
+    room.attach(conn, deviceId, displayName: displayName, avatar: avatar);
     conn.roomId = roomId;
     conn.deviceId = deviceId;
     conn.role = 'owner';
     conn.publicKey = msg['ownerPublicKey'] as String?;
+    conn.displayName = displayName;
+    conn.avatar = avatar;
     conn.joinedAt = DateTime.now().millisecondsSinceEpoch;
     conn.send(<String, Object?>{
       'type': 'room_created',
@@ -422,9 +427,13 @@ class SignalingServer {
     }
     if (room.peers.containsKey(deviceId)) {
       // Same identity re-joining (e.g. after a network drop): idempotent.
-      room.attach(conn, deviceId);
+      final displayName = _cleanDisplayName(msg['displayName']);
+      final avatar = _cleanAvatar(msg['avatar']);
+      room.attach(conn, deviceId, displayName: displayName, avatar: avatar);
       conn.roomId = roomId;
       conn.deviceId = deviceId;
+      conn.displayName = displayName ?? conn.displayName;
+      conn.avatar = avatar ?? conn.avatar;
       conn.send(<String, Object?>{
         'type': 'join_accepted',
         'roomId': roomId,
@@ -433,13 +442,16 @@ class SignalingServer {
         'ownerPublicKey': room.ownerPublicKey,
         'inviteEpoch': room.inviteEpoch,
         'rejoined': true,
-        'members': room.peers.keys.toList(),
+        'members': room.membersList(),
       });
       room.broadcast(<String, Object?>{
         'type': 'member_joined',
         'roomId': roomId,
         'deviceId': deviceId,
         'publicKey': conn.publicKey,
+        'displayName': conn.displayName ?? '',
+        'avatar': conn.avatar ?? '',
+        'joinedAt': conn.joinedAt,
         'rejoined': true,
       }, exceptDeviceId: deviceId);
       return;
@@ -455,11 +467,14 @@ class SignalingServer {
     // Atomically consume the invite for this identity.
     room.inviteConsumedBy ??= deviceId;
     final displayName = _cleanDisplayName(msg['displayName']);
-    room.attach(conn, deviceId, displayName: displayName);
+    final avatar = _cleanAvatar(msg['avatar']);
+    room.attach(conn, deviceId, displayName: displayName, avatar: avatar);
     conn.roomId = roomId;
     conn.deviceId = deviceId;
     conn.role = (deviceId == room.ownerDeviceId) ? 'owner' : 'member';
     conn.publicKey = msg['publicKey'] as String?;
+    conn.displayName = displayName;
+    conn.avatar = avatar;
     conn.joinedAt = DateTime.now().millisecondsSinceEpoch;
     final wasConsumedBySelf = room.inviteConsumedBy == deviceId;
     conn.send(<String, Object?>{
@@ -470,13 +485,16 @@ class SignalingServer {
       'ownerPublicKey': room.ownerPublicKey,
       'inviteEpoch': room.inviteEpoch,
       'rejoined': wasConsumedBySelf,
-      'members': room.peers.keys.toList(),
+      'members': room.membersList(),
     });
     room.broadcast(<String, Object?>{
       'type': 'member_joined',
       'roomId': roomId,
       'deviceId': deviceId,
       'publicKey': conn.publicKey,
+      'displayName': conn.displayName ?? '',
+      'avatar': conn.avatar ?? '',
+      'joinedAt': conn.joinedAt,
       'rejoined': false,
     }, exceptDeviceId: deviceId);
   }
@@ -740,6 +758,16 @@ String? _cleanDisplayName(Object? raw) {
   return trimmed;
 }
 
+String? _cleanAvatar(Object? raw) {
+  if (raw is! String) return null;
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+  final bytes = utf8.encode(trimmed);
+  if (bytes.length > kMaxAvatarBytes) return null;
+  if (trimmed.codeUnits.any((u) => u < 0x20 || u == 0x7f)) return null;
+  return trimmed;
+}
+
 class _Room {
   _Room({
     required this.roomId,
@@ -766,7 +794,7 @@ class _Room {
   String? inviteConsumedBy;
   final Map<String, _RoomPeer> peers = <String, _RoomPeer>{};
 
-  void attach(_PeerConnection conn, String deviceId, {String? displayName}) {
+  void attach(_PeerConnection conn, String deviceId, {String? displayName, String? avatar}) {
     final existing = peers[deviceId];
     if (existing != null && !identical(existing.conn, conn)) {
       // Replace a dropped connection held by the same identity.
@@ -774,7 +802,7 @@ class _Room {
         existing.conn.close(1000, 'replaced_by_new_connection');
       } catch (_) {}
     }
-    peers[deviceId] = _RoomPeer(conn, displayName);
+    peers[deviceId] = _RoomPeer(conn, displayName, avatar: avatar);
   }
 
   void remove(String deviceId, _PeerConnection conn) {
@@ -783,6 +811,16 @@ class _Room {
       peers.remove(deviceId);
     }
   }
+
+  List<Map<String, Object?>> membersList() => peers.entries
+      .map((e) => <String, Object?>{
+            'deviceId': e.key,
+            'role': e.value.conn.role,
+            'displayName': e.value.displayName ?? '',
+            'avatar': e.value.avatar ?? '',
+            'joinedAt': e.value.conn.joinedAt,
+          })
+      .toList();
 
   void broadcast(Map<String, Object?> message, {String? exceptDeviceId}) {
     final wire = jsonEncode(message);
@@ -796,9 +834,10 @@ class _Room {
 }
 
 class _RoomPeer {
-  _RoomPeer(this.conn, this.displayName);
+  _RoomPeer(this.conn, this.displayName, {this.avatar});
   final _PeerConnection conn;
   final String? displayName;
+  final String? avatar;
 }
 
 class _PeerConnection {
@@ -813,6 +852,8 @@ class _PeerConnection {
   int joinedAt = DateTime.now().millisecondsSinceEpoch;
   String role = 'member';
   String? publicKey;
+  String? displayName;
+  String? avatar;
 
   int _tokens = kRateBurst;
   DateTime _lastRefill = DateTime.now();

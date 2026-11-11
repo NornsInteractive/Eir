@@ -88,10 +88,15 @@ const List<AvatarPreset> kAvatarPresets = [
   ),
 ];
 
-AvatarPreset getAvatarPreset(String? key) {
-  if (key == null || key.isEmpty) return kAvatarPresets[0];
-  for (final p in kAvatarPresets) {
-    if (p.key == key) return p;
+AvatarPreset getAvatarPreset(String? key, [String? fallbackSeed]) {
+  if (key != null && key.isNotEmpty) {
+    for (final p in kAvatarPresets) {
+      if (p.key == key) return p;
+    }
+  }
+  if (fallbackSeed != null && fallbackSeed.isNotEmpty) {
+    final idx = fallbackSeed.hashCode.abs() % kAvatarPresets.length;
+    return kAvatarPresets[idx];
   }
   return kAvatarPresets[0];
 }
@@ -99,6 +104,7 @@ AvatarPreset getAvatarPreset(String? key) {
 /// Reusable Apple liquid-glass user avatar component
 class UserAvatar extends StatelessWidget {
   final String? avatarKey;
+  final String? fallbackSeed;
   final double size;
   final VoidCallback? onTap;
   final bool showEditBadge;
@@ -106,6 +112,7 @@ class UserAvatar extends StatelessWidget {
   const UserAvatar({
     super.key,
     this.avatarKey,
+    this.fallbackSeed,
     this.size = 56,
     this.onTap,
     this.showEditBadge = false,
@@ -115,13 +122,16 @@ class UserAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectiveKey = (avatarKey != null && avatarKey!.isNotEmpty)
         ? avatarKey!
-        : AppSettings.instance.avatar;
+        : (fallbackSeed != null && fallbackSeed!.isNotEmpty
+            ? null
+            : AppSettings.instance.avatar);
 
-    final isCustomPath = !effectiveKey.startsWith('preset:') &&
+    final isCustomPath = effectiveKey != null &&
+        !effectiveKey.startsWith('preset:') &&
         !kIsWeb &&
         File(effectiveKey).existsSync();
 
-    final preset = getAvatarPreset(effectiveKey);
+    final preset = getAvatarPreset(effectiveKey, fallbackSeed);
 
     Widget avatarCore;
     if (isCustomPath) {

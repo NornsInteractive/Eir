@@ -380,9 +380,7 @@ class _CinemaViewState extends State<CinemaView> {
     final i18n = AppI18n.of(context);
 
     final textToCopy = (roomCode != null && roomCode.isNotEmpty)
-        ? (invite != null
-            ? '$roomCode\n\n$invite'
-            : roomCode)
+        ? roomCode
         : (invite ?? '');
 
     if (textToCopy.isNotEmpty) {
@@ -1538,10 +1536,10 @@ class _CinemaViewState extends State<CinemaView> {
                     ),
                   ),
                   title: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       // Room ID Badge (Icon-only on narrow screens with full tooltip/semantics to prevent overflow)
-                      Tooltip(
+                      Flexible(
+                        child: Tooltip(
                         message: session.roomId != null ? formatDeviceId(session.roomId!) : 'Eir',
                         child: Semantics(
                           label: session.roomId != null ? formatDeviceId(session.roomId!) : 'Eir',
@@ -1552,20 +1550,23 @@ class _CinemaViewState extends State<CinemaView> {
                               vertical: isShort ? 3 : 4,
                             ),
                             child: Row(
-                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.theater_comedy_rounded, size: isNarrow ? 13 : 14, color: tc.primary),
                                 if (!isNarrow) ...[
                                   const SizedBox(width: 4),
-                                  Text(
-                                    session.roomId != null
-                                        ? formatDeviceId(session.roomId!)
-                                        : 'Eir',
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w700,
-                                      fontFeatures: const [FontFeature.tabularFigures()],
-                                      color: tc.primary,
+                                  Flexible(
+                                    child: Text(
+                                      session.roomId != null
+                                          ? formatDeviceId(session.roomId!)
+                                          : 'Eir',
+                                      overflow: TextOverflow.ellipsis,
+                                      softWrap: false,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        fontFeatures: const [FontFeature.tabularFigures()],
+                                        color: tc.primary,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -1573,6 +1574,7 @@ class _CinemaViewState extends State<CinemaView> {
                             ),
                           ),
                         ),
+                      ),
                       ),
                       SizedBox(width: isNarrow ? 4 : 6),
 
@@ -3988,6 +3990,7 @@ class _CinemaViewState extends State<CinemaView> {
                           avatarKey: member.avatar.isNotEmpty
                               ? member.avatar
                               : (isMe ? AppSettings.instance.avatar : null),
+                          fallbackSeed: isMe ? null : member.deviceId,
                           size: 28,
                         ),
                         if (isMemberOwner || isMemberAdmin)
