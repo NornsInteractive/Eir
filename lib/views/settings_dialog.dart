@@ -7,6 +7,7 @@ import '../apple_glass.dart';
 import '../models.dart';
 import '../core/app_icon_manager.dart';
 import '../core/remote_config_service.dart';
+import '../core/turn_diagnostic_service.dart';
 import 'color_picker_dialog.dart';
 
 class SettingsDialog extends StatefulWidget {
@@ -43,6 +44,9 @@ class _SettingsDialogState extends State<SettingsDialog> {
   bool _signalingFeedbackIsError = false;
   bool _isSavingTurn = false;
   String? _turnFeedback;
+  bool _isTestingTurn = false;
+  String? _turnTestFeedback;
+  bool _turnTestIsError = false;
 
   static const List<Map<String, dynamic>> _lightPresets = [
     {'key': 'blue', 'color': Color(0xFF007AFF)},
@@ -131,6 +135,34 @@ class _SettingsDialogState extends State<SettingsDialog> {
       _turnFeedback = AppI18n.of(context).isZh
           ? 'TURN 配置已保存'
           : 'TURN configuration saved';
+    });
+  }
+
+  Future<void> _handleTestTurnConfig() async {
+    final server = _turnServerController.text.trim();
+    if (server.isEmpty) {
+      setState(() {
+        _turnTestFeedback = AppI18n.of(context).isZh ? '请先输入 TURN 服务器地址' : 'Please enter TURN server';
+        _turnTestIsError = true;
+      });
+      return;
+    }
+    setState(() {
+      _isTestingTurn = true;
+      _turnTestFeedback = null;
+    });
+
+    final res = await TurnDiagnosticService.probeTurnServer(
+      server: server,
+      username: _turnUsernameController.text.trim(),
+      credential: _turnCredentialController.text.trim(),
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isTestingTurn = false;
+      _turnTestFeedback = res.message;
+      _turnTestIsError = !res.success;
     });
   }
 
@@ -911,33 +943,117 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                         ],
                                       ),
                                       const SizedBox(height: 10),
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: LiquidGlassActionButton(
-                                          height: 32,
-                                          onTap: _isSavingTurn
-                                              ? () {}
-                                              : _handleSaveTurnConfig,
-                                          child: _isSavingTurn
-                                              ? SizedBox(
-                                                  width: 14,
-                                                  height: 14,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                    strokeWidth: 2,
-                                                    valueColor:
-                                                        AlwaysStoppedAnimation<
-                                                                Color>(
-                                                            tc.textPrimary),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          LiquidGlassActionButton(
+                                            height: 32,
+                                            onTap: _isTestingTurn
+                                                ? () {}
+                                                : _handleTestTurnConfig,
+                                            child: _isTestingTurn
+                                                ? Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      SizedBox(
+                                                        width: 12,
+                                                        height: 12,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                          strokeWidth: 1.5,
+                                                          valueColor:
+                                                              AlwaysStoppedAnimation<
+                                                                  Color>(
+                                                            tc.textPrimary,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 6),
+                                                      Text(
+                                                        i18n.testingTurnConnection,
+                                                        style: const TextStyle(
+                                                            fontSize: 12),
+                                                      ),
+                                                    ],
+                                                  )
+                                                : Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons
+                                                            .network_check_rounded,
+                                                        size: 14,
+                                                        color: tc.textPrimary,
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        i18n.testTurnConnection,
+                                                        style: const TextStyle(
+                                                            fontSize: 12),
+                                                      ),
+                                                    ],
                                                   ),
-                                                )
-                                              : Text(
-                                                  i18n.save,
-                                                  style: const TextStyle(
-                                                      fontSize: 12),
-                                                ),
-                                        ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          LiquidGlassActionButton(
+                                            height: 32,
+                                            onTap: _isSavingTurn
+                                                ? () {}
+                                                : _handleSaveTurnConfig,
+                                            child: _isSavingTurn
+                                                ? SizedBox(
+                                                    width: 14,
+                                                    height: 14,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                              Color>(
+                                                        tc.textPrimary,
+                                                      ),
+                                                    ),
+                                                  )
+                                                : Text(
+                                                    i18n.save,
+                                                    style: const TextStyle(
+                                                        fontSize: 12),
+                                                  ),
+                                          ),
+                                        ],
                                       ),
+                                      if (_turnTestFeedback != null) ...[
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              _turnTestIsError
+                                                  ? Icons.error_outline_rounded
+                                                  : Icons
+                                                      .check_circle_outline_rounded,
+                                              size: 13,
+                                              color: _turnTestIsError
+                                                  ? tc.warning
+                                                  : tc.success,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              child: Text(
+                                                _turnTestFeedback!,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: _turnTestIsError
+                                                      ? tc.warning
+                                                      : tc.success,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                       if (_turnFeedback != null) ...[
                                         const SizedBox(height: 6),
                                         Text(

@@ -421,6 +421,10 @@ class AppI18n {
   String get turnServer => isZh ? 'TURN 中继服务器' : 'TURN Relay Server';
   String get turnUsername => isZh ? 'TURN 用户名' : 'TURN Username';
   String get turnCredential => isZh ? 'TURN 密码凭据' : 'TURN Password / Credential';
+  String get testTurnConnection => isZh ? '测试中继' : 'Test Relay';
+  String get testingTurnConnection => isZh ? '探测中...' : 'Testing...';
+  String get turnConnectionSuccess => isZh ? '中继就绪 (Relay 候选已分配)' : 'Relay ready (Candidate allocated)';
+  String get turnConnectionFailed => isZh ? '中继探测失败 (未分配 Relay 候选)' : 'Probe failed (No Relay candidate)';
   String get transportEngine => isZh ? '传输引擎 / 穿透模式' : 'Transport Engine / NAT Mode';
   String get transportWebrtc => isZh ? 'WebRTC 原生模式 (默认)' : 'WebRTC Native (Default)';
   String get transportTailcat => isZh ? 'Tailcat 穿透引擎 (跨网推荐)' : 'Tailcat Magicsock (Recommended for WAN)';

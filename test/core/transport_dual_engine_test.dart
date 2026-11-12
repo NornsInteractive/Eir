@@ -30,7 +30,10 @@ void main() {
 
       final servers = RoomSession.effectiveIceServers;
       expect(servers.length, 2);
-      expect(servers[1]['urls'], 'turn:turn.example.com:3478');
+      expect(servers[1]['urls'], [
+        'turn:turn.example.com:3478?transport=udp',
+        'turn:turn.example.com:3478?transport=tcp',
+      ]);
       expect(servers[1]['username'], 'alice');
       expect(servers[1]['credential'], 'secretpassword');
     });

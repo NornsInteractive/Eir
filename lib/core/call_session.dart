@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'room_session.dart';
 
 /// Call State machine enum
 enum CallState {
@@ -463,10 +464,7 @@ class CallSession extends ChangeNotifier {
 
   Future<void> _setupPeerConnection({required bool isCaller}) async {
     final Map<String, dynamic> config = {
-      'iceServers': [
-        {'urls': 'stun:stun.l.google.com:19302'},
-        {'urls': 'stun:stun1.l.google.com:19302'},
-      ],
+      'iceServers': RoomSession.effectiveIceServers,
       'sdpSemantics': 'unified-plan',
     };
 

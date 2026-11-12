@@ -265,8 +265,6 @@ class RoomSession extends ChangeNotifier {
     'stun:stun.chat.bilibili.com:3478',
     'stun:stun.hitv.com:3478',
     'stun:stun.cloudflare.com:3478',
-    'stun:stun1.l.google.com:19302',
-    'stun:stun.l.google.com:19302',
   ];
 
   static List<Map<String, dynamic>> get effectiveIceServers {
@@ -275,8 +273,21 @@ class RoomSession extends ChangeNotifier {
     ];
     final turn = AppSettings.instance.turnServer.trim();
     if (turn.isNotEmpty) {
+      final cleanTurn = turn.replaceFirst(RegExp(r'^turns?:'), '');
+      final isTurns = turn.startsWith('turns:');
+      final scheme = isTurns ? 'turns:' : 'turn:';
+
+      // Provide dual-transport URLs (UDP + TCP) so that when mobile/symmetric
+      // NAT blocks UDP, WebRTC automatically fails over to TCP relay.
+      final turnUrls = isTurns
+          ? <String>['$scheme$cleanTurn?transport=tcp']
+          : <String>[
+              '$scheme$cleanTurn?transport=udp',
+              '$scheme$cleanTurn?transport=tcp',
+            ];
+
       final turnEntry = <String, dynamic>{
-        'urls': turn.startsWith('turn:') || turn.startsWith('turns:') ? turn : 'turn:$turn',
+        'urls': turnUrls,
       };
       if (AppSettings.instance.turnUsername.isNotEmpty) {
         turnEntry['username'] = AppSettings.instance.turnUsername;
@@ -1763,7 +1774,7 @@ class RoomSession extends ChangeNotifier {
     _p2pConnecting = true;
     _p2pFailed = false;
     _p2pTimeoutTimer?.cancel();
-    _p2pTimeoutTimer = Timer(const Duration(seconds: 10), () {
+    _p2pTimeoutTimer = Timer(const Duration(seconds: 25), () {
       if (!_peerVerified && _dcStateOpen() != true) {
         _p2pConnecting = false;
         _p2pFailed = true;
@@ -1940,8 +1951,8 @@ class RoomSession extends ChangeNotifier {
       if (candMap == null) return;
       final candidate = RTCIceCandidate(
         candMap['candidate'] as String?,
-        candMap['sdpMid'] as String?,
-        (candMap['sdpMLineIndex'] as num?)?.toInt(),
+        (candMap['sdpMid'] as String?) ?? '0',
+        (candMap['sdpMLineIndex'] as num?)?.toInt() ?? 0,
       );
       if (_remoteDescriptionSet && pc != null) {
         try {
@@ -2184,6 +2195,9 @@ class RoomSession extends ChangeNotifier {
   // -------------------------------------------------------- handshake
 
   Future<void> _onDataChannelOpen() async {
+    _p2pTimeoutTimer?.cancel();
+    _p2pFailed = false;
+    notifyListeners();
     _handshakeTimer?.cancel();
     _handshakeTimer = Timer(handshakeTimeout, () {
       _peerVerified = false;
