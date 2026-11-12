@@ -28,6 +28,7 @@ class AppSettings extends ChangeNotifier {
   static const String _kTurnUsernameKey = 'eir_setting_turn_username';
   static const String _kTurnCredentialKey = 'eir_setting_turn_credential';
   static const String _kTransportEngineKey = 'eir_setting_transport_engine';
+  static const String _kWaitForPeerBufferingKey = 'eir_setting_wait_for_peer_buffering';
 
   static const List<String> _adjectives = [
     'Starlight', 'Velvet', 'Neon', 'Cosmic', 'Solar', 'Lunar', 'Silent',
@@ -128,6 +129,10 @@ class AppSettings extends ChangeNotifier {
   String _transportEngine = 'webrtc';
   String get transportEngine => _transportEngine;
   bool get isTailcatEngine => _transportEngine == 'tailcat';
+
+  // Playback sync: wait for peer buffering
+  bool _waitForPeerBuffering = true;
+  bool get waitForPeerBuffering => _waitForPeerBuffering;
 
   /// Effective display name: returns trimmed nickname if non-empty, otherwise empty
   String get effectiveDisplayName => _nickname.trim();
@@ -290,10 +295,26 @@ class AppSettings extends ChangeNotifier {
         _transportEngine = 'webrtc';
         debugPrint('[AppSettings] Reset corrupted transport engine setting: $e');
       }
+
+      // 13. Wait for Peer Buffering (Isolated try-catch)
+      try {
+        _waitForPeerBuffering = prefs.getBool(_kWaitForPeerBufferingKey) ?? true;
+      } catch (e) {
+        _waitForPeerBuffering = true;
+        debugPrint('[AppSettings] Reset corrupted wait for peer buffering setting: $e');
+      }
     }
 
     _isInitialized = true;
     notifyListeners();
+  }
+
+  Future<void> setWaitForPeerBuffering(bool value) async {
+    if (_waitForPeerBuffering != value) {
+      _waitForPeerBuffering = value;
+      notifyListeners();
+      await _saveBool(_kWaitForPeerBufferingKey, value);
+    }
   }
 
   Future<void> setBackgroundKeepAlive(bool value) async {

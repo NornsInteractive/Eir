@@ -711,6 +711,38 @@ abstract class BaseLocalMediaService {
     return out.toBytes();
   }
 
+  void cancelPendingFetchesExcept(String? activeMediaId) {
+    final toRemove = <int>[];
+    for (final entry in _pending.entries) {
+      if (activeMediaId == null || entry.value.mediaId != activeMediaId) {
+        entry.value.cancelled = true;
+        if (!entry.value.done.isCompleted) {
+          entry.value.done.completeError(MediaException('fetch_cancelled', 'switched media'));
+        }
+        toRemove.add(entry.key);
+        try {
+          _sendControl(<String, dynamic>{
+            'type': 'media_range_cancel',
+            'requestId': entry.key,
+            'mediaId': entry.value.mediaId,
+          });
+        } catch (_) {}
+      }
+    }
+    for (final rid in toRemove) {
+      _pending.remove(rid);
+    }
+    _serveQueue.removeWhere((mediaId, list) {
+      if (activeMediaId == null || mediaId != activeMediaId) {
+        for (final f in list) {
+          f.cancelled = true;
+        }
+        return true;
+      }
+      return false;
+    });
+  }
+
   Future<void> writeRange(String mediaId, int start, int end, Future<void> Function(Uint8List slice) write) async {
     final manifest = manifestFor(mediaId);
     if (manifest == null) throw MediaException('invalid_manifest', 'unknown media');

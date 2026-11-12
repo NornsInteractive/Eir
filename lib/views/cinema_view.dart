@@ -36,6 +36,8 @@ class _CinemaViewState extends State<CinemaView> {
   bool _isFullscreen = false;
   bool _isLandscape = false;
   bool _isScrubbing = false;
+  bool _isVerticalDragging = false;
+  DateTime? _lastSeekTime;
   Duration? _scrubTarget;
   Duration? _scrubStart;
   int _scrubDeltaSec = 0;
@@ -238,7 +240,7 @@ class _CinemaViewState extends State<CinemaView> {
   }
 
   void _onHorizontalDragStart(DragStartDetails details, Duration currentPos, Duration mediaDuration) {
-    if (_isLocked || mediaDuration.inMilliseconds <= 0) return;
+    if (_isLocked || _isVerticalDragging || mediaDuration.inMilliseconds <= 0) return;
     _isScrubbing = true;
     _scrubStart = currentPos;
     _scrubTarget = currentPos;
@@ -263,6 +265,7 @@ class _CinemaViewState extends State<CinemaView> {
     if (!_isScrubbing) return;
     final target = _scrubTarget;
     _isScrubbing = false;
+    _isVerticalDragging = false;
     setState(() {});
     if (isHostOrAdmin && target != null) {
       widget.session.seek(target);
@@ -271,6 +274,7 @@ class _CinemaViewState extends State<CinemaView> {
   }
 
   void _onHorizontalDragCancel() {
+    _isVerticalDragging = false;
     if (_isScrubbing) {
       setState(() {
         _isScrubbing = false;
@@ -327,6 +331,11 @@ class _CinemaViewState extends State<CinemaView> {
 
   void _onSliderSeek(double val, Duration mediaDuration) {
     if (mediaDuration.inMilliseconds <= 0) return;
+    final now = DateTime.now();
+    if (_lastSeekTime != null && now.difference(_lastSeekTime!).inMilliseconds < 120) {
+      return;
+    }
+    _lastSeekTime = now;
     _restartControlsTimer();
     final clamped = val.clamp(0.0, 1.0);
     final targetMs = (clamped * mediaDuration.inMilliseconds).round();
@@ -343,6 +352,106 @@ class _CinemaViewState extends State<CinemaView> {
     try {
       widget.session.seek(Duration(milliseconds: targetMs));
     } catch (_) {}
+  }
+
+  Future<void> _confirmAndLeaveRoom(BuildContext context) async {
+    final session = widget.session;
+    final isOwner = session.role == RoomRole.owner;
+    final i18n = AppI18n.of(context);
+    final tc = ThemeColors.of(context);
+
+    final shouldLeave = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380),
+          child: Container(
+            margin: const EdgeInsets.all(24),
+            child: GlassContainer.card(
+              surfaceStyle: GlassSurfaceStyle.solid,
+              color: tc.cardBackground,
+              shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        isOwner ? Icons.warning_amber_rounded : Icons.logout_rounded,
+                        size: 22,
+                        color: isOwner ? tc.warning : tc.primary,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          isOwner ? i18n.disbandRoom : i18n.leaveRoom,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: tc.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    isOwner
+                        ? (i18n.isZh
+                            ? '解散房间后，所有正在一起观影的好友都将断开连接。确定解散吗？'
+                            : 'Disbanding the room will disconnect all watching members. Are you sure?')
+                        : (i18n.isZh
+                            ? '确定要退出当前放映室吗？'
+                            : 'Are you sure you want to leave the room?'),
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: tc.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      LiquidGlassActionButton(
+                        onTap: () => Navigator.of(ctx).pop(false),
+                        child: Text(
+                          i18n.cancel,
+                          style: TextStyle(color: tc.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      LiquidGlassActionButton(
+                        isPrimary: true,
+                        onTap: () => Navigator.of(ctx).pop(true),
+                        child: Text(
+                          isOwner
+                              ? (i18n.isZh ? '解散' : 'Disband')
+                              : (i18n.isZh ? '退出' : 'Leave'),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (shouldLeave == true && mounted) {
+      if (isOwner) {
+        await session.closeRoom();
+      } else {
+        await session.leaveRoom();
+      }
+      widget.onLeaveRoom();
+    }
   }
 
   void _cycleAspectRatio() {
@@ -1221,7 +1330,49 @@ class _CinemaViewState extends State<CinemaView> {
                         },
                       ),
 
-                      // 5. Volume Mute Toggle
+                      // 5. Wait for Peer Buffering Toggle (Host mode: BUG-PLAY-06)
+                      if (isHostOrAdmin) ...[
+                        ListTile(
+                          key: const ValueKey('cinema-wait-buffering-toggle-btn'),
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          leading: Icon(
+                            Icons.hourglass_top_rounded,
+                            color: tc.primary,
+                            size: 20,
+                          ),
+                          title: Text(
+                            i18n.isZh ? '等候好友缓冲完成' : 'Wait for Peer Buffering',
+                            style: TextStyle(
+                              color: tc.textPrimary,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            i18n.isZh
+                                ? '当对端卡顿加载时自动暂停，就绪后恢复'
+                                : 'Auto-pause when peer is buffering',
+                            style: TextStyle(
+                              color: tc.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                          trailing: IgnorePointer(
+                            child: Switch.adaptive(
+                              value: session.waitForPeerBuffering,
+                              activeColor: tc.primary,
+                              onChanged: (_) {},
+                            ),
+                          ),
+                          onTap: () {
+                            session.waitForPeerBuffering = !session.waitForPeerBuffering;
+                            setSheetState(() {});
+                          },
+                        ),
+                      ],
+
+                      // 6. Volume Mute Toggle (BUG-UI-01: wrapped in IgnorePointer to avoid double-toggle)
                       ListTile(
                         key: const ValueKey('cinema-volume-mute-btn'),
                         dense: true,
@@ -1235,14 +1386,12 @@ class _CinemaViewState extends State<CinemaView> {
                           _isMuted ? i18n.unmuteTooltip : i18n.muteTooltip,
                           style: TextStyle(color: tc.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600),
                         ),
-                        trailing: Switch.adaptive(
-                          value: !_isMuted,
-                          activeColor: tc.primary,
-                          onChanged: (val) {
-                            setState(() => _isMuted = !val);
-                            setSheetState(() {});
-                            session.player.setVolume(_isMuted ? 0.0 : _volume * 100.0);
-                          },
+                        trailing: IgnorePointer(
+                          child: Switch.adaptive(
+                            value: !_isMuted,
+                            activeColor: tc.primary,
+                            onChanged: (_) {},
+                          ),
                         ),
                         onTap: () {
                           setState(() => _isMuted = !_isMuted);
@@ -1507,12 +1656,19 @@ class _CinemaViewState extends State<CinemaView> {
           );
         }
 
-        return Material(
-          type: MaterialType.transparency,
-          child: GlassScaffold(
-          background: LiquidGlassAmbientBackground(child: Container()),
-          extendBody: false,
-          appBar: GlassAppBar(
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            _confirmAndLeaveRoom(context);
+          },
+          child: Material(
+            type: MaterialType.transparency,
+            child: GlassScaffold(
+              resizeToAvoidBottomInset: false,
+              background: LiquidGlassAmbientBackground(child: Container()),
+              extendBody: false,
+              appBar: GlassAppBar(
                   centerTitle: false,
                   backgroundColor: Colors.transparent,
                   leading: Semantics(
@@ -1524,14 +1680,7 @@ class _CinemaViewState extends State<CinemaView> {
                       child: GlassIconButton(
                         key: const ValueKey('cinema-back-leave-btn'),
                         icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
-                        onPressed: () async {
-                          if (isOwner) {
-                            await session.closeRoom();
-                          } else {
-                            await session.leaveRoom();
-                          }
-                          widget.onLeaveRoom();
-                        },
+                        onPressed: () => _confirmAndLeaveRoom(context),
                       ),
                     ),
                   ),
@@ -1871,7 +2020,8 @@ class _CinemaViewState extends State<CinemaView> {
             ),
           ),
         ),
-      );
+      ),
+    );
     },
   ),
 );
@@ -2122,7 +2272,7 @@ class _CinemaViewState extends State<CinemaView> {
                 ),
               ),
 
-            // 2. Gesture Detection Layer (Double-tap skip, Drag brightness/volume, Horizontal drag seek, Long-press 2.0x)
+            // 2. Gesture Detection Layer (Double-tap skip, Drag brightness/volume, Horizontal drag seek, Long-press 2.0x, with BUG-UI-03 axis lock)
             Positioned.fill(
               child: Row(
                 children: [
@@ -2152,7 +2302,18 @@ class _CinemaViewState extends State<CinemaView> {
                           setState(() => _isLongPressSpeeding = false);
                         }
                       },
-                      onVerticalDragUpdate: _isLocked
+                      onVerticalDragStart: (_) {
+                        if (!_isScrubbing) {
+                          _isVerticalDragging = true;
+                        }
+                      },
+                      onVerticalDragEnd: (_) {
+                        _isVerticalDragging = false;
+                      },
+                      onVerticalDragCancel: () {
+                        _isVerticalDragging = false;
+                      },
+                      onVerticalDragUpdate: (_isLocked || _isScrubbing)
                           ? null
                           : (d) {
                               final delta = -d.primaryDelta! / 200.0;
@@ -2162,10 +2323,24 @@ class _CinemaViewState extends State<CinemaView> {
                               });
                               _showGestureHud('brightness');
                             },
-                      onHorizontalDragStart: (d) => _onHorizontalDragStart(d, currentPos, mediaDuration),
-                      onHorizontalDragUpdate: (d) => _onHorizontalDragUpdate(d, mediaDuration, screenWidth),
-                      onHorizontalDragEnd: (d) => _onHorizontalDragEnd(d, isHostOrAdmin),
-                      onHorizontalDragCancel: _onHorizontalDragCancel,
+                      onHorizontalDragStart: (d) {
+                        if (!_isVerticalDragging) {
+                          _onHorizontalDragStart(d, currentPos, mediaDuration);
+                        }
+                      },
+                      onHorizontalDragUpdate: (d) {
+                        if (!_isVerticalDragging) {
+                          _onHorizontalDragUpdate(d, mediaDuration, screenWidth);
+                        }
+                      },
+                      onHorizontalDragEnd: (d) {
+                        _isVerticalDragging = false;
+                        _onHorizontalDragEnd(d, isHostOrAdmin);
+                      },
+                      onHorizontalDragCancel: () {
+                        _isVerticalDragging = false;
+                        _onHorizontalDragCancel();
+                      },
                       child: const SizedBox.expand(),
                     ),
                   ),
@@ -2195,7 +2370,18 @@ class _CinemaViewState extends State<CinemaView> {
                           setState(() => _isLongPressSpeeding = false);
                         }
                       },
-                      onVerticalDragUpdate: _isLocked
+                      onVerticalDragStart: (_) {
+                        if (!_isScrubbing) {
+                          _isVerticalDragging = true;
+                        }
+                      },
+                      onVerticalDragEnd: (_) {
+                        _isVerticalDragging = false;
+                      },
+                      onVerticalDragCancel: () {
+                        _isVerticalDragging = false;
+                      },
+                      onVerticalDragUpdate: (_isLocked || _isScrubbing)
                           ? null
                           : (d) {
                               final delta = -d.primaryDelta! / 200.0;
@@ -2206,16 +2392,68 @@ class _CinemaViewState extends State<CinemaView> {
                               widget.session.player.setVolume(_volume * 100.0);
                               _showGestureHud('volume');
                             },
-                      onHorizontalDragStart: (d) => _onHorizontalDragStart(d, currentPos, mediaDuration),
-                      onHorizontalDragUpdate: (d) => _onHorizontalDragUpdate(d, mediaDuration, screenWidth),
-                      onHorizontalDragEnd: (d) => _onHorizontalDragEnd(d, isHostOrAdmin),
-                      onHorizontalDragCancel: _onHorizontalDragCancel,
+                      onHorizontalDragStart: (d) {
+                        if (!_isVerticalDragging) {
+                          _onHorizontalDragStart(d, currentPos, mediaDuration);
+                        }
+                      },
+                      onHorizontalDragUpdate: (d) {
+                        if (!_isVerticalDragging) {
+                          _onHorizontalDragUpdate(d, mediaDuration, screenWidth);
+                        }
+                      },
+                      onHorizontalDragEnd: (d) {
+                        _isVerticalDragging = false;
+                        _onHorizontalDragEnd(d, isHostOrAdmin);
+                      },
+                      onHorizontalDragCancel: () {
+                        _isVerticalDragging = false;
+                        _onHorizontalDragCancel();
+                      },
                       child: const SizedBox.expand(),
                     ),
                   ),
                 ],
               ),
             ),
+
+            // Peer Buffering Waiting Banner (Host mode: BUG-PLAY-06)
+            if (widget.session.isHostWaitingPeerBuffering)
+              Positioned(
+                top: isFullscreen ? 56 : 16,
+                left: 20,
+                right: 20,
+                child: Center(
+                  child: GlassContainer.card(
+                    surfaceStyle: GlassSurfaceStyle.glass,
+                    color: Colors.black54,
+                    shape: const LiquidRoundedSuperellipse(borderRadius: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: tc.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          i18n.isZh ? '好友正在缓冲，已为您暂停等候...' : 'Peer is buffering, paused to wait...',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
 
             // Buffering Indicator
             if (isBuffering && widget.session.lastErrorCode != 'source_offline')
@@ -3132,79 +3370,63 @@ class _CinemaViewState extends State<CinemaView> {
                               ),
                               const SizedBox(width: 6),
 
-                              // 弹性自适应进度条 (点击即跳，绝无回弹)
+                              // 弹性自适应进度条 (BUG-PLAY-01: 单一手势源 tapAndSlide，彻底消除 double-seek 竞争)
                               Expanded(
                                 child: Material(
                                   type: MaterialType.transparency,
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      return GestureDetector(
-                                        behavior: HitTestBehavior.translucent,
-                                        onTapDown: (isHostOrAdmin && mediaDuration.inMilliseconds > 0)
-                                            ? (details) {
-                                                final width = constraints.maxWidth;
-                                                if (width > 0) {
-                                                  final ratio = (details.localPosition.dx / width).clamp(0.0, 1.0);
-                                                  _onSliderSeek(ratio, mediaDuration);
-                                                }
-                                              }
-                                            : null,
-                                        child: SliderTheme(
-                                          data: SliderTheme.of(context).copyWith(
-                                            activeTrackColor: tc.primary,
-                                            inactiveTrackColor: Colors.white24,
-                                            secondaryActiveTrackColor:
-                                                tc.primary.withValues(alpha: 0.35),
-                                            thumbColor: Colors.white,
-                                            thumbShape: RoundSliderThumbShape(
-                                              enabledThumbRadius:
-                                                  isShort ? 4.5 : 5.5,
-                                            ),
-                                            overlayShape: RoundSliderOverlayShape(
-                                              overlayRadius: isShort ? 9 : 11,
-                                            ),
-                                            trackHeight: isShort ? 2.5 : 3.0,
-                                            allowedInteraction: SliderInteraction.tapAndSlide,
-                                          ),
-                                          child: Slider(
-                                            key: const ValueKey(
-                                                'cinema-timeline-slider'),
-                                            value: displayRatio,
-                                            secondaryTrackValue:
-                                                (syncTargetRatio > 0.0 &&
-                                                        syncTargetRatio !=
-                                                            displayRatio &&
-                                                        _draggingSliderValue == null)
-                                                    ? syncTargetRatio
-                                                    : null,
-                                            onChangeStart: (isHostOrAdmin &&
-                                                    mediaDuration.inMilliseconds > 0)
-                                                ? (val) {
-                                                    _restartControlsTimer();
-                                                    _optimisticSeekTimer?.cancel();
-                                                    setState(() {
-                                                      _draggingSliderValue = val.clamp(0.0, 1.0);
-                                                      _optimisticSeekRatio = val.clamp(0.0, 1.0);
-                                                    });
-                                                  }
-                                                : null,
-                                            onChanged: (isHostOrAdmin &&
-                                                    mediaDuration.inMilliseconds > 0)
-                                                ? (val) {
-                                                    _restartControlsTimer();
-                                                    setState(() =>
-                                                        _draggingSliderValue =
-                                                            val.clamp(0.0, 1.0));
-                                                  }
-                                                : null,
-                                            onChangeEnd: (isHostOrAdmin &&
-                                                    mediaDuration.inMilliseconds > 0)
-                                                ? (val) => _onSliderSeek(val, mediaDuration)
-                                                : null,
-                                          ),
-                                        ),
-                                      );
-                                    },
+                                  child: SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      activeTrackColor: tc.primary,
+                                      inactiveTrackColor: Colors.white24,
+                                      secondaryActiveTrackColor:
+                                          tc.primary.withValues(alpha: 0.35),
+                                      thumbColor: Colors.white,
+                                      thumbShape: RoundSliderThumbShape(
+                                        enabledThumbRadius:
+                                            isShort ? 4.5 : 5.5,
+                                      ),
+                                      overlayShape: RoundSliderOverlayShape(
+                                        overlayRadius: isShort ? 9 : 11,
+                                      ),
+                                      trackHeight: isShort ? 2.5 : 3.0,
+                                      allowedInteraction: SliderInteraction.tapAndSlide,
+                                    ),
+                                    child: Slider(
+                                      key: const ValueKey(
+                                          'cinema-timeline-slider'),
+                                      value: displayRatio,
+                                      secondaryTrackValue:
+                                          (syncTargetRatio > 0.0 &&
+                                                  syncTargetRatio !=
+                                                      displayRatio &&
+                                                  _draggingSliderValue == null)
+                                              ? syncTargetRatio
+                                              : null,
+                                      onChangeStart: (isHostOrAdmin &&
+                                              mediaDuration.inMilliseconds > 0)
+                                          ? (val) {
+                                              _restartControlsTimer();
+                                              _optimisticSeekTimer?.cancel();
+                                              setState(() {
+                                                _draggingSliderValue = val.clamp(0.0, 1.0);
+                                                _optimisticSeekRatio = val.clamp(0.0, 1.0);
+                                              });
+                                            }
+                                          : null,
+                                      onChanged: (isHostOrAdmin &&
+                                              mediaDuration.inMilliseconds > 0)
+                                          ? (val) {
+                                              _restartControlsTimer();
+                                              setState(() =>
+                                                  _draggingSliderValue =
+                                                      val.clamp(0.0, 1.0));
+                                            }
+                                          : null,
+                                      onChangeEnd: (isHostOrAdmin &&
+                                              mediaDuration.inMilliseconds > 0)
+                                          ? (val) => _onSliderSeek(val, mediaDuration)
+                                          : null,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -3304,20 +3526,7 @@ class _CinemaViewState extends State<CinemaView> {
                                   Expanded(
                                     child: Material(
                                       type: MaterialType.transparency,
-                                      child: LayoutBuilder(
-                                        builder: (context, constraints) {
-                                          return GestureDetector(
-                                            behavior: HitTestBehavior.translucent,
-                                            onTapDown: (isHostOrAdmin && mediaDuration.inMilliseconds > 0)
-                                                ? (details) {
-                                                    final width = constraints.maxWidth;
-                                                    if (width > 0) {
-                                                      final ratio = (details.localPosition.dx / width).clamp(0.0, 1.0);
-                                                      _onSliderSeek(ratio, mediaDuration);
-                                                    }
-                                                  }
-                                                : null,
-                                            child: SliderTheme(
+                                      child: SliderTheme(
                                               data: SliderTheme.of(context).copyWith(
                                                 activeTrackColor: tc.primary,
                                                 inactiveTrackColor: Colors.white24,
@@ -3374,11 +3583,8 @@ class _CinemaViewState extends State<CinemaView> {
                                                     : null,
                                               ),
                                             ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
+                                          ),
+                                        ),
                                   const SizedBox(width: 8),
                                   Text(
                                     formatDuration(mediaDuration),

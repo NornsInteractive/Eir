@@ -11,10 +11,16 @@ typedef DataCallbackNative = Void Function(
 typedef StateCallbackNative = Void Function(
     Uint64 id, Int32 state, Pointer<Utf8> info);
 
-typedef TailcatStartServerC = Pointer<Utf8> Function(
+final class TailcatStartServerReturn extends Struct {
+  external Pointer<Utf8> r0;
+  @UintPtr()
+  external int r1;
+}
+
+typedef TailcatStartServerC = TailcatStartServerReturn Function(
     Pointer<NativeFunction<DataCallbackNative>> dataCb,
     Pointer<NativeFunction<StateCallbackNative>> stateCb);
-typedef TailcatStartServerDart = Pointer<Utf8> Function(
+typedef TailcatStartServerDart = TailcatStartServerReturn Function(
     Pointer<NativeFunction<DataCallbackNative>> dataCb,
     Pointer<NativeFunction<StateCallbackNative>> stateCb);
 
@@ -74,6 +80,9 @@ class TailcatTransport implements RoomTransport {
   NativeCallable<DataCallbackNative>? _dataCallable;
   NativeCallable<StateCallbackNative>? _stateCallable;
 
+  void Function()? onConnected;
+  void Function()? onDisconnected;
+
   @override
   TransportEngineType get type => TransportEngineType.tailcat;
 
@@ -100,6 +109,9 @@ class TailcatTransport implements RoomTransport {
   Stream<Uint8List> get binaryStream => _binaryController.stream;
 
   void _onData(int id, int isBinary, Pointer<Uint8> data, int len) {
+    if (_sessionId == 0 && id != 0) {
+      _sessionId = id;
+    }
     if (id != _sessionId) return;
     final bytes = Uint8List.fromList(data.asTypedList(len));
     if (isBinary == 1) {
@@ -110,13 +122,18 @@ class TailcatTransport implements RoomTransport {
   }
 
   void _onState(int id, int state, Pointer<Utf8> info) {
+    if (_sessionId == 0 && id != 0) {
+      _sessionId = id;
+    }
     if (id != _sessionId) return;
     if (state == 1) {
       _isOpen = true;
       _badgeLabel = isDirectP2p ? 'P2P (Tailcat)' : 'DERP 中继 (Tailcat)';
+      onConnected?.call();
     } else if (state == 2) {
       _isOpen = false;
       _badgeLabel = 'Tailcat (Disconnected)';
+      onDisconnected?.call();
     }
   }
 
@@ -131,10 +148,13 @@ class TailcatTransport implements RoomTransport {
 
     final startServerFn = dylib.lookupFunction<TailcatStartServerC,
         TailcatStartServerDart>('TailcatStartServer');
-    final addrPtr = startServerFn(
+    final ret = startServerFn(
         _dataCallable!.nativeFunction, _stateCallable!.nativeFunction);
-    final addr = addrPtr.toDartString();
-    calloc.free(addrPtr);
+    final addr = ret.r0.toDartString();
+    calloc.free(ret.r0);
+    if (ret.r1 != 0) {
+      _sessionId = ret.r1;
+    }
     return addr;
   }
 
@@ -153,6 +173,9 @@ class TailcatTransport implements RoomTransport {
     try {
       _sessionId = startClientFn(
           addrPtr, _dataCallable!.nativeFunction, _stateCallable!.nativeFunction);
+      if (_isOpen) {
+        onConnected?.call();
+      }
     } finally {
       calloc.free(addrPtr);
     }

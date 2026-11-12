@@ -71,6 +71,15 @@ class _FakeRoomSession extends ChangeNotifier implements RoomSession {
   bool get isP2pFailed => p2pFailed;
 
   @override
+  bool waitForPeerBuffering = true;
+
+  @override
+  bool isHostWaitingPeerBuffering = false;
+
+  @override
+  bool isAnyPeerBuffering = false;
+
+  @override
   PlaybackLoopMode loopMode = PlaybackLoopMode.loopAll;
 
   @override

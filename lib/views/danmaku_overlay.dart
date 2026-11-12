@@ -39,6 +39,7 @@ class _ActiveDanmaku {
 class _DanmakuOverlayState extends State<DanmakuOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ticker;
+  DateTime? _lastTickTime;
   StreamSubscription<DanmakuMessage>? _streamSub;
   final List<_ActiveDanmaku> _items = [];
   final Random _rng = Random();
@@ -68,6 +69,7 @@ class _DanmakuOverlayState extends State<DanmakuOverlay>
 
   void _startTickerIfNeeded() {
     if (widget.enabled && _items.isNotEmpty && !_ticker.isAnimating) {
+      _lastTickTime = DateTime.now();
       _ticker.repeat();
     }
   }
@@ -124,24 +126,36 @@ class _DanmakuOverlayState extends State<DanmakuOverlay>
   void _tick() {
     if (!mounted || !widget.enabled || _items.isEmpty) {
       _ticker.stop();
+      _lastTickTime = null;
       return;
     }
+    final now = DateTime.now();
+    final dtSeconds = _lastTickTime == null
+        ? 0.016
+        : (now.difference(_lastTickTime!).inMicroseconds / 1000000.0)
+            .clamp(0.001, 0.05);
+    _lastTickTime = now;
+    final speedMultiplier = dtSeconds * 60.0;
+
     bool needsSetState = false;
     for (int t = 0; t < _numTracks; t++) {
       _lastTrackX[t] = -1.0;
     }
 
     _items.removeWhere((item) {
-      item.x -= item.speed;
+      item.x -= item.speed * speedMultiplier;
       if (item.x > _lastTrackX[item.track]) {
         _lastTrackX[item.track] = item.x;
       }
       needsSetState = true;
-      return item.x < -0.6; // off left screen
+      // Adaptive exit threshold so long text danmaku doesn't pop out abruptly
+      final maxOutBound = -0.5 - (item.text.length * 0.035).clamp(0.2, 1.5);
+      return item.x < maxOutBound;
     });
 
     if (_items.isEmpty) {
       _ticker.stop();
+      _lastTickTime = null;
     }
     if (needsSetState) {
       setState(() {});

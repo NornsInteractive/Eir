@@ -860,6 +860,7 @@ class _PeerConnection {
   int _rateLimitStrikes = 0;
 
   void start() {
+    socket.pingInterval = const Duration(seconds: 25);
     socket.listen(
       _onData,
       onDone: _onDone,

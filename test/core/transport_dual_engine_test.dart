@@ -48,6 +48,14 @@ void main() {
       expect(AppSettings.instance.isTailcatEngine, false);
     });
 
+    test('AppSettings wait for peer buffering setting', () async {
+      expect(AppSettings.instance.waitForPeerBuffering, true);
+      await AppSettings.instance.setWaitForPeerBuffering(false);
+      expect(AppSettings.instance.waitForPeerBuffering, false);
+      await AppSettings.instance.setWaitForPeerBuffering(true);
+      expect(AppSettings.instance.waitForPeerBuffering, true);
+    });
+
     test('RoomTransport enum and TailcatTransport availability', () {
       expect(TransportEngineType.values.length, 2);
       expect(TransportEngineType.webrtc.name, 'webrtc');
@@ -57,6 +65,9 @@ void main() {
       expect(transport.type, TransportEngineType.tailcat);
       expect(transport.isOpen, false);
       expect(transport.isDirectP2p, false);
+      expect(transport.onConnected, isNull);
+      transport.onConnected = () {};
+      expect(transport.onConnected, isNotNull);
     });
 
     test('RoomSession P2P states and retryP2p interface', () {
@@ -64,6 +75,12 @@ void main() {
       expect(session.isP2pConnected, false);
       expect(session.isP2pConnecting, false);
       expect(session.isP2pFailed, false);
+      expect(session.waitForPeerBuffering, true);
+      expect(session.isHostWaitingPeerBuffering, false);
+      expect(session.isAnyPeerBuffering, false);
+
+      session.waitForPeerBuffering = false;
+      expect(session.waitForPeerBuffering, false);
 
       // retryP2p does not throw when room is not connected
       expect(() => session.retryP2p(), returnsNormally);

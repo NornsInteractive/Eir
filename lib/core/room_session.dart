@@ -315,7 +315,8 @@ class RoomSession extends ChangeNotifier {
   String? get roomId => _roomId;
 
   String? _roomCode;
-  String? get roomCode => _roomCode;
+  String? get roomCode => _roomCode ?? _activeRoomCode;
+  String? _activeRoomCode;
 
   String? _inviteText;
   String? get inviteText => _inviteText;
@@ -362,10 +363,32 @@ class RoomSession extends ChangeNotifier {
   String? _tailcatAddr;
   String? get tailcatAddr => _tailcatAddr;
 
+  bool _waitForPeerBuffering = true;
+  bool get waitForPeerBuffering => _waitForPeerBuffering;
+  set waitForPeerBuffering(bool val) {
+    if (_waitForPeerBuffering != val) {
+      _waitForPeerBuffering = val;
+      notifyListeners();
+    }
+  }
+
+  bool _hostBufferWaitPaused = false;
+  bool get isHostWaitingPeerBuffering => _hostBufferWaitPaused && isAnyPeerBuffering;
+
+  bool get isAnyPeerBuffering {
+    for (final entry in _telemetry.entries) {
+      if (entry.key != _selfId && entry.value.buffering) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Whether WebRTC P2P direct data channel or Tailcat tunnel is established and verified.
   bool get isP2pConnected =>
-      (_tailcatTransport != null && _tailcatTransport!.isOpen) ||
-      (_dc != null && _dcStateOpen() == true && _peerVerified);
+      ((_tailcatTransport != null && _tailcatTransport!.isOpen) ||
+          (_dc != null && _dcStateOpen() == true)) &&
+      _peerVerified;
 
   /// Whether P2P direct hole-punching is in progress.
   bool get isP2pConnecting => _p2pConnecting && !isP2pConnected;
@@ -808,6 +831,9 @@ class RoomSession extends ChangeNotifier {
     if (AppSettings.instance.isTailcatEngine && TailcatTransport.isAvailable) {
       try {
         final t = TailcatTransport();
+        t.onConnected = () {
+          unawaited(_onDataChannelOpen());
+        };
         final addr = await t.startServer();
         _tailcatTransport = t;
         _tailcatAddr = addr;
@@ -873,8 +899,12 @@ class RoomSession extends ChangeNotifier {
       _resetRoomState(full: true);
       notifyListeners();
       return;
-    } catch (_) {
-      _lastErrorCode = 'room_not_found';
+    } catch (e) {
+      if (e is StateError && e.message.isNotEmpty) {
+        _lastErrorCode = e.message;
+      } else {
+        _lastErrorCode = 'room_not_found';
+      }
       _connectionState = RoomConnectionState.disconnected;
       await _signaling.disconnect();
       _resetRoomState(full: true);
@@ -899,6 +929,7 @@ class RoomSession extends ChangeNotifier {
     }
 
     _roomCode = cleanCode;
+    _activeRoomCode = cleanCode;
     _cachedToken = token;
     _peerDeviceId = deviceIdFromPublicKey(ownerPublicKey);
     _roomId = roomId;
@@ -1052,6 +1083,7 @@ class RoomSession extends ChangeNotifier {
     } catch (_) {}
     await _signaling.disconnect();
     await _teardownPeer();
+    _activeRoomCode = null;
     _resetRoomState(full: true);
     _connectionState = RoomConnectionState.disconnected;
     notifyListeners();
@@ -1079,6 +1111,7 @@ class RoomSession extends ChangeNotifier {
     }
     _teardownPeer();
     await _signaling.disconnect();
+    _activeRoomCode = null;
     _resetRoomState(full: true);
     _connectionState = RoomConnectionState.disconnected;
     notifyListeners();
@@ -1253,8 +1286,9 @@ class RoomSession extends ChangeNotifier {
         'displayName': AppSettings.instance.effectiveDisplayName,
         'avatar': AppSettings.instance.avatar,
       };
-      if (_roomCode != null && _roomCode!.isNotEmpty) {
-        payload['roomCode'] = _roomCode;
+      final codeToUse = _roomCode ?? _activeRoomCode;
+      if (codeToUse != null && codeToUse.isNotEmpty) {
+        payload['roomCode'] = codeToUse;
       }
       await _signaling.send(payload);
     } else {
@@ -1273,6 +1307,9 @@ class RoomSession extends ChangeNotifier {
   }
 
   bool? _dcStateOpen() {
+    if (_tailcatTransport != null && _tailcatTransport!.isOpen) {
+      return true;
+    }
     final s = _dc?.state;
     if (s == null) return null;
     return s == RTCDataChannelState.RTCDataChannelOpen;
@@ -1322,6 +1359,7 @@ class RoomSession extends ChangeNotifier {
         final serverCode = msg['roomCode'] as String?;
         if (serverCode != null && serverCode.isNotEmpty) {
           _roomCode = serverCode;
+          _activeRoomCode = serverCode;
         }
         if (rejoined) {
           // Idempotent re-registration to a still-alive room: no epoch change.
@@ -1531,8 +1569,9 @@ class RoomSession extends ChangeNotifier {
           (it) => it.itemId == currentItemId,
           orElse: () => PlaylistItem(itemId: '', title: '', sourceType: 'none'),
         );
-        if (currentItem.sourceType == 'local' &&
-            _knownLocalMediaSources[currentItem.localMediaId] == deviceId) {
+        if (isItemSourceOffline(currentItem) ||
+            (currentItem.sourceType == 'local' &&
+                _knownLocalMediaSources[currentItem.localMediaId] == deviceId)) {
           final nextItem = _findNextPlayableItem(currentItemId);
           if (nextItem != null) {
             unawaited(_publishCommit(
@@ -1797,8 +1836,11 @@ class RoomSession extends ChangeNotifier {
   Future<void> _connectTailcat(String addr) async {
     try {
       final t = TailcatTransport();
-      await t.startClient(addr);
       _tailcatTransport = t;
+      t.onConnected = () {
+        unawaited(_onDataChannelOpen());
+      };
+      await t.startClient(addr);
       t.textStream.listen((text) {
         try {
           final decoded = jsonDecode(text);
@@ -2031,11 +2073,22 @@ class RoomSession extends ChangeNotifier {
     _localChallenge = base64Encode(
       List<int>.generate(32, (_) => Random.secure().nextInt(256)),
     );
-    final fp = await localDtlsFingerprint(_pc!);
-    if (fp == null) {
-      // Explicit blocker: cannot bind the handshake to the DTLS transport.
-      _failHandshake('handshake_failed');
-      return;
+    final String fp;
+    if (_tailcatTransport != null && _tailcatTransport!.isOpen) {
+      fp = 'tailcat_${_roomId}_$_sessionId';
+    } else {
+      final pc = _pc;
+      if (pc == null) {
+        _failHandshake('handshake_failed');
+        return;
+      }
+      final pcFp = await localDtlsFingerprint(pc);
+      if (pcFp == null) {
+        // Explicit blocker: cannot bind the handshake to the DTLS transport.
+        _failHandshake('handshake_failed');
+        return;
+      }
+      fp = pcFp;
     }
     final self = _keyPair!.identity;
     final payload = <String, Object?>{
@@ -2226,11 +2279,23 @@ class RoomSession extends ChangeNotifier {
       return;
     }
     // Bind the claimed fingerprint to the actual DTLS transport.
-    final remoteFp = await remoteDtlsFingerprint(_pc!);
-    if (remoteFp == null ||
-        !_fingerprintsMatch(remoteFp, peerFingerprint)) {
-      _failHandshake('handshake_failed');
-      return;
+    if (_tailcatTransport != null && _tailcatTransport!.isOpen) {
+      if (!peerFingerprint.startsWith('tailcat_')) {
+        _failHandshake('handshake_failed');
+        return;
+      }
+    } else {
+      final pc = _pc;
+      if (pc == null) {
+        _failHandshake('handshake_failed');
+        return;
+      }
+      final remoteFp = await remoteDtlsFingerprint(pc);
+      if (remoteFp == null ||
+          !_fingerprintsMatch(remoteFp, peerFingerprint)) {
+        _failHandshake('handshake_failed');
+        return;
+      }
     }
     _peerDeviceId = senderId;
     _peerPublicKey = publicKey;
@@ -2241,10 +2306,21 @@ class RoomSession extends ChangeNotifier {
     _upsertMember(senderId, online: true);
 
     // Respond with our own authenticated done message, signing BOTH challenges.
-    final localFp = await localDtlsFingerprint(_pc!);
-    if (localFp == null) {
-      _failHandshake('handshake_failed');
-      return;
+    final String localFp;
+    if (_tailcatTransport != null && _tailcatTransport!.isOpen) {
+      localFp = 'tailcat_${_roomId}_$_sessionId';
+    } else {
+      final pc = _pc;
+      if (pc == null) {
+        _failHandshake('handshake_failed');
+        return;
+      }
+      final pcLocalFp = await localDtlsFingerprint(pc);
+      if (pcLocalFp == null) {
+        _failHandshake('handshake_failed');
+        return;
+      }
+      localFp = pcLocalFp;
     }
     final donePayload = <String, Object?>{
       'protocolVersion': kProtocolVersion,
@@ -2321,17 +2397,29 @@ class RoomSession extends ChangeNotifier {
       _failHandshake('handshake_failed');
       return;
     }
-    // Peer's local fingerprint must equal our measured remote fingerprint.
-    final remoteFp = await remoteDtlsFingerprint(_pc!);
-    if (remoteFp == null || !_fingerprintsMatch(remoteFp, peerFingerprint)) {
-      _failHandshake('handshake_failed');
-      return;
-    }
-    // Peer's claimed view of OUR fingerprint must match our actual local one.
-    final localFp = await localDtlsFingerprint(_pc!);
-    if (localFp == null || !_fingerprintsMatch(localFp, claimedPeerFp)) {
-      _failHandshake('handshake_failed');
-      return;
+    if (_tailcatTransport != null && _tailcatTransport!.isOpen) {
+      if (!peerFingerprint.startsWith('tailcat_') || !claimedPeerFp.startsWith('tailcat_')) {
+        _failHandshake('handshake_failed');
+        return;
+      }
+    } else {
+      final pc = _pc;
+      if (pc == null) {
+        _failHandshake('handshake_failed');
+        return;
+      }
+      // Peer's local fingerprint must equal our measured remote fingerprint.
+      final remoteFp = await remoteDtlsFingerprint(pc);
+      if (remoteFp == null || !_fingerprintsMatch(remoteFp, peerFingerprint)) {
+        _failHandshake('handshake_failed');
+        return;
+      }
+      // Peer's claimed view of OUR fingerprint must match our actual local one.
+      final localFp = await localDtlsFingerprint(pc);
+      if (localFp == null || !_fingerprintsMatch(localFp, claimedPeerFp)) {
+        _failHandshake('handshake_failed');
+        return;
+      }
     }
     _handshakeTimer?.cancel();
     _p2pConnecting = false;
@@ -2609,6 +2697,18 @@ class RoomSession extends ChangeNotifier {
       buffering: buffering == true,
       sharedMs: sharedMs,
     );
+    if (role == RoomRole.owner && _waitForPeerBuffering) {
+      final anyBuffering = isAnyPeerBuffering;
+      if (anyBuffering && _playback.mode == PlaybackMode.playing && !_hostBufferWaitPaused) {
+        _hostBufferWaitPaused = true;
+        _player?.pause();
+      } else if (!anyBuffering && _hostBufferWaitPaused) {
+        _hostBufferWaitPaused = false;
+        if (_playback.mode == PlaybackMode.playing) {
+          _player?.play();
+        }
+      }
+    }
     notifyListeners();
   }
 
@@ -3257,7 +3357,9 @@ class RoomSession extends ChangeNotifier {
               anchorSharedMs: anchor,
               rateMilli: _playback.rateMilli,
             );
-            await _ensureMediaLoaded(itemId, seekTo: Duration.zero);
+            final nextMediaItem = _itemById(itemId);
+        _media?.cancelPendingFetchesExcept(nextMediaItem?.localMediaId);
+        await _ensureMediaLoaded(itemId, seekTo: Duration.zero);
             if (!stillCurrent()) return;
             await _player?.pause();
           }
@@ -3279,6 +3381,8 @@ class RoomSession extends ChangeNotifier {
           anchorSharedMs: anchor,
           rateMilli: _playback.rateMilli,
         );
+        final nextMediaItem = _itemById(itemId);
+        _media?.cancelPendingFetchesExcept(nextMediaItem?.localMediaId);
         await _ensureMediaLoaded(itemId, seekTo: Duration.zero);
         if (!stillCurrent()) return;
         await _applyPlayerForCommit(mode, _playback.rateMilli);
@@ -3661,8 +3765,8 @@ class RoomSession extends ChangeNotifier {
       return;
     }
 
-    // 2. Tightly in-sync (within 50ms): restore standard rate if adjusted.
-    if (diffMs.abs() <= 50) {
+    // 2. Tightly in-sync (within 40ms): restore standard rate if adjusted.
+    if (diffMs.abs() <= 40) {
       if (_microRateAdjusted) {
         _microRateAdjusted = false;
         await _player!.setRate(_playback.rate);
@@ -3670,16 +3774,12 @@ class RoomSession extends ChangeNotifier {
       return;
     }
 
-    // 3. Smooth micro-rate drift correction (150ms ~ 1500ms):
-    // If lagging behind: speed up slightly (+4%).
-    // If running ahead: slow down slightly (-4%).
-    if (diffMs > 150) {
-      _microRateAdjusted = true;
-      await _player!.setRate((_playback.rate * 1.04).clamp(0.1, 8.0));
-    } else if (diffMs < -150) {
-      _microRateAdjusted = true;
-      await _player!.setRate((_playback.rate * 0.96).clamp(0.1, 8.0));
-    }
+    // 3. Proportional smooth micro-rate drift correction (40ms ~ 1500ms):
+    // Smoothly scales rateFactor between -0.04 and +0.04 based on diffMs to avoid pitch jumps and hunting.
+    final double rateFactor = (diffMs / 1000.0 * 0.05).clamp(-0.04, 0.04);
+    _microRateAdjusted = true;
+    final targetRate = (_playback.rate * (1.0 + rateFactor)).clamp(0.2, 4.0);
+    await _player!.setRate(targetRate);
   }
 
   // ------------------------------------------- member -> owner requests
@@ -4019,13 +4119,17 @@ class RoomSession extends ChangeNotifier {
         // never install the manifest and the item stays source-offline.
         final manifestSource = _knownLocalMediaSources[item.localMediaId!];
         if (manifestSource != null) m['manifestSource'] = manifestSource;
-        final manifest = _media?.manifestFor(item.localMediaId!);
-        if (manifest != null) {
-          final manifestJson = manifest.toJson();
-          final signature = _manifestSignatures[manifest.mediaId];
-          if (signature != null && jsonEncode(manifestJson).length <= 16000) {
-            m['manifest'] = manifestJson;
-            m['manifestSignature'] = signature;
+        // Only inline the manifest for the currently active item if small (<= 8KB)
+        // to keep the total snapshot comfortably within the 32KB MTU limit.
+        if (item.itemId == _playback.itemId) {
+          final manifest = _media?.manifestFor(item.localMediaId!);
+          if (manifest != null) {
+            final manifestJson = manifest.toJson();
+            final signature = _manifestSignatures[manifest.mediaId];
+            if (signature != null && jsonEncode(manifestJson).length <= 8192) {
+              m['manifest'] = manifestJson;
+              m['manifestSignature'] = signature;
+            }
           }
         }
       }
@@ -4660,6 +4764,7 @@ class RoomSession extends ChangeNotifier {
   }
 
   Future<void> play() async {
+    _hostBufferWaitPaused = false;
     final state = _player?.state;
     final atEnd = state != null &&
         (state.completed ||

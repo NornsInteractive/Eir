@@ -102,6 +102,23 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
   @override
   Future<void> retryP2p() async {}
 
+  // Buffer-wait API added by core; fake reports no peer buffering.
+  bool _waitForPeerBuffering = true;
+  @override
+  bool get waitForPeerBuffering => _waitForPeerBuffering;
+  @override
+  set waitForPeerBuffering(bool val) {
+    _waitForPeerBuffering = val;
+    notifyListeners();
+  }
+
+  bool _hostBufferWaitPaused = false;
+  @override
+  bool get isHostWaitingPeerBuffering => _hostBufferWaitPaused && isAnyPeerBuffering;
+
+  @override
+  bool get isAnyPeerBuffering => false;
+
   @override
   get tailcatTransport => null;
 

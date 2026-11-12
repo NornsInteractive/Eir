@@ -27,32 +27,13 @@ class MainActivity : FlutterActivity() {
 
     private fun acquireKeepAlive() {
         try {
-            if (wakeLock == null) {
-                val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
-                wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Eir:RoomKeepAlive")
-            }
-            if (wakeLock?.isHeld == false) {
-                wakeLock?.acquire(3 * 60 * 60 * 1000L) // 3 hours safety timeout
-            }
-
-            if (wifiLock == null) {
-                val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-                wifiLock = wifiManager?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "Eir:WifiKeepAlive")
-            }
-            if (wifiLock?.isHeld == false) {
-                wifiLock?.acquire()
-            }
+            KeepAliveService.start(applicationContext)
         } catch (_: Exception) {}
     }
 
     private fun releaseKeepAlive() {
         try {
-            if (wakeLock?.isHeld == true) {
-                wakeLock?.release()
-            }
-            if (wifiLock?.isHeld == true) {
-                wifiLock?.release()
-            }
+            KeepAliveService.stop(applicationContext)
         } catch (_: Exception) {}
     }
 
