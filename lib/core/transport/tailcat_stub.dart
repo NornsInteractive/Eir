@@ -11,6 +11,9 @@ class TailcatTransport implements RoomTransport {
   final StreamController<Uint8List> _binaryController =
       StreamController<Uint8List>.broadcast();
 
+  void Function()? onConnected;
+  void Function()? onDisconnected;
+
   @override
   TransportEngineType get type => TransportEngineType.tailcat;
 
