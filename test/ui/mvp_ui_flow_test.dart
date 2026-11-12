@@ -579,8 +579,8 @@ void main() {
     expect(find.text('奥本海默 · 70mm 胶片全画幅'), findsNothing);
     expect(find.text('沙丘 2 · 杜比全景声特别放映'), findsNothing);
 
-    // Verify honest non-marketing feature card title
-    expect(find.text('毫秒级同频播放'), findsOneWidget);
+    // Verify the removed promotional feature card is gone
+    expect(find.text('毫秒级同频播放'), findsNothing);
   });
 
   testWidgets('CinemaView enforces member read-only mode vs Admin/Host shared controls',

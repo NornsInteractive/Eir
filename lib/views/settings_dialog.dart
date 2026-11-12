@@ -28,6 +28,7 @@ class SettingsDialog extends StatefulWidget {
 }
 
 class _SettingsDialogState extends State<SettingsDialog> {
+  int _selectedCategory = 0; // 0: All, 1: Personalization, 2: Network, 3: System
   late final TextEditingController _serverDomainController;
   late final TextEditingController _signalingController;
   late final TextEditingController _turnServerController;
@@ -480,7 +481,22 @@ class _SettingsDialogState extends State<SettingsDialog> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 14),
+
+                        // Quick Category Navigation Pills
+                        GlassSegmentedControl(
+                          selectedIndex: _selectedCategory,
+                          onSegmentSelected: (index) {
+                            setState(() => _selectedCategory = index);
+                          },
+                          segments: [
+                            GlassSegment(label: i18n.tabAll),
+                            GlassSegment(label: i18n.tabPersonalization),
+                            GlassSegment(label: i18n.tabNetwork),
+                            GlassSegment(label: i18n.tabSystem),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
 
                         // Scrollable Settings Content
                         Flexible(
@@ -490,643 +506,17 @@ class _SettingsDialogState extends State<SettingsDialog> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // 1. Language
-                                _buildSectionHeader(
-                                  context,
-                                  icon: Icons.language_rounded,
-                                  title: i18n.settingsLang,
-                                ),
-                                const SizedBox(height: 8),
-                                GlassSegmentedControl(
-                                  selectedIndex:
-                                      _getLanguageIndex(settings.locale),
-                                  onSegmentSelected: _onLanguageSelected,
-                                  segments: [
-                                    GlassSegment(label: i18n.langSystem),
-                                    GlassSegment(label: i18n.settingsLangZh),
-                                    GlassSegment(label: i18n.settingsLangEn),
-                                  ],
-                                ),
-                                const SizedBox(height: 18),
-
-                                // 2. Theme Mode
-                                _buildSectionHeader(
-                                  context,
-                                  icon: Icons.brightness_6_rounded,
-                                  title: i18n.settingsThemeMode,
-                                ),
-                                const SizedBox(height: 8),
-                                GlassSegmentedControl(
-                                  selectedIndex:
-                                      _getThemeModeIndex(settings.themeMode),
-                                  onSegmentSelected: _onThemeModeSelected,
-                                  segments: [
-                                    GlassSegment(label: i18n.themeSystem),
-                                    GlassSegment(label: i18n.themeLight),
-                                    GlassSegment(label: i18n.themeDark),
-                                  ],
-                                ),
-                                const SizedBox(height: 18),
-
-                                // 3. Independent Theme Colors
-                                _buildSectionHeader(
-                                  context,
-                                  icon: Icons.palette_rounded,
-                                  title: i18n.independentColors,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  i18n.independentColorsDesc,
-                                  style: TextStyle(
-                                      fontSize: 12, color: tc.textSecondary),
-                                ),
-                                const SizedBox(height: 12),
-
-                                // Light Theme Color Swatches
-                                _buildColorSection(
-                                  context,
-                                  title: i18n.lightColor,
-                                  currentColor: settings.lightThemeColor,
-                                  presets: _lightPresets,
-                                  onSelectColor: settings.setLightThemeColor,
-                                  onReset: settings.resetLightThemeColor,
-                                  resetText: i18n.resetDefault,
-                                  i18n: i18n,
-                                ),
-                                const SizedBox(height: 14),
-
-                                // Dark Theme Color Swatches
-                                _buildColorSection(
-                                  context,
-                                  title: i18n.darkColor,
-                                  currentColor: settings.darkThemeColor,
-                                  presets: _darkPresets,
-                                  onSelectColor: settings.setDarkThemeColor,
-                                  onReset: settings.resetDarkThemeColor,
-                                  resetText: i18n.resetDefault,
-                                  i18n: i18n,
-                                ),
-                                const SizedBox(height: 16),
-
-                                // 3.5 App Launcher Icon Selection
-                                _buildAppIconSection(context, i18n, tc),
-                                const SizedBox(height: 18),
-
-                                // 4. Signaling & Remote Config Configuration
-                                _buildSectionHeader(
-                                  context,
-                                  icon: Icons.alt_route_rounded,
-                                  title: i18n.configuringSignaling,
-                                ),
-                                const SizedBox(height: 8),
-                                GlassContainer.card(
-                                  surfaceStyle: GlassSurfaceStyle.solid,
-                                  color: tc.inputBackground,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 10),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        i18n.serverDomain,
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: tc.textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: GlassTextField(
-                                              key: const ValueKey(
-                                                  'settings-server-domain-input'),
-                                              controller:
-                                                  _serverDomainController,
-                                              placeholder:
-                                                  'https://eir.norns.cc.cd',
-                                              height: 38,
-                                              surfaceStyle:
-                                                  GlassSurfaceStyle.solid,
-                                              color: Colors.transparent,
-                                              textStyle: TextStyle(
-                                                color: tc.textPrimary,
-                                                fontSize: 12.5,
-                                              ),
-                                              placeholderStyle: TextStyle(
-                                                  color: tc.textTertiary,
-                                                  fontSize: 12.5),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          LiquidGlassActionButton(
-                                            key: const ValueKey(
-                                                'settings-sync-remote-config-btn'),
-                                            height: 36,
-                                            onTap: _isSyncingConfig
-                                                ? () {}
-                                                : _handleSyncRemoteConfig,
-                                            child: _isSyncingConfig
-                                                ? SizedBox(
-                                                    width: 14,
-                                                    height: 14,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      valueColor:
-                                                          AlwaysStoppedAnimation<
-                                                                  Color>(
-                                                              tc.textPrimary),
-                                                    ),
-                                                  )
-                                                : Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      const Icon(
-                                                          Icons
-                                                              .cloud_sync_rounded,
-                                                          size: 15),
-                                                      const SizedBox(width: 4),
-                                                      Text(
-                                                        i18n.syncRemoteConfig,
-                                                        style: const TextStyle(
-                                                            fontSize: 12),
-                                                      ),
-                                                    ],
-                                                  ),
-                                          ),
-                                        ],
-                                      ),
-                                      if (_syncConfigFeedback != null) ...[
-                                        const SizedBox(height: 6),
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Icon(
-                                              _syncConfigSuccess
-                                                  ? Icons
-                                                      .check_circle_outline_rounded
-                                                  : Icons
-                                                      .error_outline_rounded,
-                                              size: 14,
-                                              color: _syncConfigSuccess
-                                                  ? tc.success
-                                                  : tc.error,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                _syncConfigFeedback!,
-                                                style: TextStyle(
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: _syncConfigSuccess
-                                                      ? tc.success
-                                                      : tc.error,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                      const SizedBox(height: 12),
-                                      Divider(height: 1, color: tc.glassBorder),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        i18n.configuringSignaling,
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: tc.textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: GlassTextField(
-                                              key: const ValueKey(
-                                                  'settings-signaling-input'),
-                                              controller: _signalingController,
-                                              placeholder:
-                                                  i18n.signalingUrlHint,
-                                              height: 40,
-                                              surfaceStyle:
-                                                  GlassSurfaceStyle.solid,
-                                              color: Colors.transparent,
-                                              textStyle: TextStyle(
-                                                color: tc.textPrimary,
-                                                fontSize: 12.5,
-                                                fontFeatures: const [
-                                                  FontFeature.tabularFigures()
-                                                ],
-                                              ),
-                                              placeholderStyle: TextStyle(
-                                                  color: tc.textTertiary,
-                                                  fontSize: 12.5),
-                                              onSubmitted: (_) =>
-                                                  _handleSaveSignalingUrl(),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          LiquidGlassActionButton(
-                                            key: const ValueKey(
-                                                'settings-save-signaling-btn'),
-                                            height: 36,
-                                            onTap: _isSavingSignaling
-                                                ? () {}
-                                                : _handleSaveSignalingUrl,
-                                            child: _isSavingSignaling
-                                                ? SizedBox(
-                                                    width: 14,
-                                                    height: 14,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      valueColor:
-                                                          AlwaysStoppedAnimation<
-                                                                  Color>(
-                                                              tc.textPrimary),
-                                                    ),
-                                                  )
-                                                : Text(i18n.save,
-                                                    style: const TextStyle(
-                                                        fontSize: 12)),
-                                          ),
-                                        ],
-                                      ),
-                                      if (_signalingFeedback != null) ...[
-                                        const SizedBox(height: 6),
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Icon(
-                                              _signalingFeedbackIsError
-                                                  ? Icons.error_outline_rounded
-                                                  : Icons
-                                                      .check_circle_outline_rounded,
-                                              size: 14,
-                                              color: _signalingFeedbackIsError
-                                                  ? tc.error
-                                                  : tc.success,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: Text(
-                                                _signalingFeedback!,
-                                                style: TextStyle(
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.w500,
-                                                  color:
-                                                      _signalingFeedbackIsError
-                                                          ? tc.error
-                                                          : tc.success,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ] else if (widget.session?.roomId !=
-                                          null) ...[
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          i18n.signalingInRoomNotice,
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color: tc.textTertiary),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 18),
-
-                                // 5. Transport Engine & Traversal
-                                _buildSectionHeader(
-                                  context,
-                                  icon: Icons.hub_rounded,
-                                  title: i18n.transportEngine,
-                                ),
-                                const SizedBox(height: 8),
-                                GlassContainer.card(
-                                  surfaceStyle: GlassSurfaceStyle.solid,
-                                  color: tc.inputBackground,
-                                  padding: const EdgeInsets.all(12),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        i18n.transportEngine,
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: tc.textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      if (kIsWeb)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 8),
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                            color: tc.glassSurfaceSubtle,
-                                            border: Border.all(
-                                                color: tc.glassBorder),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                  Icons.info_outline_rounded,
-                                                  size: 15,
-                                                  color: tc.textSecondary),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Text(
-                                                  i18n.tailcatWebUnsupportedNote,
-                                                  style: TextStyle(
-                                                    fontSize: 11.5,
-                                                    color: tc.textSecondary,
-                                                    height: 1.3,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        )
-                                      else
-                                        GlassSegmentedControl(
-                                          selectedIndex:
-                                              settings.isTailcatEngine ? 1 : 0,
-                                          onSegmentSelected: (index) {
-                                            settings.setTransportEngine(
-                                                index == 1 ? "tailcat" : "webrtc");
-                                          },
-                                          segments: [
-                                            GlassSegment(
-                                                label: i18n.transportWebrtc),
-                                            GlassSegment(
-                                                label: i18n.transportTailcat),
-                                          ],
-                                        ),
-                                      const SizedBox(height: 14),
-                                      Divider(height: 1, color: tc.glassBorder),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        i18n.turnServer,
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: tc.textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      GlassTextField(
-                                        controller: _turnServerController,
-                                        placeholder: "ip.norns.cc.cd:3478",
-                                        height: 38,
-                                        surfaceStyle: GlassSurfaceStyle.solid,
-                                        color: Colors.transparent,
-                                        textStyle: TextStyle(
-                                            color: tc.textPrimary,
-                                            fontSize: 12),
-                                        placeholderStyle: TextStyle(
-                                            color: tc.textTertiary,
-                                            fontSize: 12),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: GlassTextField(
-                                              controller:
-                                                  _turnUsernameController,
-                                              placeholder: "norns",
-                                              height: 38,
-                                              surfaceStyle:
-                                                  GlassSurfaceStyle.solid,
-                                              color: Colors.transparent,
-                                              textStyle: TextStyle(
-                                                  color: tc.textPrimary,
-                                                  fontSize: 12),
-                                              placeholderStyle: TextStyle(
-                                                  color: tc.textTertiary,
-                                                  fontSize: 12),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: GlassTextField(
-                                              controller:
-                                                  _turnCredentialController,
-                                              placeholder: "norns",
-                                              obscureText: true,
-                                              height: 38,
-                                              surfaceStyle:
-                                                  GlassSurfaceStyle.solid,
-                                              color: Colors.transparent,
-                                              textStyle: TextStyle(
-                                                  color: tc.textPrimary,
-                                                  fontSize: 12),
-                                              placeholderStyle: TextStyle(
-                                                  color: tc.textTertiary,
-                                                  fontSize: 12),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          LiquidGlassActionButton(
-                                            height: 32,
-                                            onTap: _isTestingTurn
-                                                ? () {}
-                                                : _handleTestTurnConfig,
-                                            child: _isTestingTurn
-                                                ? Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      SizedBox(
-                                                        width: 12,
-                                                        height: 12,
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                          strokeWidth: 1.5,
-                                                          valueColor:
-                                                              AlwaysStoppedAnimation<
-                                                                  Color>(
-                                                            tc.textPrimary,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(width: 6),
-                                                      Text(
-                                                        i18n.testingTurnConnection,
-                                                        style: const TextStyle(
-                                                            fontSize: 12),
-                                                      ),
-                                                    ],
-                                                  )
-                                                : Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        Icons
-                                                            .network_check_rounded,
-                                                        size: 14,
-                                                        color: tc.textPrimary,
-                                                      ),
-                                                      const SizedBox(width: 4),
-                                                      Text(
-                                                        i18n.testTurnConnection,
-                                                        style: const TextStyle(
-                                                            fontSize: 12),
-                                                      ),
-                                                    ],
-                                                  ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          LiquidGlassActionButton(
-                                            height: 32,
-                                            onTap: _isSavingTurn
-                                                ? () {}
-                                                : _handleSaveTurnConfig,
-                                            child: _isSavingTurn
-                                                ? SizedBox(
-                                                    width: 14,
-                                                    height: 14,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      valueColor:
-                                                          AlwaysStoppedAnimation<
-                                                              Color>(
-                                                        tc.textPrimary,
-                                                      ),
-                                                    ),
-                                                  )
-                                                : Text(
-                                                    i18n.save,
-                                                    style: const TextStyle(
-                                                        fontSize: 12),
-                                                  ),
-                                          ),
-                                        ],
-                                      ),
-                                      if (_turnTestFeedback != null) ...[
-                                        const SizedBox(height: 6),
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              _turnTestIsError
-                                                  ? Icons.error_outline_rounded
-                                                  : Icons
-                                                      .check_circle_outline_rounded,
-                                              size: 13,
-                                              color: _turnTestIsError
-                                                  ? tc.warning
-                                                  : tc.success,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Expanded(
-                                              child: Text(
-                                                _turnTestFeedback!,
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: _turnTestIsError
-                                                      ? tc.warning
-                                                      : tc.success,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                      if (_turnFeedback != null) ...[
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          _turnFeedback!,
-                                          style: TextStyle(
-                                              fontSize: 11, color: tc.success),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 18),
-
-                                // 6. Background Keep-Alive
-                                _buildSectionHeader(
-                                  context,
-                                  icon: Icons.power_settings_new_rounded,
-                                  title: i18n.backgroundKeepAliveTitle,
-                                ),
-                                const SizedBox(height: 8),
-                                GlassContainer.card(
-                                  surfaceStyle: GlassSurfaceStyle.solid,
-                                  color: tc.inputBackground,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 10),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              i18n.backgroundKeepAliveTitle,
-                                              style: TextStyle(
-                                                fontSize: 13.5,
-                                                fontWeight: FontWeight.w600,
-                                                color: tc.textPrimary,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 3),
-                                            Text(
-                                              i18n.backgroundKeepAliveDesc,
-                                              style: TextStyle(
-                                                fontSize: 11.5,
-                                                color: tc.textSecondary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Switch.adaptive(
-                                        value: settings.backgroundKeepAlive,
-                                        activeColor: tc.primary,
-                                        onChanged: (val) {
-                                          settings.setBackgroundKeepAlive(val);
-                                          final session = widget.session;
-                                          if (session != null) {
-                                            session.syncKeepAlive(val);
-                                          }
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 18),
-
-                                // 6. Media Cache Occupancy & Safe Cleanup (V1-PRD §9)
-                                _buildCacheSection(context, i18n, tc),
-                                const SizedBox(height: 18),
-
-                                // 7. Real Node Diagnostics (No secrets, invites or URLs)
-                                _buildDiagnosticsSection(context, i18n, tc),
+                                if (_selectedCategory == 0 || _selectedCategory == 1) ...[
+                                  _buildPersonalizationSection(context, i18n, tc, settings),
+                                  if (_selectedCategory == 0) const SizedBox(height: 20),
+                                ],
+                                if (_selectedCategory == 0 || _selectedCategory == 2) ...[
+                                  _buildNetworkSection(context, i18n, tc, settings),
+                                  if (_selectedCategory == 0) const SizedBox(height: 20),
+                                ],
+                                if (_selectedCategory == 0 || _selectedCategory == 3) ...[
+                                  _buildSystemSection(context, i18n, tc, settings),
+                                ],
                               ],
                             ),
                           ),
@@ -1165,19 +555,594 @@ class _SettingsDialogState extends State<SettingsDialog> {
 
   Widget _buildSectionHeader(BuildContext context, {required IconData icon, required String title}) {
     final tc = ThemeColors.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: tc.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: tc.primary),
+          const SizedBox(width: 6),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: tc.primary,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubSectionTitle(BuildContext context, {required String title, required IconData icon}) {
+    final tc = ThemeColors.of(context);
     return Row(
       children: [
-        Icon(icon, size: 16, color: tc.textSecondary),
-        const SizedBox(width: 8),
+        Icon(icon, size: 14, color: tc.textSecondary),
+        const SizedBox(width: 6),
         Text(
           title,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 12.5,
             fontWeight: FontWeight.w600,
             color: tc.textSecondary,
-            letterSpacing: -0.2,
+            letterSpacing: -0.1,
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildPersonalizationSection(
+      BuildContext context, AppI18n i18n, ThemeColors tc, AppSettings settings) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          context,
+          icon: Icons.palette_rounded,
+          title: i18n.tabPersonalization,
+        ),
+        const SizedBox(height: 10),
+        _buildSubSectionTitle(context,
+            title: i18n.settingsThemeMode, icon: Icons.brightness_6_rounded),
+        const SizedBox(height: 8),
+        GlassSegmentedControl(
+          selectedIndex: _getThemeModeIndex(settings.themeMode),
+          onSegmentSelected: _onThemeModeSelected,
+          segments: [
+            GlassSegment(label: i18n.themeSystem),
+            GlassSegment(label: i18n.themeLight),
+            GlassSegment(label: i18n.themeDark),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildSubSectionTitle(context,
+            title: i18n.independentColors, icon: Icons.color_lens_rounded),
+        const SizedBox(height: 4),
+        Text(
+          i18n.independentColorsDesc,
+          style: TextStyle(fontSize: 12, color: tc.textSecondary),
+        ),
+        const SizedBox(height: 12),
+        _buildColorSection(
+          context,
+          title: i18n.lightColor,
+          currentColor: settings.lightThemeColor,
+          presets: _lightPresets,
+          onSelectColor: settings.setLightThemeColor,
+          onReset: settings.resetLightThemeColor,
+          resetText: i18n.resetDefault,
+          i18n: i18n,
+        ),
+        const SizedBox(height: 14),
+        _buildColorSection(
+          context,
+          title: i18n.darkColor,
+          currentColor: settings.darkThemeColor,
+          presets: _darkPresets,
+          onSelectColor: settings.setDarkThemeColor,
+          onReset: settings.resetDarkThemeColor,
+          resetText: i18n.resetDefault,
+          i18n: i18n,
+        ),
+        const SizedBox(height: 16),
+        _buildAppIconSection(context, i18n, tc),
+      ],
+    );
+  }
+
+  Widget _buildNetworkSection(
+      BuildContext context, AppI18n i18n, ThemeColors tc, AppSettings settings) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          context,
+          icon: Icons.hub_rounded,
+          title: i18n.tabNetwork,
+        ),
+        const SizedBox(height: 10),
+        _buildSubSectionTitle(context,
+            title: i18n.configuringSignaling, icon: Icons.alt_route_rounded),
+        const SizedBox(height: 8),
+        GlassContainer.card(
+          surfaceStyle: GlassSurfaceStyle.solid,
+          color: tc.inputBackground,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                i18n.serverDomain,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: tc.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: GlassTextField(
+                      key: const ValueKey('settings-server-domain-input'),
+                      controller: _serverDomainController,
+                      placeholder: 'https://eir.norns.cc.cd',
+                      height: 38,
+                      surfaceStyle: GlassSurfaceStyle.solid,
+                      color: Colors.transparent,
+                      textStyle: TextStyle(
+                        color: tc.textPrimary,
+                        fontSize: 12.5,
+                      ),
+                      placeholderStyle:
+                          TextStyle(color: tc.textTertiary, fontSize: 12.5),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  LiquidGlassActionButton(
+                    key: const ValueKey('settings-sync-remote-config-btn'),
+                    height: 36,
+                    onTap: _isSyncingConfig ? () {} : _handleSyncRemoteConfig,
+                    child: _isSyncingConfig
+                        ? SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  tc.textPrimary),
+                            ),
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.cloud_sync_rounded, size: 15),
+                              const SizedBox(width: 4),
+                              Text(
+                                i18n.syncRemoteConfig,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                  ),
+                ],
+              ),
+              if (_syncConfigFeedback != null) ...[
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      _syncConfigSuccess
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.error_outline_rounded,
+                      size: 14,
+                      color: _syncConfigSuccess ? tc.success : tc.error,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _syncConfigFeedback!,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          color: _syncConfigSuccess ? tc.success : tc.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 12),
+              Divider(height: 1, color: tc.glassBorder),
+              const SizedBox(height: 10),
+              Text(
+                i18n.configuringSignaling,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: tc.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: GlassTextField(
+                      key: const ValueKey('settings-signaling-input'),
+                      controller: _signalingController,
+                      placeholder: i18n.signalingUrlHint,
+                      height: 40,
+                      surfaceStyle: GlassSurfaceStyle.solid,
+                      color: Colors.transparent,
+                      textStyle: TextStyle(
+                        color: tc.textPrimary,
+                        fontSize: 12.5,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                      placeholderStyle:
+                          TextStyle(color: tc.textTertiary, fontSize: 12.5),
+                      onSubmitted: (_) => _handleSaveSignalingUrl(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  LiquidGlassActionButton(
+                    key: const ValueKey('settings-save-signaling-btn'),
+                    height: 36,
+                    onTap: _isSavingSignaling ? () {} : _handleSaveSignalingUrl,
+                    child: _isSavingSignaling
+                        ? SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  tc.textPrimary),
+                            ),
+                          )
+                        : Text(i18n.save,
+                            style: const TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+              if (_signalingFeedback != null) ...[
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      _signalingFeedbackIsError
+                          ? Icons.error_outline_rounded
+                          : Icons.check_circle_outline_rounded,
+                      size: 14,
+                      color: _signalingFeedbackIsError
+                          ? tc.error
+                          : tc.success,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        _signalingFeedback!,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          color: _signalingFeedbackIsError
+                              ? tc.error
+                              : tc.success,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else if (widget.session?.roomId != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  i18n.signalingInRoomNotice,
+                  style: TextStyle(fontSize: 11, color: tc.textTertiary),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildSubSectionTitle(context,
+            title: i18n.transportEngine, icon: Icons.swap_calls_rounded),
+        const SizedBox(height: 8),
+        GlassContainer.card(
+          surfaceStyle: GlassSurfaceStyle.solid,
+          color: tc.inputBackground,
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                i18n.transportEngine,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: tc.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (kIsWeb)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: tc.glassSurfaceSubtle,
+                    border: Border.all(color: tc.glassBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded,
+                          size: 15, color: tc.textSecondary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          i18n.tailcatWebUnsupportedNote,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: tc.textSecondary,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                GlassSegmentedControl(
+                  selectedIndex: settings.isTailcatEngine ? 1 : 0,
+                  onSegmentSelected: (index) {
+                    settings.setTransportEngine(
+                        index == 1 ? "tailcat" : "webrtc");
+                  },
+                  segments: [
+                    GlassSegment(label: i18n.transportWebrtc),
+                    GlassSegment(label: i18n.transportTailcat),
+                  ],
+                ),
+              const SizedBox(height: 14),
+              Divider(height: 1, color: tc.glassBorder),
+              const SizedBox(height: 12),
+              Text(
+                i18n.turnServer,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: tc.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              GlassTextField(
+                controller: _turnServerController,
+                placeholder: "ip.norns.cc.cd:3478",
+                height: 38,
+                surfaceStyle: GlassSurfaceStyle.solid,
+                color: Colors.transparent,
+                textStyle: TextStyle(color: tc.textPrimary, fontSize: 12),
+                placeholderStyle:
+                    TextStyle(color: tc.textTertiary, fontSize: 12),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: GlassTextField(
+                      controller: _turnUsernameController,
+                      placeholder: "norns",
+                      height: 38,
+                      surfaceStyle: GlassSurfaceStyle.solid,
+                      color: Colors.transparent,
+                      textStyle: TextStyle(color: tc.textPrimary, fontSize: 12),
+                      placeholderStyle:
+                          TextStyle(color: tc.textTertiary, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: GlassTextField(
+                      controller: _turnCredentialController,
+                      placeholder: "norns",
+                      obscureText: true,
+                      height: 38,
+                      surfaceStyle: GlassSurfaceStyle.solid,
+                      color: Colors.transparent,
+                      textStyle: TextStyle(color: tc.textPrimary, fontSize: 12),
+                      placeholderStyle:
+                          TextStyle(color: tc.textTertiary, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  LiquidGlassActionButton(
+                    height: 32,
+                    onTap: _isTestingTurn ? () {} : _handleTestTurnConfig,
+                    child: _isTestingTurn
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    tc.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                i18n.testingTurnConnection,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.network_check_rounded,
+                                size: 14,
+                                color: tc.textPrimary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                i18n.testTurnConnection,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                  ),
+                  const SizedBox(width: 8),
+                  LiquidGlassActionButton(
+                    height: 32,
+                    onTap: _isSavingTurn ? () {} : _handleSaveTurnConfig,
+                    child: _isSavingTurn
+                        ? SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                tc.textPrimary,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            i18n.save,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                  ),
+                ],
+              ),
+              if (_turnTestFeedback != null) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(
+                      _turnTestIsError
+                          ? Icons.error_outline_rounded
+                          : Icons.check_circle_outline_rounded,
+                      size: 13,
+                      color: _turnTestIsError ? tc.warning : tc.success,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _turnTestFeedback!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _turnTestIsError ? tc.warning : tc.success,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (_turnFeedback != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _turnFeedback!,
+                  style: TextStyle(fontSize: 11, color: tc.success),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSystemSection(
+      BuildContext context, AppI18n i18n, ThemeColors tc, AppSettings settings) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          context,
+          icon: Icons.tune_rounded,
+          title: i18n.tabSystem,
+        ),
+        const SizedBox(height: 10),
+        _buildSubSectionTitle(context,
+            title: i18n.settingsLang, icon: Icons.language_rounded),
+        const SizedBox(height: 8),
+        GlassSegmentedControl(
+          selectedIndex: _getLanguageIndex(settings.locale),
+          onSegmentSelected: _onLanguageSelected,
+          segments: [
+            GlassSegment(label: i18n.langSystem),
+            GlassSegment(label: i18n.settingsLangZh),
+            GlassSegment(label: i18n.settingsLangEn),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _buildSubSectionTitle(context,
+            title: i18n.backgroundKeepAliveTitle,
+            icon: Icons.power_settings_new_rounded),
+        const SizedBox(height: 8),
+        GlassContainer.card(
+          surfaceStyle: GlassSurfaceStyle.solid,
+          color: tc.inputBackground,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      i18n.backgroundKeepAliveTitle,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: tc.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      i18n.backgroundKeepAliveDesc,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: tc.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: settings.backgroundKeepAlive,
+                activeColor: tc.primary,
+                onChanged: (val) {
+                  settings.setBackgroundKeepAlive(val);
+                  final session = widget.session;
+                  if (session != null) {
+                    session.syncKeepAlive(val);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildCacheSection(context, i18n, tc),
+        const SizedBox(height: 16),
+        _buildDiagnosticsSection(context, i18n, tc),
       ],
     );
   }

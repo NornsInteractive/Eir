@@ -114,7 +114,8 @@ class _CinemaViewState extends State<CinemaView> {
     if (!mounted) return;
     final i18n = AppI18n.of(context);
     final isStorageFull = code == 'storage_full';
-    final isConnectionError = code == 'signaling_unavailable' ||
+    final isConnectionError =
+        code == 'signaling_unavailable' ||
         code == 'connection_failed' ||
         widget.session.connectionState == RoomConnectionState.disconnected;
 
@@ -122,12 +123,16 @@ class _CinemaViewState extends State<CinemaView> {
       context,
       owner: this,
       message: i18n.mapErrorCode(code),
-      icon: isStorageFull ? Icons.disc_full_rounded : Icons.error_outline_rounded,
+      icon: isStorageFull
+          ? Icons.disc_full_rounded
+          : Icons.error_outline_rounded,
       onAction: isStorageFull
           ? () => SettingsDialog.show(context, session: widget.session)
           : null,
       actionLabel: isStorageFull ? i18n.clearCacheBtn : null,
-      actionKey: isStorageFull ? const ValueKey('cinema-storage-full-clean-btn') : null,
+      actionKey: isStorageFull
+          ? const ValueKey('cinema-storage-full-clean-btn')
+          : null,
       actionIcon: isStorageFull ? Icons.cleaning_services_rounded : null,
       onRetry: isConnectionError
           ? () async {
@@ -136,7 +141,9 @@ class _CinemaViewState extends State<CinemaView> {
             }
           : null,
       retryLabel: isConnectionError ? i18n.retryConnection : null,
-      retryKey: isConnectionError ? const ValueKey('cinema-snackbar-retry-connection-btn') : null,
+      retryKey: isConnectionError
+          ? const ValueKey('cinema-snackbar-retry-connection-btn')
+          : null,
       duration: const Duration(seconds: 5),
     );
   }
@@ -210,7 +217,9 @@ class _CinemaViewState extends State<CinemaView> {
     if (!kIsWeb) {
       if (fullscreen) {
         try {
-          await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+          await SystemChrome.setEnabledSystemUIMode(
+            SystemUiMode.immersiveSticky,
+          );
           await SystemChrome.setPreferredOrientations([
             DeviceOrientation.landscapeLeft,
             DeviceOrientation.landscapeRight,
@@ -254,8 +263,13 @@ class _CinemaViewState extends State<CinemaView> {
     }
   }
 
-  void _onHorizontalDragStart(DragStartDetails details, Duration currentPos, Duration mediaDuration) {
-    if (_isLocked || _isVerticalDragging || mediaDuration.inMilliseconds <= 0) return;
+  void _onHorizontalDragStart(
+    DragStartDetails details,
+    Duration currentPos,
+    Duration mediaDuration,
+  ) {
+    if (_isLocked || _isVerticalDragging || mediaDuration.inMilliseconds <= 0)
+      return;
     _isScrubbing = true;
     _scrubStart = currentPos;
     _scrubTarget = currentPos;
@@ -264,15 +278,26 @@ class _CinemaViewState extends State<CinemaView> {
     setState(() {});
   }
 
-  void _onHorizontalDragUpdate(DragUpdateDetails details, Duration mediaDuration, double screenWidth) {
-    if (!_isScrubbing || _scrubStart == null || mediaDuration.inMilliseconds <= 0) return;
+  void _onHorizontalDragUpdate(
+    DragUpdateDetails details,
+    Duration mediaDuration,
+    double screenWidth,
+  ) {
+    if (!_isScrubbing ||
+        _scrubStart == null ||
+        mediaDuration.inMilliseconds <= 0)
+      return;
     final double scale = (mediaDuration.inSeconds > 0)
         ? (mediaDuration.inSeconds / 180.0).clamp(0.2, 1.5)
         : 0.5;
     final int deltaMs = ((details.primaryDelta ?? 0) * scale * 250).toInt();
-    final newTargetMs = (_scrubTarget!.inMilliseconds + deltaMs).clamp(0, mediaDuration.inMilliseconds);
+    final newTargetMs = (_scrubTarget!.inMilliseconds + deltaMs).clamp(
+      0,
+      mediaDuration.inMilliseconds,
+    );
     _scrubTarget = Duration(milliseconds: newTargetMs);
-    _scrubDeltaSec = (_scrubTarget!.inMilliseconds - _scrubStart!.inMilliseconds) ~/ 1000;
+    _scrubDeltaSec =
+        (_scrubTarget!.inMilliseconds - _scrubStart!.inMilliseconds) ~/ 1000;
     setState(() {});
   }
 
@@ -335,8 +360,10 @@ class _CinemaViewState extends State<CinemaView> {
     final cur = widget.session.playback.position;
     final dur = widget.session.player.state.duration;
     final target = cur + Duration(seconds: seconds);
-    final targetMs =
-        target.inMilliseconds.clamp(0, dur.inMilliseconds > 0 ? dur.inMilliseconds : 0);
+    final targetMs = target.inMilliseconds.clamp(
+      0,
+      dur.inMilliseconds > 0 ? dur.inMilliseconds : 0,
+    );
     _showGestureHud(seconds > 0 ? 'forward' : 'rewind');
     try {
       await widget.session.seek(Duration(milliseconds: targetMs));
@@ -347,7 +374,8 @@ class _CinemaViewState extends State<CinemaView> {
   void _onSliderSeek(double val, Duration mediaDuration) {
     if (mediaDuration.inMilliseconds <= 0) return;
     final now = DateTime.now();
-    if (_lastSeekTime != null && now.difference(_lastSeekTime!).inMilliseconds < 120) {
+    if (_lastSeekTime != null &&
+        now.difference(_lastSeekTime!).inMilliseconds < 120) {
       return;
     }
     _lastSeekTime = now;
@@ -395,7 +423,9 @@ class _CinemaViewState extends State<CinemaView> {
                   Row(
                     children: [
                       Icon(
-                        isOwner ? Icons.warning_amber_rounded : Icons.logout_rounded,
+                        isOwner
+                            ? Icons.warning_amber_rounded
+                            : Icons.logout_rounded,
                         size: 22,
                         color: isOwner ? tc.warning : tc.primary,
                       ),
@@ -416,11 +446,11 @@ class _CinemaViewState extends State<CinemaView> {
                   Text(
                     isOwner
                         ? (i18n.isZh
-                            ? '解散房间后，所有正在一起观影的好友都将断开连接。确定解散吗？'
-                            : 'Disbanding the room will disconnect all watching members. Are you sure?')
+                              ? '解散房间后，所有正在一起观影的好友都将断开连接。确定解散吗？'
+                              : 'Disbanding the room will disconnect all watching members. Are you sure?')
                         : (i18n.isZh
-                            ? '确定要退出当前放映室吗？'
-                            : 'Are you sure you want to leave the room?'),
+                              ? '确定要退出当前放映室吗？'
+                              : 'Are you sure you want to leave the room?'),
                     style: TextStyle(
                       fontSize: 13.5,
                       color: tc.textSecondary,
@@ -563,7 +593,11 @@ class _CinemaViewState extends State<CinemaView> {
                         ),
                       ),
                       GlassIconButton(
-                        icon: Icon(Icons.close_rounded, size: 18, color: tc.textSecondary),
+                        icon: Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: tc.textSecondary,
+                        ),
                         onPressed: () => Navigator.of(ctx).pop(),
                       ),
                     ],
@@ -626,8 +660,10 @@ class _CinemaViewState extends State<CinemaView> {
                   ),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minWidth: (constraints.maxWidth - horizontalMargin * 2).clamp(0.0, double.infinity),
-                      minHeight: (constraints.maxHeight - verticalMargin * 2).clamp(0.0, double.infinity),
+                      minWidth: (constraints.maxWidth - horizontalMargin * 2)
+                          .clamp(0.0, double.infinity),
+                      minHeight: (constraints.maxHeight - verticalMargin * 2)
+                          .clamp(0.0, double.infinity),
                     ),
                     child: Center(
                       child: ConstrainedBox(
@@ -645,7 +681,11 @@ class _CinemaViewState extends State<CinemaView> {
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.video_library_rounded, size: isShortWindow ? 18 : 20, color: tc.primary),
+                                  Icon(
+                                    Icons.video_library_rounded,
+                                    size: isShortWindow ? 18 : 20,
+                                    color: tc.primary,
+                                  ),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
@@ -662,10 +702,18 @@ class _CinemaViewState extends State<CinemaView> {
                                     enabled: true,
                                     label: i18n.close,
                                     child: IconButton(
-                                      icon: Icon(Icons.close_rounded, size: isShortWindow ? 16 : 18, color: tc.textSecondary),
+                                      icon: Icon(
+                                        Icons.close_rounded,
+                                        size: isShortWindow ? 16 : 18,
+                                        color: tc.textSecondary,
+                                      ),
                                       tooltip: i18n.close,
-                                      padding: isShortWindow ? const EdgeInsets.all(4) : const EdgeInsets.all(8),
-                                      constraints: isShortWindow ? const BoxConstraints() : null,
+                                      padding: isShortWindow
+                                          ? const EdgeInsets.all(4)
+                                          : const EdgeInsets.all(8),
+                                      constraints: isShortWindow
+                                          ? const BoxConstraints()
+                                          : null,
                                       onPressed: () => Navigator.of(ctx).pop(),
                                     ),
                                   ),
@@ -690,8 +738,14 @@ class _CinemaViewState extends State<CinemaView> {
                                 height: isShortWindow ? 38 : 44,
                                 surfaceStyle: GlassSurfaceStyle.solid,
                                 color: tc.inputBackground,
-                                textStyle: TextStyle(color: tc.textPrimary, fontSize: 13),
-                                placeholderStyle: TextStyle(color: tc.textTertiary, fontSize: 12.5),
+                                textStyle: TextStyle(
+                                  color: tc.textPrimary,
+                                  fontSize: 13,
+                                ),
+                                placeholderStyle: TextStyle(
+                                  color: tc.textTertiary,
+                                  fontSize: 12.5,
+                                ),
                               ),
                               SizedBox(height: isShortWindow ? 8 : 10),
 
@@ -703,8 +757,14 @@ class _CinemaViewState extends State<CinemaView> {
                                 height: isShortWindow ? 38 : 44,
                                 surfaceStyle: GlassSurfaceStyle.solid,
                                 color: tc.inputBackground,
-                                textStyle: TextStyle(color: tc.textPrimary, fontSize: 13),
-                                placeholderStyle: TextStyle(color: tc.textTertiary, fontSize: 12.5),
+                                textStyle: TextStyle(
+                                  color: tc.textPrimary,
+                                  fontSize: 13,
+                                ),
+                                placeholderStyle: TextStyle(
+                                  color: tc.textTertiary,
+                                  fontSize: 12.5,
+                                ),
                               ),
                               SizedBox(height: isShortWindow ? 10 : 16),
 
@@ -715,33 +775,47 @@ class _CinemaViewState extends State<CinemaView> {
                                       key: const ValueKey('add-item-local-btn'),
                                       height: isShortWindow ? 38 : 42,
                                       onTap: () async {
-                                        final messenger = ScaffoldMessenger.maybeOf(context);
+                                        final messenger =
+                                            ScaffoldMessenger.maybeOf(context);
                                         Navigator.of(ctx).pop();
                                         _lastReportedCinemaError = null;
                                         try {
-                                          await widget.session.pickAndAddLocalFile();
+                                          await widget.session
+                                              .pickAndAddLocalFile();
                                         } catch (e) {
                                           if (mounted) {
                                             messenger?.showSnackBar(
                                               SnackBar(
-                                                content: Text(i18n.filePickerFailed),
-                                                duration: const Duration(seconds: 2),
+                                                content: Text(
+                                                  i18n.filePickerFailed,
+                                                ),
+                                                duration: const Duration(
+                                                  seconds: 2,
+                                                ),
                                               ),
                                             );
                                           }
                                         }
                                       },
                                       child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.file_open_rounded, size: isShortWindow ? 15 : 16),
+                                          Icon(
+                                            Icons.file_open_rounded,
+                                            size: isShortWindow ? 15 : 16,
+                                          ),
                                           const SizedBox(width: 6),
                                           Flexible(
                                             child: Text(
                                               i18n.addLocalFile,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(fontSize: isShortWindow ? 11.5 : 12),
+                                              style: TextStyle(
+                                                fontSize: isShortWindow
+                                                    ? 11.5
+                                                    : 12,
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -751,18 +825,23 @@ class _CinemaViewState extends State<CinemaView> {
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: LiquidGlassActionButton(
-                                      key: const ValueKey('add-item-submit-btn'),
+                                      key: const ValueKey(
+                                        'add-item-submit-btn',
+                                      ),
                                       isPrimary: true,
                                       height: isShortWindow ? 38 : 42,
                                       onTap: () async {
                                         final url = urlController.text.trim();
                                         if (url.isNotEmpty) {
                                           Navigator.of(ctx).pop();
-                                          final title = titleController.text.trim();
+                                          final title = titleController.text
+                                              .trim();
                                           _lastReportedCinemaError = null;
                                           await widget.session.addUrl(
                                             url,
-                                            title: title.isNotEmpty ? title : null,
+                                            title: title.isNotEmpty
+                                                ? title
+                                                : null,
                                           );
                                         }
                                       },
@@ -813,7 +892,11 @@ class _CinemaViewState extends State<CinemaView> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.swap_horiz_rounded, size: 20, color: tc.primary),
+                          Icon(
+                            Icons.swap_horiz_rounded,
+                            size: 20,
+                            color: tc.primary,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
@@ -832,7 +915,11 @@ class _CinemaViewState extends State<CinemaView> {
                             enabled: true,
                             label: i18n.close,
                             child: IconButton(
-                              icon: Icon(Icons.close_rounded, size: 18, color: tc.textSecondary),
+                              icon: Icon(
+                                Icons.close_rounded,
+                                size: 18,
+                                color: tc.textSecondary,
+                              ),
                               tooltip: i18n.close,
                               onPressed: () => Navigator.of(ctx).pop(),
                             ),
@@ -842,7 +929,11 @@ class _CinemaViewState extends State<CinemaView> {
                       const SizedBox(height: 16),
                       Text(
                         i18n.addVideoUrl,
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: tc.textSecondary),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: tc.textSecondary,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       GlassTextField(
@@ -852,8 +943,14 @@ class _CinemaViewState extends State<CinemaView> {
                         height: 44,
                         surfaceStyle: GlassSurfaceStyle.solid,
                         color: tc.inputBackground,
-                        textStyle: TextStyle(color: tc.textPrimary, fontSize: 13),
-                        placeholderStyle: TextStyle(color: tc.textTertiary, fontSize: 12.5),
+                        textStyle: TextStyle(
+                          color: tc.textPrimary,
+                          fontSize: 13,
+                        ),
+                        placeholderStyle: TextStyle(
+                          color: tc.textTertiary,
+                          fontSize: 12.5,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -876,7 +973,10 @@ class _CinemaViewState extends State<CinemaView> {
                                 if (newUrl.isNotEmpty) {
                                   Navigator.of(ctx).pop();
                                   _lastReportedCinemaError = null;
-                                  await widget.session.replaceItem(item.itemId, url: newUrl);
+                                  await widget.session.replaceItem(
+                                    item.itemId,
+                                    url: newUrl,
+                                  );
                                 }
                               },
                               child: Text(i18n.confirm),
@@ -928,8 +1028,8 @@ class _CinemaViewState extends State<CinemaView> {
     final icon = next == PlaybackLoopMode.loopOne
         ? Icons.repeat_one_rounded
         : (next == PlaybackLoopMode.sequential
-            ? Icons.playlist_play_rounded
-            : Icons.repeat_rounded);
+              ? Icons.playlist_play_rounded
+              : Icons.repeat_rounded);
     _showPlayerToast(modeName, icon);
   }
 
@@ -970,7 +1070,11 @@ class _CinemaViewState extends State<CinemaView> {
                       ),
                       const Spacer(),
                       GlassIconButton(
-                        icon: Icon(Icons.close_rounded, size: 18, color: tc.textSecondary),
+                        icon: Icon(
+                          Icons.close_rounded,
+                          size: 18,
+                          color: tc.textSecondary,
+                        ),
                         onPressed: () => Navigator.of(ctx).pop(),
                       ),
                     ],
@@ -995,7 +1099,9 @@ class _CinemaViewState extends State<CinemaView> {
                           '${r}x',
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                             color: isSelected ? Colors.white : tc.textPrimary,
                           ),
                         ),
@@ -1052,7 +1158,11 @@ class _CinemaViewState extends State<CinemaView> {
                           ),
                           const Spacer(),
                           GlassIconButton(
-                            icon: Icon(Icons.close_rounded, size: 18, color: tc.textSecondary),
+                            icon: Icon(
+                              Icons.close_rounded,
+                              size: 18,
+                              color: tc.textSecondary,
+                            ),
                             onPressed: () => Navigator.of(ctx).pop(),
                           ),
                         ],
@@ -1075,39 +1185,81 @@ class _CinemaViewState extends State<CinemaView> {
                               const SizedBox(height: 8),
                               ListTile(
                                 dense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                                title: Text(i18n.noSubtitle, style: TextStyle(color: tc.textPrimary, fontSize: 13)),
-                                trailing: liveTrack.subtitle == SubtitleTrack.no()
-                                    ? Icon(Icons.check_rounded, color: tc.primary, size: 18)
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                title: Text(
+                                  i18n.noSubtitle,
+                                  style: TextStyle(
+                                    color: tc.textPrimary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                trailing:
+                                    liveTrack.subtitle == SubtitleTrack.no()
+                                    ? Icon(
+                                        Icons.check_rounded,
+                                        color: tc.primary,
+                                        size: 18,
+                                      )
                                     : null,
                                 onTap: () async {
-                                  await player.setSubtitleTrack(SubtitleTrack.no());
+                                  await player.setSubtitleTrack(
+                                    SubtitleTrack.no(),
+                                  );
                                   setDialogState(() {});
                                 },
                               ),
                               ListTile(
                                 dense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                                title: Text(i18n.autoSubtitle, style: TextStyle(color: tc.textPrimary, fontSize: 13)),
-                                trailing: liveTrack.subtitle == SubtitleTrack.auto()
-                                    ? Icon(Icons.check_rounded, color: tc.primary, size: 18)
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                title: Text(
+                                  i18n.autoSubtitle,
+                                  style: TextStyle(
+                                    color: tc.textPrimary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                trailing:
+                                    liveTrack.subtitle == SubtitleTrack.auto()
+                                    ? Icon(
+                                        Icons.check_rounded,
+                                        color: tc.primary,
+                                        size: 18,
+                                      )
                                     : null,
                                 onTap: () async {
-                                  await player.setSubtitleTrack(SubtitleTrack.auto());
+                                  await player.setSubtitleTrack(
+                                    SubtitleTrack.auto(),
+                                  );
                                   setDialogState(() {});
                                 },
                               ),
                               for (final st in tracks.subtitle)
-                                if (st != SubtitleTrack.no() && st != SubtitleTrack.auto())
+                                if (st != SubtitleTrack.no() &&
+                                    st != SubtitleTrack.auto())
                                   ListTile(
                                     dense: true,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
                                     title: Text(
-                                      st.title ?? st.language ?? 'Subtitle ${st.id}',
-                                      style: TextStyle(color: tc.textPrimary, fontSize: 13),
+                                      st.title ??
+                                          st.language ??
+                                          'Subtitle ${st.id}',
+                                      style: TextStyle(
+                                        color: tc.textPrimary,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                     trailing: liveTrack.subtitle == st
-                                        ? Icon(Icons.check_rounded, color: tc.primary, size: 18)
+                                        ? Icon(
+                                            Icons.check_rounded,
+                                            color: tc.primary,
+                                            size: 18,
+                                          )
                                         : null,
                                     onTap: () async {
                                       await player.setSubtitleTrack(st);
@@ -1116,43 +1268,67 @@ class _CinemaViewState extends State<CinemaView> {
                                   ),
                               const SizedBox(height: 6),
                               LiquidGlassActionButton(
-                                key: const ValueKey('cinema-load-external-sub-btn'),
+                                key: const ValueKey(
+                                  'cinema-load-external-sub-btn',
+                                ),
                                 height: 36,
                                 onTap: () async {
                                   try {
-                                    final result = await FilePicker.platform.pickFiles(
-                                      type: FileType.custom,
-                                      allowedExtensions: ['srt', 'vtt', 'ass'],
-                                      withData: true,
-                                    );
-                                    if (result != null && result.files.isNotEmpty) {
+                                    final result = await FilePicker.platform
+                                        .pickFiles(
+                                          type: FileType.custom,
+                                          allowedExtensions: [
+                                            'srt',
+                                            'vtt',
+                                            'ass',
+                                          ],
+                                          withData: true,
+                                        );
+                                    if (result != null &&
+                                        result.files.isNotEmpty) {
                                       final picked = result.files.first;
                                       if (kIsWeb || picked.path == null) {
                                         if (picked.bytes != null) {
-                                          final content = utf8.decode(picked.bytes!);
+                                          final content = utf8.decode(
+                                            picked.bytes!,
+                                          );
                                           await player.setSubtitleTrack(
-                                            SubtitleTrack.data(content, title: picked.name),
+                                            SubtitleTrack.data(
+                                              content,
+                                              title: picked.name,
+                                            ),
                                           );
                                         }
                                       } else {
                                         await player.setSubtitleTrack(
-                                          SubtitleTrack.uri(picked.path!, title: picked.name),
+                                          SubtitleTrack.uri(
+                                            picked.path!,
+                                            title: picked.name,
+                                          ),
                                         );
                                       }
                                       setDialogState(() {});
                                     }
                                   } catch (e) {
-                                    debugPrint('External subtitle picker error: $e');
+                                    debugPrint(
+                                      'External subtitle picker error: $e',
+                                    );
                                   }
                                 },
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Icon(Icons.file_upload_outlined, size: 16),
+                                    const Icon(
+                                      Icons.file_upload_outlined,
+                                      size: 16,
+                                    ),
                                     const SizedBox(width: 6),
                                     Text(
                                       i18n.loadExternalSubtitle,
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -1172,10 +1348,22 @@ class _CinemaViewState extends State<CinemaView> {
                               const SizedBox(height: 8),
                               ListTile(
                                 dense: true,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                                title: Text(i18n.autoSubtitle, style: TextStyle(color: tc.textPrimary, fontSize: 13)),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                title: Text(
+                                  i18n.autoSubtitle,
+                                  style: TextStyle(
+                                    color: tc.textPrimary,
+                                    fontSize: 13,
+                                  ),
+                                ),
                                 trailing: liveTrack.audio == AudioTrack.auto()
-                                    ? Icon(Icons.check_rounded, color: tc.primary, size: 18)
+                                    ? Icon(
+                                        Icons.check_rounded,
+                                        color: tc.primary,
+                                        size: 18,
+                                      )
                                     : null,
                                 onTap: () async {
                                   await player.setAudioTrack(AudioTrack.auto());
@@ -1183,16 +1371,28 @@ class _CinemaViewState extends State<CinemaView> {
                                 },
                               ),
                               for (final at in tracks.audio)
-                                if (at != AudioTrack.no() && at != AudioTrack.auto())
+                                if (at != AudioTrack.no() &&
+                                    at != AudioTrack.auto())
                                   ListTile(
                                     dense: true,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
                                     title: Text(
-                                      at.title ?? at.language ?? 'Audio Track ${at.id}',
-                                      style: TextStyle(color: tc.textPrimary, fontSize: 13),
+                                      at.title ??
+                                          at.language ??
+                                          'Audio Track ${at.id}',
+                                      style: TextStyle(
+                                        color: tc.textPrimary,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                     trailing: liveTrack.audio == at
-                                        ? Icon(Icons.check_rounded, color: tc.primary, size: 18)
+                                        ? Icon(
+                                            Icons.check_rounded,
+                                            color: tc.primary,
+                                            size: 18,
+                                          )
                                         : null,
                                     onTap: () async {
                                       await player.setAudioTrack(at);
@@ -1218,7 +1418,8 @@ class _CinemaViewState extends State<CinemaView> {
     final i18n = AppI18n.of(context);
     final tc = ThemeColors.of(context);
     final session = widget.session;
-    final isHostOrAdmin = session.role == RoomRole.owner || session.role == RoomRole.admin;
+    final isHostOrAdmin =
+        session.role == RoomRole.owner || session.role == RoomRole.admin;
 
     showModalBottomSheet(
       context: context,
@@ -1265,7 +1466,11 @@ class _CinemaViewState extends State<CinemaView> {
                           ),
                           const Spacer(),
                           GlassIconButton(
-                            icon: Icon(Icons.close_rounded, size: 18, color: tc.textSecondary),
+                            icon: Icon(
+                              Icons.close_rounded,
+                              size: 18,
+                              color: tc.textSecondary,
+                            ),
                             onPressed: () => Navigator.of(ctx).pop(),
                           ),
                         ],
@@ -1276,27 +1481,52 @@ class _CinemaViewState extends State<CinemaView> {
                       ListTile(
                         key: const ValueKey('cinema-danmaku-btn'),
                         dense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                        ),
                         leading: Icon(
-                          _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
-                          color: _danmakuEnabled ? tc.primary : tc.textSecondary,
+                          _danmakuEnabled
+                              ? Icons.subtitles_rounded
+                              : Icons.subtitles_off_rounded,
+                          color: _danmakuEnabled
+                              ? tc.primary
+                              : tc.textSecondary,
                           size: 20,
                         ),
-                        title: Text(i18n.danmakuToggle, style: TextStyle(color: tc.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                        title: Text(
+                          i18n.danmakuToggle,
+                          style: TextStyle(
+                            color: tc.textPrimary,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         trailing: Switch.adaptive(
                           value: _danmakuEnabled,
                           activeColor: tc.primary,
                           onChanged: (val) {
                             setState(() => _danmakuEnabled = val);
                             setSheetState(() {});
-                            _showPlayerToast(val ? i18n.danmakuEnabled : i18n.danmakuDisabled, val ? Icons.subtitles_rounded : Icons.subtitles_off_rounded);
+                            _showPlayerToast(
+                              val ? i18n.danmakuEnabled : i18n.danmakuDisabled,
+                              val
+                                  ? Icons.subtitles_rounded
+                                  : Icons.subtitles_off_rounded,
+                            );
                           },
                         ),
                         onTap: () {
                           final nextVal = !_danmakuEnabled;
                           setState(() => _danmakuEnabled = nextVal);
                           setSheetState(() {});
-                          _showPlayerToast(nextVal ? i18n.danmakuEnabled : i18n.danmakuDisabled, nextVal ? Icons.subtitles_rounded : Icons.subtitles_off_rounded);
+                          _showPlayerToast(
+                            nextVal
+                                ? i18n.danmakuEnabled
+                                : i18n.danmakuDisabled,
+                            nextVal
+                                ? Icons.subtitles_rounded
+                                : Icons.subtitles_off_rounded,
+                          );
                         },
                       ),
 
@@ -1304,10 +1534,23 @@ class _CinemaViewState extends State<CinemaView> {
                       ListTile(
                         key: const ValueKey('cinema-loop-mode-btn'),
                         dense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                        ),
                         leading: Icon(loopIcon, color: tc.primary, size: 20),
-                        title: Text(loopTitle, style: TextStyle(color: tc.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600)),
-                        trailing: Icon(Icons.chevron_right_rounded, color: tc.textTertiary, size: 20),
+                        title: Text(
+                          loopTitle,
+                          style: TextStyle(
+                            color: tc.textPrimary,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right_rounded,
+                          color: tc.textTertiary,
+                          size: 20,
+                        ),
                         onTap: () {
                           _cycleLoopMode();
                           setSheetState(() {});
@@ -1318,10 +1561,27 @@ class _CinemaViewState extends State<CinemaView> {
                       ListTile(
                         key: const ValueKey('cinema-tracks-btn'),
                         dense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                        leading: Icon(Icons.closed_caption_rounded, color: tc.primary, size: 20),
-                        title: Text('${i18n.subtitleTrack} / ${i18n.audioTrack}', style: TextStyle(color: tc.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600)),
-                        trailing: Icon(Icons.chevron_right_rounded, color: tc.textTertiary, size: 20),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                        ),
+                        leading: Icon(
+                          Icons.closed_caption_rounded,
+                          color: tc.primary,
+                          size: 20,
+                        ),
+                        title: Text(
+                          '${i18n.subtitleTrack} / ${i18n.audioTrack}',
+                          style: TextStyle(
+                            color: tc.textPrimary,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right_rounded,
+                          color: tc.textTertiary,
+                          size: 20,
+                        ),
                         onTap: () {
                           Navigator.of(ctx).pop();
                           _showTrackSelectionDialog(context);
@@ -1332,13 +1592,27 @@ class _CinemaViewState extends State<CinemaView> {
                       ListTile(
                         key: const ValueKey('cinema-aspect-ratio-btn'),
                         dense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                        leading: Icon(Icons.aspect_ratio_rounded, color: tc.primary, size: 20),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                        ),
+                        leading: Icon(
+                          Icons.aspect_ratio_rounded,
+                          color: tc.primary,
+                          size: 20,
+                        ),
                         title: Text(
                           '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? "适应" : (_aspectFit == BoxFit.cover ? "铺满" : "拉伸")}',
-                          style: TextStyle(color: tc.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: tc.textPrimary,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        trailing: Icon(Icons.swap_horiz_rounded, color: tc.textTertiary, size: 20),
+                        trailing: Icon(
+                          Icons.swap_horiz_rounded,
+                          color: tc.textTertiary,
+                          size: 20,
+                        ),
                         onTap: () {
                           _cycleAspectRatio();
                           setSheetState(() {});
@@ -1348,9 +1622,13 @@ class _CinemaViewState extends State<CinemaView> {
                       // 5. Wait for Peer Buffering Toggle (Host mode: BUG-PLAY-06)
                       if (isHostOrAdmin) ...[
                         ListTile(
-                          key: const ValueKey('cinema-wait-buffering-toggle-btn'),
+                          key: const ValueKey(
+                            'cinema-wait-buffering-toggle-btn',
+                          ),
                           dense: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                          ),
                           leading: Icon(
                             Icons.hourglass_top_rounded,
                             color: tc.primary,
@@ -1381,7 +1659,8 @@ class _CinemaViewState extends State<CinemaView> {
                             ),
                           ),
                           onTap: () {
-                            session.waitForPeerBuffering = !session.waitForPeerBuffering;
+                            session.waitForPeerBuffering =
+                                !session.waitForPeerBuffering;
                             setSheetState(() {});
                           },
                         ),
@@ -1391,15 +1670,23 @@ class _CinemaViewState extends State<CinemaView> {
                       ListTile(
                         key: const ValueKey('cinema-volume-mute-btn'),
                         dense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                        ),
                         leading: Icon(
-                          _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                          _isMuted
+                              ? Icons.volume_off_rounded
+                              : Icons.volume_up_rounded,
                           color: _isMuted ? tc.warning : tc.primary,
                           size: 20,
                         ),
                         title: Text(
                           _isMuted ? i18n.unmuteTooltip : i18n.muteTooltip,
-                          style: TextStyle(color: tc.textPrimary, fontSize: 13.5, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: tc.textPrimary,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         trailing: IgnorePointer(
                           child: Switch.adaptive(
@@ -1411,7 +1698,9 @@ class _CinemaViewState extends State<CinemaView> {
                         onTap: () {
                           setState(() => _isMuted = !_isMuted);
                           setSheetState(() {});
-                          session.player.setVolume(_isMuted ? 0.0 : _volume * 100.0);
+                          session.player.setVolume(
+                            _isMuted ? 0.0 : _volume * 100.0,
+                          );
                         },
                       ),
 
@@ -1421,7 +1710,10 @@ class _CinemaViewState extends State<CinemaView> {
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: Text(
                             i18n.readOnlyControlTooltip,
-                            style: TextStyle(color: tc.textTertiary, fontSize: 11),
+                            style: TextStyle(
+                              color: tc.textTertiary,
+                              fontSize: 11,
+                            ),
                           ),
                         ),
                       ],
@@ -1444,7 +1736,8 @@ class _CinemaViewState extends State<CinemaView> {
       return KeyEventResult.ignored;
     }
 
-    final isHostOrAdmin = widget.session.role == RoomRole.owner ||
+    final isHostOrAdmin =
+        widget.session.role == RoomRole.owner ||
         widget.session.role == RoomRole.admin;
     final isPlaying = widget.session.playback.mode == PlaybackMode.playing;
 
@@ -1542,7 +1835,9 @@ class _CinemaViewState extends State<CinemaView> {
 
     // 1. Prefer online members other than self
     var targetList = widget.session.members
-        .where((m) => m.deviceId != widget.session.identity.deviceId && m.online)
+        .where(
+          (m) => m.deviceId != widget.session.identity.deviceId && m.online,
+        )
         .toList();
 
     // 2. Fallback to any room member other than self (in case online flag is lagging)
@@ -1609,11 +1904,18 @@ class _CinemaViewState extends State<CinemaView> {
               : ListView.builder(
                   key: const ValueKey('cinema-chat-list-view'),
                   controller: _chatScrollController,
-                  padding: EdgeInsets.symmetric(vertical: isShort ? 4 : 8, horizontal: 4),
+                  padding: EdgeInsets.symmetric(
+                    vertical: isShort ? 4 : 8,
+                    horizontal: 4,
+                  ),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final msg = messages[index];
-                    return _buildChatMessageItem(context, msg, isShort: isShort);
+                    return _buildChatMessageItem(
+                      context,
+                      msg,
+                      isShort: isShort,
+                    );
                   },
                 ),
         ),
@@ -1706,7 +2008,11 @@ class _CinemaViewState extends State<CinemaView> {
     );
   }
 
-  Widget _buildChatMessageItem(BuildContext context, ChatMessage msg, {bool isShort = false}) {
+  Widget _buildChatMessageItem(
+    BuildContext context,
+    ChatMessage msg, {
+    bool isShort = false,
+  }) {
     final tc = ThemeColors.of(context);
     final isSelf = msg.isSelf;
 
@@ -1730,21 +2036,30 @@ class _CinemaViewState extends State<CinemaView> {
       );
     }
 
-    final timeStr = '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}';
+    final timeStr =
+        '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: isSelf ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isSelf
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isSelf) ...[
-            _buildChatAvatar(msg.senderName, msg.senderAvatar, size: isShort ? 24 : 28),
+            _buildChatAvatar(
+              msg.senderName,
+              msg.senderAvatar,
+              size: isShort ? 24 : 28,
+            ),
             const SizedBox(width: 6),
           ],
           Flexible(
             child: Column(
-              crossAxisAlignment: isSelf ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isSelf
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 if (!isSelf)
                   Padding(
@@ -1771,7 +2086,9 @@ class _CinemaViewState extends State<CinemaView> {
                       bottomLeft: Radius.circular(isSelf ? 14 : 2),
                       bottomRight: Radius.circular(isSelf ? 2 : 14),
                     ),
-                    border: isSelf ? null : Border.all(color: tc.glassBorderSubtle),
+                    border: isSelf
+                        ? null
+                        : Border.all(color: tc.glassBorderSubtle),
                   ),
                   child: Text(
                     msg.text,
@@ -1785,10 +2102,7 @@ class _CinemaViewState extends State<CinemaView> {
                   padding: const EdgeInsets.only(top: 2, left: 2, right: 2),
                   child: Text(
                     timeStr,
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: tc.textTertiary,
-                    ),
+                    style: TextStyle(fontSize: 9, color: tc.textTertiary),
                   ),
                 ),
               ],
@@ -1801,7 +2115,9 @@ class _CinemaViewState extends State<CinemaView> {
   }
 
   Widget _buildChatAvatar(String name, String? avatar, {double size = 28}) {
-    final initials = name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
+    final initials = name.isNotEmpty
+        ? name.characters.first.toUpperCase()
+        : '?';
     return Container(
       width: size,
       height: size,
@@ -1822,7 +2138,11 @@ class _CinemaViewState extends State<CinemaView> {
     );
   }
 
-  Widget _buildCallOverlay(BuildContext context, {bool isFullscreen = false, bool isShort = false}) {
+  Widget _buildCallOverlay(
+    BuildContext context, {
+    bool isFullscreen = false,
+    bool isShort = false,
+  }) {
     final i18n = AppI18n.of(context);
     final tc = ThemeColors.of(context);
     final callSession = widget.session.callSession;
@@ -1913,8 +2233,11 @@ class _CinemaViewState extends State<CinemaView> {
                           color: Colors.redAccent,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.call_end_rounded,
-                            color: Colors.white, size: 16),
+                        child: const Icon(
+                          Icons.call_end_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
                       ),
                     ),
                   ),
@@ -1971,15 +2294,18 @@ class _CinemaViewState extends State<CinemaView> {
                     width: 14,
                     height: 14,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.greenAccent),
+                      strokeWidth: 2,
+                      color: Colors.greenAccent,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     '${i18n.callConnecting} ${callSession.peerName ?? ''}',
                     style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600),
+                      color: Colors.white,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Semantics(
@@ -1995,8 +2321,11 @@ class _CinemaViewState extends State<CinemaView> {
                           color: Colors.redAccent,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.call_end_rounded,
-                            color: Colors.white, size: 14),
+                        child: const Icon(
+                          Icons.call_end_rounded,
+                          color: Colors.white,
+                          size: 14,
+                        ),
                       ),
                     ),
                   ),
@@ -2012,7 +2341,9 @@ class _CinemaViewState extends State<CinemaView> {
     final pipW = isShort ? 110.0 : 130.0;
     final pipH = isShort ? 145.0 : 170.0;
     const minDx = 10.0;
-    final minDy = isFullscreen ? 10.0 : (MediaQuery.paddingOf(context).top + 54.0);
+    final minDy = isFullscreen
+        ? 10.0
+        : (MediaQuery.paddingOf(context).top + 54.0);
     final maxDx = (size.width - pipW - 10.0).clamp(minDx, 4000.0);
     final maxDy = (size.height - pipH - 10.0).clamp(minDy, 4000.0);
     final effectivePipDx = _pipOffset.dx.clamp(minDx, maxDx);
@@ -2075,13 +2406,18 @@ class _CinemaViewState extends State<CinemaView> {
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.videocam_off_rounded,
-                                      color: Colors.white38, size: 28),
+                                  const Icon(
+                                    Icons.videocam_off_rounded,
+                                    color: Colors.white38,
+                                    size: 28,
+                                  ),
                                   const SizedBox(height: 4),
                                   Text(
                                     callSession.peerName ?? 'Friend',
                                     style: const TextStyle(
-                                        color: Colors.white70, fontSize: 10),
+                                      color: Colors.white70,
+                                      fontSize: 10,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -2098,7 +2434,9 @@ class _CinemaViewState extends State<CinemaView> {
                         bottom: 6,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black54,
                             borderRadius: BorderRadius.circular(6),
@@ -2106,9 +2444,10 @@ class _CinemaViewState extends State<CinemaView> {
                           child: Text(
                             callSession.peerName ?? 'Friend',
                             style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600),
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
@@ -2123,15 +2462,17 @@ class _CinemaViewState extends State<CinemaView> {
                           decoration: BoxDecoration(
                             color: Colors.black87,
                             borderRadius: BorderRadius.circular(6),
-                            border:
-                                Border.all(color: Colors.white38, width: 1),
+                            border: Border.all(color: Colors.white38, width: 1),
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(5),
                             child: callSession.isCameraOff
                                 ? const Center(
-                                    child: Icon(Icons.videocam_off_rounded,
-                                        color: Colors.white38, size: 14),
+                                    child: Icon(
+                                      Icons.videocam_off_rounded,
+                                      color: Colors.white38,
+                                      size: 14,
+                                    ),
                                   )
                                 : RTCVideoView(
                                     callSession.localRenderer,
@@ -2278,8 +2619,10 @@ class _CinemaViewState extends State<CinemaView> {
                   // PIP Minimize/Maximize
                   GestureDetector(
                     key: const ValueKey('cinema-call-pip-toggle-btn'),
-                    onTap: () => setState(() => callSession.isPipMinimized =
-                        !callSession.isPipMinimized),
+                    onTap: () => setState(
+                      () => callSession.isPipMinimized =
+                          !callSession.isPipMinimized,
+                    ),
                     child: Container(
                       padding: const EdgeInsets.all(5),
                       decoration: const BoxDecoration(
@@ -2311,8 +2654,11 @@ class _CinemaViewState extends State<CinemaView> {
                         color: Colors.redAccent,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.call_end_rounded,
-                          color: Colors.white, size: 15),
+                      child: const Icon(
+                        Icons.call_end_rounded,
+                        color: Colors.white,
+                        size: 15,
+                      ),
                     ),
                   ),
                 ),
@@ -2331,227 +2677,356 @@ class _CinemaViewState extends State<CinemaView> {
       autofocus: true,
       onKeyEvent: _handleKeyEvent,
       child: AnimatedBuilder(
-      animation: Listenable.merge([widget.session, AppSettings.instance]),
-      builder: (context, _) {
-        final i18n = AppI18n.of(context);
-        final tc = ThemeColors.of(context);
-        final mediaQuery = MediaQuery.of(context);
-        final screenWidth = mediaQuery.size.width;
-        final screenHeight = mediaQuery.size.height;
-        final isMobile = screenWidth < 768;
-        final isNarrow = screenWidth < 560;
-        final isShort = screenHeight < 680 || (screenWidth >= screenHeight && screenHeight < 750);
-        final session = widget.session;
-        final role = session.role;
-        final isHostOrAdmin = role == RoomRole.owner || role == RoomRole.admin;
-        final isOwner = role == RoomRole.owner;
-        final isPlaying = session.playback.mode == PlaybackMode.playing;
-        final currentMedia = _currentPlaylistItem;
+        animation: Listenable.merge([widget.session, AppSettings.instance]),
+        builder: (context, _) {
+          final i18n = AppI18n.of(context);
+          final tc = ThemeColors.of(context);
+          final mediaQuery = MediaQuery.of(context);
+          final screenWidth = mediaQuery.size.width;
+          final screenHeight = mediaQuery.size.height;
+          final isMobile = screenWidth < 768;
+          final isNarrow = screenWidth < 560;
+          final isShort =
+              screenHeight < 680 ||
+              (screenWidth >= screenHeight && screenHeight < 750);
+          final session = widget.session;
+          final role = session.role;
+          final isHostOrAdmin =
+              role == RoomRole.owner || role == RoomRole.admin;
+          final isOwner = role == RoomRole.owner;
+          final isPlaying = session.playback.mode == PlaybackMode.playing;
+          final currentMedia = _currentPlaylistItem;
 
-        // Calculate progress duration using strictly real player position (avoids masking decoder freezes)
-        final playerDuration = session.player.state.duration;
-        final mediaDuration = (playerDuration > Duration.zero)
-            ? playerDuration
-            : (currentMedia?.duration ?? playerDuration);
-        final playerPos = session.player.state.position;
-        // Truthful UI projection: real progress is strictly playerPos; never disguise a frozen player
-        final currentPos = playerPos;
-        final syncTargetPos = session.playback.position;
-        final isBuffering = session.player.state.buffering;
+          // Calculate progress duration using strictly real player position (avoids masking decoder freezes)
+          final playerDuration = session.player.state.duration;
+          final mediaDuration = (playerDuration > Duration.zero)
+              ? playerDuration
+              : (currentMedia?.duration ?? playerDuration);
+          final playerPos = session.player.state.position;
+          // Truthful UI projection: real progress is strictly playerPos; never disguise a frozen player
+          final currentPos = playerPos;
+          final syncTargetPos = session.playback.position;
+          final isBuffering = session.player.state.buffering;
 
-        final double progressRatio = mediaDuration.inMilliseconds > 0
-            ? (currentPos.inMilliseconds / mediaDuration.inMilliseconds).clamp(0.0, 1.0)
-            : 0.0;
-        final double syncTargetRatio = mediaDuration.inMilliseconds > 0
-            ? (syncTargetPos.inMilliseconds / mediaDuration.inMilliseconds).clamp(0.0, 1.0)
-            : 0.0;
+          final double progressRatio = mediaDuration.inMilliseconds > 0
+              ? (currentPos.inMilliseconds / mediaDuration.inMilliseconds)
+                    .clamp(0.0, 1.0)
+              : 0.0;
+          final double syncTargetRatio = mediaDuration.inMilliseconds > 0
+              ? (syncTargetPos.inMilliseconds / mediaDuration.inMilliseconds)
+                    .clamp(0.0, 1.0)
+              : 0.0;
 
-        if (_isFullscreen) {
+          if (_isFullscreen) {
+            return PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, _) {
+                if (didPop) return;
+                _setFullscreen(false);
+              },
+              child: Scaffold(
+                backgroundColor: Colors.black,
+                body: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildPlayerStage(
+                      context,
+                      isMobile: isMobile,
+                      isShort: true,
+                      isPlaying: isPlaying,
+                      isHostOrAdmin: isHostOrAdmin,
+                      progressRatio: progressRatio,
+                      currentPos: currentPos,
+                      mediaDuration: mediaDuration,
+                      currentMedia: currentMedia,
+                      syncTargetPos: syncTargetPos,
+                      syncTargetRatio: syncTargetRatio,
+                      isBuffering: isBuffering,
+                      isFullscreen: true,
+                    ),
+                    if (session.callSession.state != CallState.idle)
+                      _buildCallOverlay(
+                        context,
+                        isFullscreen: true,
+                        isShort: isShort,
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           return PopScope(
             canPop: false,
             onPopInvokedWithResult: (didPop, _) {
               if (didPop) return;
-              _setFullscreen(false);
+              _confirmAndLeaveRoom(context);
             },
-            child: Scaffold(
-              backgroundColor: Colors.black,
-              body: Stack(
+            child: Material(
+              type: MaterialType.transparency,
+              child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _buildPlayerStage(
-                    context,
-                    isMobile: isMobile,
-                    isShort: true,
-                    isPlaying: isPlaying,
-                    isHostOrAdmin: isHostOrAdmin,
-                    progressRatio: progressRatio,
-                    currentPos: currentPos,
-                    mediaDuration: mediaDuration,
-                    currentMedia: currentMedia,
-                    syncTargetPos: syncTargetPos,
-                    syncTargetRatio: syncTargetRatio,
-                    isBuffering: isBuffering,
-                    isFullscreen: true,
-                  ),
-                  if (session.callSession.state != CallState.idle)
-                    _buildCallOverlay(context, isFullscreen: true, isShort: isShort),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, _) {
-            if (didPop) return;
-            _confirmAndLeaveRoom(context);
-          },
-          child: Material(
-            type: MaterialType.transparency,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                GlassScaffold(
-                  resizeToAvoidBottomInset: false,
-                  background: LiquidGlassAmbientBackground(child: Container()),
-                  extendBody: false,
-              appBar: GlassAppBar(
-                centerTitle: false,
-                backgroundColor: Colors.transparent,
-                leading: Semantics(
-                  button: true,
-                  enabled: true,
-                  label: isOwner ? i18n.disbandRoom : i18n.leaveRoom,
-                  child: Tooltip(
-                    message: isOwner ? i18n.disbandRoom : i18n.leaveRoom,
-                    child: GlassIconButton(
-                      key: const ValueKey('cinema-back-leave-btn'),
-                      size: isMobile ? 36 : 40,
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 15),
-                      onPressed: () => _confirmAndLeaveRoom(context),
+                  GlassScaffold(
+                    resizeToAvoidBottomInset: false,
+                    background: LiquidGlassAmbientBackground(
+                      child: Container(),
                     ),
-                  ),
-                ),
-                title: isMobile
-                    ? GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _copyInviteText(context),
+                    extendBody: false,
+                    appBar: GlassAppBar(
+                      centerTitle: false,
+                      backgroundColor: Colors.transparent,
+                      leading: Semantics(
+                        button: true,
+                        enabled: true,
+                        label: isOwner ? i18n.disbandRoom : i18n.leaveRoom,
                         child: Tooltip(
-                          message: session.roomCode != null
-                              ? '${i18n.copyRoomCode}: ${session.roomCode}'
-                              : (session.roomId != null ? formatDeviceId(session.roomId!) : 'Eir'),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Line 1: Room Code + Role Tag
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    session.roomCode != null
-                                        ? '# ${session.roomCode}'
-                                        : (session.roomId != null ? formatDeviceId(session.roomId!) : 'Eir'),
-                                    style: TextStyle(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.8,
-                                      fontFeatures: const [FontFeature.tabularFigures()],
-                                      color: tc.textPrimary,
+                          message: isOwner ? i18n.disbandRoom : i18n.leaveRoom,
+                          child: GlassIconButton(
+                            key: const ValueKey('cinema-back-leave-btn'),
+                            size: isMobile ? 36 : 40,
+                            icon: const Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              size: 15,
+                            ),
+                            onPressed: () => _confirmAndLeaveRoom(context),
+                          ),
+                        ),
+                      ),
+                      title: isMobile
+                          ? GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _copyInviteText(context),
+                              child: Tooltip(
+                                message: session.roomCode != null
+                                    ? '${i18n.copyRoomCode}: ${session.roomCode}'
+                                    : (session.roomId != null
+                                          ? formatDeviceId(session.roomId!)
+                                          : 'Eir'),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Line 1: Room Code + Role Tag
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          session.roomCode != null
+                                              ? '# ${session.roomCode}'
+                                              : (session.roomId != null
+                                                    ? formatDeviceId(
+                                                        session.roomId!,
+                                                      )
+                                                    : 'Eir'),
+                                          style: TextStyle(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.8,
+                                            fontFeatures: const [
+                                              FontFeature.tabularFigures(),
+                                            ],
+                                            color: tc.textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 5),
+                                        LiquidGlassTag(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 5,
+                                            vertical: 1.5,
+                                          ),
+                                          color: isOwner
+                                              ? tc.warning.withValues(
+                                                  alpha: 0.18,
+                                                )
+                                              : (isHostOrAdmin
+                                                    ? tc.primary.withValues(
+                                                        alpha: 0.16,
+                                                      )
+                                                    : tc.inputBackground),
+                                          child: Text(
+                                            isOwner
+                                                ? i18n.roleOwner
+                                                : (isHostOrAdmin
+                                                      ? i18n.roleAdmin
+                                                      : i18n.roleMember),
+                                            style: TextStyle(
+                                              fontSize: 9.0,
+                                              fontWeight: FontWeight.w700,
+                                              color: isOwner
+                                                  ? tc.warning
+                                                  : (isHostOrAdmin
+                                                        ? tc.primary
+                                                        : tc.textSecondary),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  const SizedBox(width: 5),
-                                  LiquidGlassTag(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                    color: isOwner
-                                        ? tc.warning.withValues(alpha: 0.18)
-                                        : (isHostOrAdmin
-                                            ? tc.primary.withValues(alpha: 0.16)
-                                            : tc.inputBackground),
-                                    child: Text(
-                                      isOwner
-                                          ? i18n.roleOwner
-                                          : (isHostOrAdmin ? i18n.roleAdmin : i18n.roleMember),
-                                      style: TextStyle(
-                                        fontSize: 9.0,
-                                        fontWeight: FontWeight.w700,
-                                        color: isOwner
-                                            ? tc.warning
-                                            : (isHostOrAdmin ? tc.primary : tc.textSecondary),
+                                    const SizedBox(height: 1.5),
+
+                                    // Line 2: Status Dot + Connection Mode + Copy Hint
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: _getConnectionDotColor(
+                                              session.connectionState,
+                                              tc,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          _getConnectionLabel(session, i18n),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: _getConnectionDotColor(
+                                              session.connectionState,
+                                              tc,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          ' · ${i18n.copyRoomCode}',
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w500,
+                                            color: tc.textSecondary.withValues(
+                                              alpha: 0.75,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Desktop / Tablet layout
+                                Tooltip(
+                                  message: session.roomCode != null
+                                      ? '${i18n.copyRoomCode}: ${session.roomCode}'
+                                      : (session.roomId != null
+                                            ? formatDeviceId(session.roomId!)
+                                            : 'Eir'),
+                                  child: GestureDetector(
+                                    onTap: () => _copyInviteText(context),
+                                    child: LiquidGlassTag(
+                                      color: tc.primary.withValues(alpha: 0.16),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            session.roomCode != null
+                                                ? Icons.tag_rounded
+                                                : Icons.theater_comedy_rounded,
+                                            size: 14,
+                                            color: tc.primary,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            session.roomCode ??
+                                                (session.roomId != null
+                                                    ? formatDeviceId(
+                                                        session.roomId!,
+                                                      )
+                                                    : 'Eir'),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing:
+                                                  session.roomCode != null
+                                                  ? 1.0
+                                                  : 0.5,
+                                              fontFeatures: const [
+                                                FontFeature.tabularFigures(),
+                                              ],
+                                              color: tc.primary,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 1.5),
-
-                              // Line 2: Status Dot + Connection Mode + Copy Hint
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: _getConnectionDotColor(session.connectionState, tc),
-                                    ),
+                                ),
+                                const SizedBox(width: 6),
+                                LiquidGlassTag(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _getConnectionLabel(session, i18n),
+                                  color: isOwner
+                                      ? tc.warning.withValues(alpha: 0.18)
+                                      : (isHostOrAdmin
+                                            ? tc.primary.withValues(alpha: 0.16)
+                                            : tc.inputBackground),
+                                  child: Text(
+                                    isOwner
+                                        ? i18n.roleOwner
+                                        : (isHostOrAdmin
+                                              ? i18n.roleAdmin
+                                              : i18n.roleMember),
                                     style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: _getConnectionDotColor(session.connectionState, tc),
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: isOwner
+                                          ? tc.warning
+                                          : (isHostOrAdmin
+                                                ? tc.primary
+                                                : tc.textSecondary),
                                     ),
                                   ),
-                                  Text(
-                                    ' · ${i18n.copyRoomCode}',
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w500,
-                                      color: tc.textSecondary.withValues(alpha: 0.75),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Desktop / Tablet layout
+                                ),
+                                const SizedBox(width: 6),
+                                _buildConnectionIndicator(
+                                  context,
+                                  session.connectionState,
+                                  isNarrow: false,
+                                ),
+                              ],
+                            ),
+                      actions: [
+                        // Owner Disband Room Button (Desktop / Tablet only)
+                        if (isOwner && !isMobile) ...[
                           Tooltip(
-                            message: session.roomCode != null
-                                ? '${i18n.copyRoomCode}: ${session.roomCode}'
-                                : (session.roomId != null ? formatDeviceId(session.roomId!) : 'Eir'),
-                            child: GestureDetector(
-                              onTap: () => _copyInviteText(context),
-                              child: LiquidGlassTag(
-                                color: tc.primary.withValues(alpha: 0.16),
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            message: i18n.disbandRoom,
+                            child: Semantics(
+                              button: true,
+                              label: i18n.disbandRoom,
+                              child: LiquidGlassActionButton(
+                                height: isShort ? 30 : 34,
+                                onTap: () async {
+                                  await session.closeRoom();
+                                  widget.onLeaveRoom();
+                                },
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      session.roomCode != null ? Icons.tag_rounded : Icons.theater_comedy_rounded,
+                                      Icons.power_settings_new_rounded,
                                       size: 14,
-                                      color: tc.primary,
+                                      color: tc.error,
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      session.roomCode ??
-                                          (session.roomId != null ? formatDeviceId(session.roomId!) : 'Eir'),
+                                      i18n.disbandRoom,
                                       style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: session.roomCode != null ? 1.0 : 0.5,
-                                        fontFeatures: const [FontFeature.tabularFigures()],
-                                        color: tc.primary,
+                                        fontSize: 11.5,
+                                        color: tc.error,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ],
@@ -2559,292 +3034,292 @@ class _CinemaViewState extends State<CinemaView> {
                               ),
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          LiquidGlassTag(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            color: isOwner
-                                ? tc.warning.withValues(alpha: 0.18)
-                                : (isHostOrAdmin
-                                    ? tc.primary.withValues(alpha: 0.16)
-                                    : tc.inputBackground),
-                            child: Text(
-                              isOwner
-                                  ? i18n.roleOwner
-                                  : (isHostOrAdmin ? i18n.roleAdmin : i18n.roleMember),
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: isOwner
-                                    ? tc.warning
-                                    : (isHostOrAdmin ? tc.primary : tc.textSecondary),
+                          const SizedBox(width: 4),
+                        ],
+
+                        // Copy Invite Action Button (32x32 Glass button)
+                        Semantics(
+                          button: true,
+                          enabled: true,
+                          label: i18n.copyInvite,
+                          child: Tooltip(
+                            message: i18n.copyInvite,
+                            child: GlassIconButton(
+                              key: const ValueKey('cinema-copy-invite-btn'),
+                              size: 32,
+                              icon: Icon(
+                                Icons.share_rounded,
+                                size: 15,
+                                color: tc.textPrimary,
                               ),
+                              onPressed: () => _copyInviteText(context),
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          _buildConnectionIndicator(context, session.connectionState, isNarrow: false),
-                        ],
-                      ),
-                actions: [
-                  // Owner Disband Room Button (Desktop / Tablet only)
-                  if (isOwner && !isMobile) ...[
-                    Tooltip(
-                      message: i18n.disbandRoom,
-                      child: Semantics(
-                        button: true,
-                        label: i18n.disbandRoom,
-                        child: LiquidGlassActionButton(
-                          height: isShort ? 30 : 34,
-                          onTap: () async {
-                            await session.closeRoom();
-                            widget.onLeaveRoom();
-                          },
+                        ),
+
+                        // Call Pill (Grouped Voice & Video Call buttons)
+                        Container(
+                          height: 32,
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          decoration: BoxDecoration(
+                            color: tc.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: tc.primary.withValues(alpha: 0.25),
+                            ),
+                          ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.power_settings_new_rounded, size: 14, color: tc.error),
-                              const SizedBox(width: 4),
-                              Text(
-                                i18n.disbandRoom,
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: tc.error,
-                                  fontWeight: FontWeight.w600,
+                              Semantics(
+                                button: true,
+                                enabled: true,
+                                label: i18n.callVoice,
+                                child: Tooltip(
+                                  message: i18n.callVoice,
+                                  child: GestureDetector(
+                                    key: const ValueKey(
+                                      'cinema-voice-call-btn',
+                                    ),
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () =>
+                                        _handleStartCall(CallType.voice),
+                                    child: SizedBox(
+                                      width: 28,
+                                      height: 28,
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.phone_rounded,
+                                          size: 14,
+                                          color: tc.textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 14,
+                                color: tc.textSecondary.withValues(alpha: 0.25),
+                              ),
+                              Semantics(
+                                button: true,
+                                enabled: true,
+                                label: i18n.callVideo,
+                                child: Tooltip(
+                                  message: i18n.callVideo,
+                                  child: GestureDetector(
+                                    key: const ValueKey(
+                                      'cinema-video-call-btn',
+                                    ),
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () =>
+                                        _handleStartCall(CallType.video),
+                                    child: SizedBox(
+                                      width: 28,
+                                      height: 28,
+                                      child: Center(
+                                        child: Icon(
+                                          Icons.videocam_rounded,
+                                          size: 15,
+                                          color: tc.textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                  ],
 
-                  // Copy Invite Action Button (32x32 Glass button)
-                  Semantics(
-                    button: true,
-                    enabled: true,
-                    label: i18n.copyInvite,
-                    child: Tooltip(
-                      message: i18n.copyInvite,
-                      child: GlassIconButton(
-                        key: const ValueKey('cinema-copy-invite-btn'),
-                        size: 32,
-                        icon: Icon(Icons.share_rounded, size: 15, color: tc.textPrimary),
-                        onPressed: () => _copyInviteText(context),
-                      ),
-                    ),
-                  ),
-
-                  // Call Pill (Grouped Voice & Video Call buttons)
-                  Container(
-                    height: 32,
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    decoration: BoxDecoration(
-                      color: tc.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: tc.primary.withValues(alpha: 0.25)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+                        // Settings Dialog Trigger
                         Semantics(
                           button: true,
                           enabled: true,
-                          label: i18n.callVoice,
+                          label: i18n.settingsTitle,
                           child: Tooltip(
-                            message: i18n.callVoice,
-                            child: GestureDetector(
-                              key: const ValueKey('cinema-voice-call-btn'),
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () => _handleStartCall(CallType.voice),
-                              child: SizedBox(
-                                width: 28,
-                                height: 28,
-                                child: Center(
-                                  child: Icon(Icons.phone_rounded,
-                                      size: 14, color: tc.textPrimary),
-                                ),
+                            message: i18n.settingsTitle,
+                            child: GlassIconButton(
+                              key: const ValueKey('cinema-settings-btn'),
+                              size: 32,
+                              icon: Icon(
+                                Icons.settings_outlined,
+                                size: 15,
+                                color: tc.textPrimary,
+                              ),
+                              onPressed: () => SettingsDialog.show(
+                                context,
+                                session: session,
                               ),
                             ),
                           ),
                         ),
-                        Container(
-                          width: 1,
-                          height: 14,
-                          color: tc.textSecondary.withValues(alpha: 0.25),
-                        ),
-                        Semantics(
-                          button: true,
-                          enabled: true,
-                          label: i18n.callVideo,
-                          child: Tooltip(
-                            message: i18n.callVideo,
-                            child: GestureDetector(
-                              key: const ValueKey('cinema-video-call-btn'),
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () => _handleStartCall(CallType.video),
-                              child: SizedBox(
-                                width: 28,
-                                height: 28,
-                                child: Center(
-                                  child: Icon(Icons.videocam_rounded,
-                                      size: 15, color: tc.textPrimary),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                        SizedBox(width: isNarrow ? 2 : 6),
                       ],
                     ),
-                  ),
+                    body: SafeArea(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isNarrow ? 8 : (isMobile ? 12 : 20),
+                          vertical: isShort ? 8 : (isMobile ? 12 : 20),
+                        ),
+                        child: isShort
+                            ? SingleChildScrollView(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // State Banners
+                                    if (session.connectionState ==
+                                        RoomConnectionState.reconnecting)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        child: _buildReconnectingBanner(
+                                          context,
+                                        ),
+                                      ),
+                                    if (session.connectionState ==
+                                        RoomConnectionState.disconnected)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        child: _buildDisconnectedBanner(
+                                          context,
+                                        ),
+                                      ),
 
-                  // Settings Dialog Trigger
-                  Semantics(
-                    button: true,
-                    enabled: true,
-                    label: i18n.settingsTitle,
-                    child: Tooltip(
-                      message: i18n.settingsTitle,
-                      child: GlassIconButton(
-                        key: const ValueKey('cinema-settings-btn'),
-                        size: 32,
-                        icon: Icon(Icons.settings_outlined, size: 15, color: tc.textPrimary),
-                        onPressed: () => SettingsDialog.show(context, session: session),
+                                    // Main Video Player & Control Stage (Preserves proportions and guarantees controls never get squished)
+                                    SizedBox(
+                                      height: (screenWidth * 9 / 16).clamp(
+                                        165.0,
+                                        220.0,
+                                      ),
+                                      child: _buildPlayerStage(
+                                        context,
+                                        isMobile: isMobile,
+                                        isShort: isShort,
+                                        isPlaying: isPlaying,
+                                        isHostOrAdmin: isHostOrAdmin,
+                                        progressRatio: progressRatio,
+                                        currentPos: currentPos,
+                                        mediaDuration: mediaDuration,
+                                        currentMedia: currentMedia,
+                                        syncTargetPos: syncTargetPos,
+                                        syncTargetRatio: syncTargetRatio,
+                                        isBuffering: isBuffering,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 8),
+
+                                    // Bottom Dock (Tabs: Chat / Playlist / Peers / Info)
+                                    SizedBox(
+                                      height: 250,
+                                      child: _buildInspectorDock(
+                                        context,
+                                        isMobile: isMobile,
+                                        isShort: isShort,
+                                        isOwner: isOwner,
+                                        isHostOrAdmin: isHostOrAdmin,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : Column(
+                                children: [
+                                  // State Banners
+                                  AnimatedSize(
+                                    duration: const Duration(milliseconds: 250),
+                                    curve: Curves.easeOutCubic,
+                                    child:
+                                        session.connectionState ==
+                                            RoomConnectionState.reconnecting
+                                        ? Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 12,
+                                            ),
+                                            child: _buildReconnectingBanner(
+                                              context,
+                                            ),
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+
+                                  AnimatedSize(
+                                    duration: const Duration(milliseconds: 250),
+                                    curve: Curves.easeOutCubic,
+                                    child:
+                                        session.connectionState ==
+                                            RoomConnectionState.disconnected
+                                        ? Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 12,
+                                            ),
+                                            child: _buildDisconnectedBanner(
+                                              context,
+                                            ),
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+
+                                  // Main Video Player & Control Stage (16:9 standard video aspect ratio, comfortably bounded)
+                                  SizedBox(
+                                    height: (screenWidth * 9 / 16).clamp(
+                                      160.0,
+                                      (screenHeight * 0.38).clamp(180.0, 320.0),
+                                    ),
+                                    child: _buildPlayerStage(
+                                      context,
+                                      isMobile: isMobile,
+                                      isShort: false,
+                                      isPlaying: isPlaying,
+                                      isHostOrAdmin: isHostOrAdmin,
+                                      progressRatio: progressRatio,
+                                      currentPos: currentPos,
+                                      mediaDuration: mediaDuration,
+                                      currentMedia: currentMedia,
+                                      syncTargetPos: syncTargetPos,
+                                      syncTargetRatio: syncTargetRatio,
+                                      isBuffering: isBuffering,
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 10),
+
+                                  // Bottom Dock (Tabs: Chat / Playlist / Peers / Info)
+                                  Expanded(
+                                    child: _buildInspectorDock(
+                                      context,
+                                      isMobile: isMobile,
+                                      isShort: false,
+                                      isOwner: isOwner,
+                                      isHostOrAdmin: isHostOrAdmin,
+                                    ),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
                   ),
-                  SizedBox(width: isNarrow ? 2 : 6),
+                  if (session.callSession.state != CallState.idle)
+                    _buildCallOverlay(
+                      context,
+                      isFullscreen: false,
+                      isShort: isShort,
+                    ),
                 ],
               ),
-          body: SafeArea(
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: isNarrow ? 8 : (isMobile ? 12 : 20),
-                vertical: isShort ? 8 : (isMobile ? 12 : 20),
-              ),
-              child: isShort
-                  ? SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // State Banners
-                          if (session.connectionState == RoomConnectionState.reconnecting)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: _buildReconnectingBanner(context),
-                            ),
-                          if (session.connectionState == RoomConnectionState.disconnected)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: _buildDisconnectedBanner(context),
-                            ),
-
-                          // Main Video Player & Control Stage (Preserves proportions and guarantees controls never get squished)
-                          SizedBox(
-                            height: (screenWidth * 9 / 16).clamp(165.0, 220.0),
-                            child: _buildPlayerStage(
-                              context,
-                              isMobile: isMobile,
-                              isShort: isShort,
-                              isPlaying: isPlaying,
-                              isHostOrAdmin: isHostOrAdmin,
-                              progressRatio: progressRatio,
-                              currentPos: currentPos,
-                              mediaDuration: mediaDuration,
-                              currentMedia: currentMedia,
-                              syncTargetPos: syncTargetPos,
-                              syncTargetRatio: syncTargetRatio,
-                              isBuffering: isBuffering,
-                            ),
-                          ),
-
-                          const SizedBox(height: 8),
-
-                          // Bottom Dock (Tabs: Chat / Playlist / Peers / Info)
-                          SizedBox(
-                            height: 250,
-                            child: _buildInspectorDock(
-                              context,
-                              isMobile: isMobile,
-                              isShort: isShort,
-                              isOwner: isOwner,
-                              isHostOrAdmin: isHostOrAdmin,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : Column(
-                      children: [
-                        // State Banners
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeOutCubic,
-                          child: session.connectionState == RoomConnectionState.reconnecting
-                              ? Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: _buildReconnectingBanner(context),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.easeOutCubic,
-                          child: session.connectionState == RoomConnectionState.disconnected
-                              ? Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: _buildDisconnectedBanner(context),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-
-                        // Main Video Player & Control Stage (16:9 standard video aspect ratio, comfortably bounded)
-                        SizedBox(
-                          height: (screenWidth * 9 / 16).clamp(160.0, (screenHeight * 0.38).clamp(180.0, 320.0)),
-                          child: _buildPlayerStage(
-                            context,
-                            isMobile: isMobile,
-                            isShort: false,
-                            isPlaying: isPlaying,
-                            isHostOrAdmin: isHostOrAdmin,
-                            progressRatio: progressRatio,
-                            currentPos: currentPos,
-                            mediaDuration: mediaDuration,
-                            currentMedia: currentMedia,
-                            syncTargetPos: syncTargetPos,
-                            syncTargetRatio: syncTargetRatio,
-                            isBuffering: isBuffering,
-                          ),
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        // Bottom Dock (Tabs: Chat / Playlist / Peers / Info)
-                        Expanded(
-                          child: _buildInspectorDock(
-                            context,
-                            isMobile: isMobile,
-                            isShort: false,
-                            isOwner: isOwner,
-                            isHostOrAdmin: isHostOrAdmin,
-                          ),
-                        ),
-                      ],
-                    ),
             ),
-          ),
-        ),
-        if (session.callSession.state != CallState.idle)
-          _buildCallOverlay(context, isFullscreen: false, isShort: isShort),
-      ],
-    ),
-  ),
-);
-    },
-  ),
-);
-}
+          );
+        },
+      ),
+    );
+  }
 
   Color _getConnectionDotColor(RoomConnectionState state, ThemeColors tc) {
     switch (state) {
@@ -2888,7 +3363,11 @@ class _CinemaViewState extends State<CinemaView> {
     }
   }
 
-  Widget _buildConnectionIndicator(BuildContext context, RoomConnectionState state, {bool isNarrow = false}) {
+  Widget _buildConnectionIndicator(
+    BuildContext context,
+    RoomConnectionState state, {
+    bool isNarrow = false,
+  }) {
     final tc = ThemeColors.of(context);
     final i18n = AppI18n.of(context);
 
@@ -2923,14 +3402,20 @@ class _CinemaViewState extends State<CinemaView> {
       message: tooltip,
       child: LiquidGlassTag(
         color: dotColor.withValues(alpha: 0.14),
-        padding: EdgeInsets.symmetric(horizontal: isNarrow ? 6 : 8, vertical: 4),
+        padding: EdgeInsets.symmetric(
+          horizontal: isNarrow ? 6 : 8,
+          vertical: 4,
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               width: 7,
               height: 7,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: dotColor,
+              ),
             ),
             const SizedBox(width: 5),
             Text(
@@ -2965,10 +3450,7 @@ class _CinemaViewState extends State<CinemaView> {
     }
     return Tooltip(
       message: label,
-      child: Semantics(
-        label: label,
-        child: tag,
-      ),
+      child: Semantics(label: label, child: tag),
     );
   }
 
@@ -2988,7 +3470,11 @@ class _CinemaViewState extends State<CinemaView> {
           Expanded(
             child: Text(
               i18n.disconnectedBannerText,
-              style: TextStyle(fontSize: 12.5, color: tc.error, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 12.5,
+                color: tc.error,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -3048,7 +3534,11 @@ class _CinemaViewState extends State<CinemaView> {
           Expanded(
             child: Text(
               i18n.stateReconnecting,
-              style: TextStyle(fontSize: 12.5, color: tc.warning, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 12.5,
+                color: tc.warning,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -3074,19 +3564,28 @@ class _CinemaViewState extends State<CinemaView> {
     final i18n = AppI18n.of(context);
     final tc = ThemeColors.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
-    final effectiveRatio = _draggingSliderValue ?? _optimisticSeekRatio ?? progressRatio;
-    final displayPos = (effectiveRatio != progressRatio && mediaDuration.inMilliseconds > 0)
-        ? Duration(milliseconds: (effectiveRatio * mediaDuration.inMilliseconds).round())
+    final effectiveRatio =
+        _draggingSliderValue ?? _optimisticSeekRatio ?? progressRatio;
+    final displayPos =
+        (effectiveRatio != progressRatio && mediaDuration.inMilliseconds > 0)
+        ? Duration(
+            milliseconds: (effectiveRatio * mediaDuration.inMilliseconds)
+                .round(),
+          )
         : currentPos;
     final displayRatio = effectiveRatio.clamp(0.0, 1.0);
 
     return GlassContainer.card(
       surfaceStyle: GlassSurfaceStyle.solid,
       color: Colors.black,
-      shape: LiquidRoundedSuperellipse(borderRadius: isFullscreen ? 0 : (isShort ? 16 : 22)),
+      shape: LiquidRoundedSuperellipse(
+        borderRadius: isFullscreen ? 0 : (isShort ? 16 : 22),
+      ),
       padding: EdgeInsets.zero,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(isFullscreen ? 0 : (isShort ? 16 : 22)),
+        borderRadius: BorderRadius.circular(
+          isFullscreen ? 0 : (isShort ? 16 : 22),
+        ),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -3114,8 +3613,9 @@ class _CinemaViewState extends State<CinemaView> {
             if (_brightness < 1.0)
               IgnorePointer(
                 child: Container(
-                  color: Colors.black
-                      .withValues(alpha: (1.0 - _brightness) * 0.75),
+                  color: Colors.black.withValues(
+                    alpha: (1.0 - _brightness) * 0.75,
+                  ),
                 ),
               ),
 
@@ -3128,8 +3628,9 @@ class _CinemaViewState extends State<CinemaView> {
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: _toggleControls,
-                      onDoubleTap:
-                          isHostOrAdmin ? () => _seekRelative(-10) : null,
+                      onDoubleTap: isHostOrAdmin
+                          ? () => _seekRelative(-10)
+                          : null,
                       onLongPressStart: isHostOrAdmin
                           ? (_) {
                               _preSpeedRate = widget.session.playback.rate;
@@ -3165,8 +3666,10 @@ class _CinemaViewState extends State<CinemaView> {
                           : (d) {
                               final delta = -d.primaryDelta! / 200.0;
                               setState(() {
-                                _brightness =
-                                    (_brightness + delta).clamp(0.1, 1.0);
+                                _brightness = (_brightness + delta).clamp(
+                                  0.1,
+                                  1.0,
+                                );
                               });
                               _showGestureHud('brightness');
                             },
@@ -3177,7 +3680,11 @@ class _CinemaViewState extends State<CinemaView> {
                       },
                       onHorizontalDragUpdate: (d) {
                         if (!_isVerticalDragging) {
-                          _onHorizontalDragUpdate(d, mediaDuration, screenWidth);
+                          _onHorizontalDragUpdate(
+                            d,
+                            mediaDuration,
+                            screenWidth,
+                          );
                         }
                       },
                       onHorizontalDragEnd: (d) {
@@ -3196,8 +3703,9 @@ class _CinemaViewState extends State<CinemaView> {
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: _toggleControls,
-                      onDoubleTap:
-                          isHostOrAdmin ? () => _seekRelative(10) : null,
+                      onDoubleTap: isHostOrAdmin
+                          ? () => _seekRelative(10)
+                          : null,
                       onLongPressStart: isHostOrAdmin
                           ? (_) {
                               _preSpeedRate = widget.session.playback.rate;
@@ -3246,7 +3754,11 @@ class _CinemaViewState extends State<CinemaView> {
                       },
                       onHorizontalDragUpdate: (d) {
                         if (!_isVerticalDragging) {
-                          _onHorizontalDragUpdate(d, mediaDuration, screenWidth);
+                          _onHorizontalDragUpdate(
+                            d,
+                            mediaDuration,
+                            screenWidth,
+                          );
                         }
                       },
                       onHorizontalDragEnd: (d) {
@@ -3275,7 +3787,10 @@ class _CinemaViewState extends State<CinemaView> {
                     surfaceStyle: GlassSurfaceStyle.glass,
                     color: Colors.black54,
                     shape: const LiquidRoundedSuperellipse(borderRadius: 14),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -3289,7 +3804,9 @@ class _CinemaViewState extends State<CinemaView> {
                         ),
                         const SizedBox(width: 10),
                         Text(
-                          i18n.isZh ? '好友正在缓冲，已为您暂停等候...' : 'Peer is buffering, paused to wait...',
+                          i18n.isZh
+                              ? '好友正在缓冲，已为您暂停等候...'
+                              : 'Peer is buffering, paused to wait...',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -3307,8 +3824,10 @@ class _CinemaViewState extends State<CinemaView> {
               IgnorePointer(
                 child: Center(
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(10),
@@ -3321,15 +3840,18 @@ class _CinemaViewState extends State<CinemaView> {
                           width: 14,
                           height: 14,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: tc.primary),
+                            strokeWidth: 2,
+                            color: tc.primary,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           i18n.bufferingLabel,
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600),
+                            color: Colors.white,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -3345,23 +3867,144 @@ class _CinemaViewState extends State<CinemaView> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.cloud_off_rounded, size: 40, color: tc.warning),
+                      Icon(
+                        Icons.cloud_off_rounded,
+                        size: 40,
+                        color: tc.warning,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         i18n.sourceOfflineTitle,
                         style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         i18n.sourceOfflineDesc,
                         style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.7)),
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.7),
+                        ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+
+            // Empty Media / Cinema Screen Overlay
+            if (_currentPlaylistItem == null)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: GlassContainer.card(
+                      surfaceStyle: GlassSurfaceStyle.solid,
+                      color: tc.cardBackground.withValues(alpha: 0.92),
+                      shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 22,
+                        vertical: 22,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: tc.primary.withValues(alpha: 0.14),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.movie_filter_rounded,
+                                size: 28,
+                                color: tc.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              i18n.emptyPlaylistTitle,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: tc.textPrimary,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              i18n.emptyPlaylistDesc,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.4,
+                                color: tc.textSecondary,
+                              ),
+                            ),
+                            if (isHostOrAdmin) ...[
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  LiquidGlassActionButton(
+                                    key: const ValueKey(
+                                      'empty-screen-add-local-btn',
+                                    ),
+                                    onTap: () async {
+                                      try {
+                                        await widget.session
+                                            .pickAndAddLocalFile();
+                                      } catch (_) {}
+                                    },
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.file_open_rounded,
+                                          size: 14,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          i18n.addLocalVideo,
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  LiquidGlassActionButton(
+                                    key: const ValueKey(
+                                      'empty-screen-add-online-btn',
+                                    ),
+                                    isPrimary: true,
+                                    onTap: () => _showAddMediaDialog(context),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.link_rounded,
+                                          size: 14,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          i18n.addOnlineStream,
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -3381,7 +4024,11 @@ class _CinemaViewState extends State<CinemaView> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.wifi_tethering_off_rounded, size: 44, color: tc.warning),
+                        Icon(
+                          Icons.wifi_tethering_off_rounded,
+                          size: 44,
+                          color: tc.warning,
+                        ),
                         const SizedBox(height: 12),
                         Text(
                           i18n.p2pFailedPill,
@@ -3410,26 +4057,45 @@ class _CinemaViewState extends State<CinemaView> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.refresh_rounded, size: 16, color: Colors.white),
+                                  const Icon(
+                                    Icons.refresh_rounded,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     i18n.retryP2p,
-                                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.white),
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
                             const SizedBox(width: 12),
                             LiquidGlassActionButton(
-                              onTap: () => SettingsDialog.show(context, session: widget.session),
+                              onTap: () => SettingsDialog.show(
+                                context,
+                                session: widget.session,
+                              ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.settings_rounded, size: 16, color: Colors.white),
+                                  const Icon(
+                                    Icons.settings_rounded,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     i18n.settingsTitle,
-                                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.white),
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -3447,7 +4113,10 @@ class _CinemaViewState extends State<CinemaView> {
               IgnorePointer(
                 child: Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.88),
                       borderRadius: BorderRadius.circular(16),
@@ -3470,14 +4139,18 @@ class _CinemaViewState extends State<CinemaView> {
                               _scrubDeltaSec >= 0
                                   ? Icons.fast_forward_rounded
                                   : Icons.fast_rewind_rounded,
-                              color: _scrubDeltaSec >= 0 ? tc.primary : Colors.orangeAccent,
+                              color: _scrubDeltaSec >= 0
+                                  ? tc.primary
+                                  : Colors.orangeAccent,
                               size: 28,
                             ),
                             const SizedBox(width: 8),
                             Text(
                               '${_scrubDeltaSec >= 0 ? '+' : ''}${_scrubDeltaSec}s',
                               style: TextStyle(
-                                color: _scrubDeltaSec >= 0 ? tc.primary : Colors.orangeAccent,
+                                color: _scrubDeltaSec >= 0
+                                    ? tc.primary
+                                    : Colors.orangeAccent,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -3501,10 +4174,14 @@ class _CinemaViewState extends State<CinemaView> {
                             borderRadius: BorderRadius.circular(4),
                             child: LinearProgressIndicator(
                               value: mediaDuration.inMilliseconds > 0
-                                  ? (_scrubTarget!.inMilliseconds / mediaDuration.inMilliseconds).clamp(0.0, 1.0)
+                                  ? (_scrubTarget!.inMilliseconds /
+                                            mediaDuration.inMilliseconds)
+                                        .clamp(0.0, 1.0)
                                   : 0.0,
                               backgroundColor: Colors.white24,
-                              valueColor: AlwaysStoppedAnimation<Color>(tc.primary),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                tc.primary,
+                              ),
                               minHeight: 4,
                             ),
                           ),
@@ -3521,7 +4198,9 @@ class _CinemaViewState extends State<CinemaView> {
                 child: Center(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 12),
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black87,
                       borderRadius: BorderRadius.circular(16),
@@ -3541,12 +4220,12 @@ class _CinemaViewState extends State<CinemaView> {
                           _gestureHudType == 'brightness'
                               ? Icons.brightness_medium_rounded
                               : (_gestureHudType == 'volume'
-                                  ? (_volume > 0
-                                      ? Icons.volume_up_rounded
-                                      : Icons.volume_off_rounded)
-                                  : (_gestureHudType == 'forward'
-                                      ? Icons.fast_forward_rounded
-                                      : Icons.fast_rewind_rounded)),
+                                    ? (_volume > 0
+                                          ? Icons.volume_up_rounded
+                                          : Icons.volume_off_rounded)
+                                    : (_gestureHudType == 'forward'
+                                          ? Icons.fast_forward_rounded
+                                          : Icons.fast_rewind_rounded)),
                           color: Colors.white,
                           size: 24,
                         ),
@@ -3562,8 +4241,9 @@ class _CinemaViewState extends State<CinemaView> {
                                     ? _brightness
                                     : _volume,
                                 backgroundColor: Colors.white24,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(tc.primary),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  tc.primary,
+                                ),
                                 minHeight: 6,
                               ),
                             ),
@@ -3602,11 +4282,16 @@ class _CinemaViewState extends State<CinemaView> {
                 right: 0,
                 child: Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black87,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: tc.primary.withValues(alpha: 0.8)),
+                      border: Border.all(
+                        color: tc.primary.withValues(alpha: 0.8),
+                      ),
                       boxShadow: const [
                         BoxShadow(
                           color: Colors.black45,
@@ -3618,7 +4303,11 @@ class _CinemaViewState extends State<CinemaView> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.fast_forward_rounded, color: tc.primary, size: 16),
+                        Icon(
+                          Icons.fast_forward_rounded,
+                          color: tc.primary,
+                          size: 16,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           i18n.fastForwarding2x,
@@ -3642,7 +4331,10 @@ class _CinemaViewState extends State<CinemaView> {
                 right: 0,
                 child: Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(16),
@@ -3698,7 +4390,9 @@ class _CinemaViewState extends State<CinemaView> {
                         });
                         _showPlayerToast(
                           _isLocked ? i18n.screenLocked : i18n.screenUnlocked,
-                          _isLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
+                          _isLocked
+                              ? Icons.lock_rounded
+                              : Icons.lock_open_rounded,
                         );
                       },
                       child: Container(
@@ -3754,8 +4448,15 @@ class _CinemaViewState extends State<CinemaView> {
                                 shape: BoxShape.circle,
                               ),
                               child: IconButton(
-                                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
-                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                icon: const Icon(
+                                  Icons.arrow_back_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 36,
+                                  minHeight: 36,
+                                ),
                                 padding: EdgeInsets.zero,
                                 onPressed: () => _setFullscreen(false),
                               ),
@@ -3778,9 +4479,11 @@ class _CinemaViewState extends State<CinemaView> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.movie_rounded,
-                                    size: isShort ? 12 : 14,
-                                    color: Colors.white70),
+                                Icon(
+                                  Icons.movie_rounded,
+                                  size: isShort ? 12 : 14,
+                                  color: Colors.white70,
+                                ),
                                 const SizedBox(width: 6),
                                 Flexible(
                                   child: Text(
@@ -3852,7 +4555,9 @@ class _CinemaViewState extends State<CinemaView> {
                         // Fullscreen or Landscape mode: expanded quick actions + more button
                         // Common Top Action: Danmaku Toggle
                         Tooltip(
-                          message: _danmakuEnabled ? i18n.danmakuEnabled : i18n.danmakuDisabled,
+                          message: _danmakuEnabled
+                              ? i18n.danmakuEnabled
+                              : i18n.danmakuDisabled,
                           child: Container(
                             decoration: const BoxDecoration(
                               color: Colors.black54,
@@ -3866,16 +4571,26 @@ class _CinemaViewState extends State<CinemaView> {
                                 minHeight: isShort ? 28 : 32,
                               ),
                               icon: Icon(
-                                _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
-                                color: _danmakuEnabled ? tc.primary : Colors.white38,
+                                _danmakuEnabled
+                                    ? Icons.subtitles_rounded
+                                    : Icons.subtitles_off_rounded,
+                                color: _danmakuEnabled
+                                    ? tc.primary
+                                    : Colors.white38,
                                 size: isShort ? 16 : 18,
                               ),
                               onPressed: () {
                                 _restartControlsTimer();
-                                setState(() => _danmakuEnabled = !_danmakuEnabled);
+                                setState(
+                                  () => _danmakuEnabled = !_danmakuEnabled,
+                                );
                                 _showPlayerToast(
-                                  _danmakuEnabled ? i18n.danmakuEnabled : i18n.danmakuDisabled,
-                                  _danmakuEnabled ? Icons.subtitles_rounded : Icons.subtitles_off_rounded,
+                                  _danmakuEnabled
+                                      ? i18n.danmakuEnabled
+                                      : i18n.danmakuDisabled,
+                                  _danmakuEnabled
+                                      ? Icons.subtitles_rounded
+                                      : Icons.subtitles_off_rounded,
                                 );
                               },
                             ),
@@ -3885,11 +4600,14 @@ class _CinemaViewState extends State<CinemaView> {
 
                         // Common Top Action: Loop Mode
                         Tooltip(
-                          message: widget.session.loopMode == PlaybackLoopMode.loopOne
+                          message:
+                              widget.session.loopMode ==
+                                  PlaybackLoopMode.loopOne
                               ? i18n.loopModeOne
-                              : (widget.session.loopMode == PlaybackLoopMode.sequential
-                                  ? i18n.loopModeSeq
-                                  : i18n.loopModeAll),
+                              : (widget.session.loopMode ==
+                                        PlaybackLoopMode.sequential
+                                    ? i18n.loopModeSeq
+                                    : i18n.loopModeAll),
                           child: Container(
                             decoration: const BoxDecoration(
                               color: Colors.black54,
@@ -3903,11 +4621,13 @@ class _CinemaViewState extends State<CinemaView> {
                                 minHeight: isShort ? 28 : 32,
                               ),
                               icon: Icon(
-                                widget.session.loopMode == PlaybackLoopMode.loopOne
+                                widget.session.loopMode ==
+                                        PlaybackLoopMode.loopOne
                                     ? Icons.repeat_one_rounded
-                                    : (widget.session.loopMode == PlaybackLoopMode.sequential
-                                        ? Icons.playlist_play_rounded
-                                        : Icons.repeat_rounded),
+                                    : (widget.session.loopMode ==
+                                              PlaybackLoopMode.sequential
+                                          ? Icons.playlist_play_rounded
+                                          : Icons.repeat_rounded),
                                 color: Colors.white70,
                                 size: isShort ? 16 : 18,
                               ),
@@ -4050,12 +4770,15 @@ class _CinemaViewState extends State<CinemaView> {
                 child: Center(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 6),
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black87,
                       borderRadius: BorderRadius.circular(10),
-                      border:
-                          Border.all(color: tc.primary.withValues(alpha: 0.6)),
+                      border: Border.all(
+                        color: tc.primary.withValues(alpha: 0.6),
+                      ),
                       boxShadow: const [
                         BoxShadow(
                           color: Colors.black45,
@@ -4078,7 +4801,10 @@ class _CinemaViewState extends State<CinemaView> {
               ),
 
             // Center Big Play Indicator (Youku / Bilibili Mainstream Style)
-            if (!isPlaying && !isBuffering && currentMedia != null && !_isLocked)
+            if (!isPlaying &&
+                !isBuffering &&
+                currentMedia != null &&
+                !_isLocked)
               Center(
                 child: AnimatedOpacity(
                   opacity: _showControls ? 1.0 : 0.85,
@@ -4153,7 +4879,7 @@ class _CinemaViewState extends State<CinemaView> {
                     ),
                     child: (!isFullscreen && !_isLandscape)
                         ? // ─── 竖屏单行极简控制栏 (优酷/B站风格，弹性自适应绝不溢出) ───
-                        Row(
+                          Row(
                             children: [
                               // 播放 / 暂停
                               Semantics(
@@ -4162,16 +4888,18 @@ class _CinemaViewState extends State<CinemaView> {
                                 label: !isHostOrAdmin
                                     ? '${isPlaying ? i18n.pauseTooltip : i18n.playTooltip} (${i18n.readOnlyControlTooltip})'
                                     : (isPlaying
-                                        ? i18n.pauseTooltip
-                                        : i18n.playTooltip),
+                                          ? i18n.pauseTooltip
+                                          : i18n.playTooltip),
                                 child: Tooltip(
                                   message: !isHostOrAdmin
                                       ? i18n.readOnlyControlTooltip
                                       : (isPlaying
-                                          ? i18n.pauseTooltip
-                                          : i18n.playTooltip),
+                                            ? i18n.pauseTooltip
+                                            : i18n.playTooltip),
                                   child: IconButton(
-                                    key: const ValueKey('cinema-play-pause-btn'),
+                                    key: const ValueKey(
+                                      'cinema-play-pause-btn',
+                                    ),
                                     padding: EdgeInsets.zero,
                                     constraints: BoxConstraints(
                                       minWidth: isShort ? 28 : 34,
@@ -4211,7 +4939,7 @@ class _CinemaViewState extends State<CinemaView> {
                                   fontSize: isShort ? 10 : 11,
                                   fontWeight: FontWeight.w600,
                                   fontFeatures: const [
-                                    FontFeature.tabularFigures()
+                                    FontFeature.tabularFigures(),
                                   ],
                                 ),
                               ),
@@ -4225,53 +4953,62 @@ class _CinemaViewState extends State<CinemaView> {
                                     data: SliderTheme.of(context).copyWith(
                                       activeTrackColor: tc.primary,
                                       inactiveTrackColor: Colors.white24,
-                                      secondaryActiveTrackColor:
-                                          tc.primary.withValues(alpha: 0.35),
+                                      secondaryActiveTrackColor: tc.primary
+                                          .withValues(alpha: 0.35),
                                       thumbColor: Colors.white,
                                       thumbShape: RoundSliderThumbShape(
-                                        enabledThumbRadius:
-                                            isShort ? 4.5 : 5.5,
+                                        enabledThumbRadius: isShort ? 4.5 : 5.5,
                                       ),
                                       overlayShape: RoundSliderOverlayShape(
                                         overlayRadius: isShort ? 9 : 11,
                                       ),
                                       trackHeight: isShort ? 2.5 : 3.0,
-                                      allowedInteraction: SliderInteraction.tapAndSlide,
+                                      allowedInteraction:
+                                          SliderInteraction.tapAndSlide,
                                     ),
                                     child: Slider(
                                       key: const ValueKey(
-                                          'cinema-timeline-slider'),
+                                        'cinema-timeline-slider',
+                                      ),
                                       value: displayRatio,
                                       secondaryTrackValue:
                                           (syncTargetRatio > 0.0 &&
-                                                  syncTargetRatio !=
-                                                      displayRatio &&
-                                                  _draggingSliderValue == null)
-                                              ? syncTargetRatio
-                                              : null,
-                                      onChangeStart: (isHostOrAdmin &&
+                                              syncTargetRatio != displayRatio &&
+                                              _draggingSliderValue == null)
+                                          ? syncTargetRatio
+                                          : null,
+                                      onChangeStart:
+                                          (isHostOrAdmin &&
                                               mediaDuration.inMilliseconds > 0)
                                           ? (val) {
                                               _restartControlsTimer();
                                               _optimisticSeekTimer?.cancel();
                                               setState(() {
-                                                _draggingSliderValue = val.clamp(0.0, 1.0);
-                                                _optimisticSeekRatio = val.clamp(0.0, 1.0);
+                                                _draggingSliderValue = val
+                                                    .clamp(0.0, 1.0);
+                                                _optimisticSeekRatio = val
+                                                    .clamp(0.0, 1.0);
                                               });
                                             }
                                           : null,
-                                      onChanged: (isHostOrAdmin &&
+                                      onChanged:
+                                          (isHostOrAdmin &&
                                               mediaDuration.inMilliseconds > 0)
                                           ? (val) {
                                               _restartControlsTimer();
-                                              setState(() =>
-                                                  _draggingSliderValue =
-                                                      val.clamp(0.0, 1.0));
+                                              setState(
+                                                () => _draggingSliderValue = val
+                                                    .clamp(0.0, 1.0),
+                                              );
                                             }
                                           : null,
-                                      onChangeEnd: (isHostOrAdmin &&
+                                      onChangeEnd:
+                                          (isHostOrAdmin &&
                                               mediaDuration.inMilliseconds > 0)
-                                          ? (val) => _onSliderSeek(val, mediaDuration)
+                                          ? (val) => _onSliderSeek(
+                                              val,
+                                              mediaDuration,
+                                            )
                                           : null,
                                     ),
                                   ),
@@ -4290,7 +5027,8 @@ class _CinemaViewState extends State<CinemaView> {
                                       '${i18n.playbackRate} (${widget.session.playback.rate}x)',
                                   child: GestureDetector(
                                     key: const ValueKey(
-                                        'cinema-playback-rate-btn'),
+                                      'cinema-playback-rate-btn',
+                                    ),
                                     onTap: isHostOrAdmin
                                         ? () {
                                             _restartControlsTimer();
@@ -4304,8 +5042,7 @@ class _CinemaViewState extends State<CinemaView> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: Colors.white12,
-                                        borderRadius:
-                                            BorderRadius.circular(6),
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
                                         '${widget.session.playback.rate}x',
@@ -4332,7 +5069,8 @@ class _CinemaViewState extends State<CinemaView> {
                                   message: i18n.fullscreenTooltip,
                                   child: IconButton(
                                     key: const ValueKey(
-                                        'cinema-fullscreen-btn'),
+                                      'cinema-fullscreen-btn',
+                                    ),
                                     padding: EdgeInsets.zero,
                                     constraints: BoxConstraints(
                                       minWidth: isShort ? 28 : 34,
@@ -4353,7 +5091,7 @@ class _CinemaViewState extends State<CinemaView> {
                             ],
                           )
                         : // ─── 横屏全屏模式双层控制台 (功能完整专业宽屏) ───
-                        Column(
+                          Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               // Timeline Slider & Timestamps
@@ -4365,7 +5103,7 @@ class _CinemaViewState extends State<CinemaView> {
                                       color: Colors.white,
                                       fontSize: isShort ? 10.5 : 11.5,
                                       fontFeatures: const [
-                                        FontFeature.tabularFigures()
+                                        FontFeature.tabularFigures(),
                                       ],
                                     ),
                                   ),
@@ -4374,73 +5112,87 @@ class _CinemaViewState extends State<CinemaView> {
                                     child: Material(
                                       type: MaterialType.transparency,
                                       child: SliderTheme(
-                                              data: SliderTheme.of(context).copyWith(
-                                                activeTrackColor: tc.primary,
-                                                inactiveTrackColor: Colors.white24,
-                                                secondaryActiveTrackColor: tc.primary
-                                                    .withValues(alpha: 0.35),
-                                                thumbColor: Colors.white,
-                                                thumbShape: RoundSliderThumbShape(
-                                                    enabledThumbRadius:
-                                                        isShort ? 4.5 : 6),
-                                                overlayShape: RoundSliderOverlayShape(
-                                                    overlayRadius: isShort ? 9 : 12),
-                                                trackHeight: isShort ? 2.5 : 3.5,
-                                                allowedInteraction: SliderInteraction.tapAndSlide,
-                                              ),
-                                              child: Slider(
-                                                key: const ValueKey(
-                                                    'cinema-timeline-slider'),
-                                                value: displayRatio,
-                                                secondaryTrackValue:
-                                                    (syncTargetRatio > 0.0 &&
-                                                            syncTargetRatio !=
-                                                                displayRatio &&
-                                                            _draggingSliderValue ==
-                                                                null)
-                                                        ? syncTargetRatio
-                                                        : null,
-                                                onChangeStart: (isHostOrAdmin &&
-                                                        mediaDuration.inMilliseconds > 0)
-                                                    ? (val) {
-                                                        _restartControlsTimer();
-                                                        _optimisticSeekTimer?.cancel();
-                                                        setState(() {
-                                                          _draggingSliderValue = val.clamp(0.0, 1.0);
-                                                          _optimisticSeekRatio = val.clamp(0.0, 1.0);
-                                                        });
-                                                      }
-                                                    : null,
-                                                onChanged: (isHostOrAdmin &&
-                                                        mediaDuration
-                                                                .inMilliseconds >
-                                                            0)
-                                                    ? (val) {
-                                                        _restartControlsTimer();
-                                                        setState(() =>
-                                                            _draggingSliderValue = val
-                                                                .clamp(0.0, 1.0));
-                                                      }
-                                                    : null,
-                                                onChangeEnd: (isHostOrAdmin &&
-                                                        mediaDuration
-                                                                .inMilliseconds >
-                                                            0)
-                                                    ? (val) => _onSliderSeek(val, mediaDuration)
-                                                    : null,
-                                              ),
-                                            ),
+                                        data: SliderTheme.of(context).copyWith(
+                                          activeTrackColor: tc.primary,
+                                          inactiveTrackColor: Colors.white24,
+                                          secondaryActiveTrackColor: tc.primary
+                                              .withValues(alpha: 0.35),
+                                          thumbColor: Colors.white,
+                                          thumbShape: RoundSliderThumbShape(
+                                            enabledThumbRadius: isShort
+                                                ? 4.5
+                                                : 6,
                                           ),
+                                          overlayShape: RoundSliderOverlayShape(
+                                            overlayRadius: isShort ? 9 : 12,
+                                          ),
+                                          trackHeight: isShort ? 2.5 : 3.5,
+                                          allowedInteraction:
+                                              SliderInteraction.tapAndSlide,
                                         ),
+                                        child: Slider(
+                                          key: const ValueKey(
+                                            'cinema-timeline-slider',
+                                          ),
+                                          value: displayRatio,
+                                          secondaryTrackValue:
+                                              (syncTargetRatio > 0.0 &&
+                                                  syncTargetRatio !=
+                                                      displayRatio &&
+                                                  _draggingSliderValue == null)
+                                              ? syncTargetRatio
+                                              : null,
+                                          onChangeStart:
+                                              (isHostOrAdmin &&
+                                                  mediaDuration.inMilliseconds >
+                                                      0)
+                                              ? (val) {
+                                                  _restartControlsTimer();
+                                                  _optimisticSeekTimer
+                                                      ?.cancel();
+                                                  setState(() {
+                                                    _draggingSliderValue = val
+                                                        .clamp(0.0, 1.0);
+                                                    _optimisticSeekRatio = val
+                                                        .clamp(0.0, 1.0);
+                                                  });
+                                                }
+                                              : null,
+                                          onChanged:
+                                              (isHostOrAdmin &&
+                                                  mediaDuration.inMilliseconds >
+                                                      0)
+                                              ? (val) {
+                                                  _restartControlsTimer();
+                                                  setState(
+                                                    () => _draggingSliderValue =
+                                                        val.clamp(0.0, 1.0),
+                                                  );
+                                                }
+                                              : null,
+                                          onChangeEnd:
+                                              (isHostOrAdmin &&
+                                                  mediaDuration.inMilliseconds >
+                                                      0)
+                                              ? (val) => _onSliderSeek(
+                                                  val,
+                                                  mediaDuration,
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                   const SizedBox(width: 8),
                                   Text(
                                     formatDuration(mediaDuration),
                                     style: TextStyle(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.7),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.7,
+                                      ),
                                       fontSize: isShort ? 10.5 : 11.5,
                                       fontFeatures: const [
-                                        FontFeature.tabularFigures()
+                                        FontFeature.tabularFigures(),
                                       ],
                                     ),
                                   ),
@@ -4454,8 +5206,7 @@ class _CinemaViewState extends State<CinemaView> {
                                 children: [
                                   // Rewind 10s button
                                   IconButton(
-                                    key: const ValueKey(
-                                        'cinema-rewind-10-btn'),
+                                    key: const ValueKey('cinema-rewind-10-btn'),
                                     padding: isShort
                                         ? const EdgeInsets.all(4)
                                         : const EdgeInsets.all(6),
@@ -4482,17 +5233,18 @@ class _CinemaViewState extends State<CinemaView> {
                                     label: !isHostOrAdmin
                                         ? '${isPlaying ? i18n.pauseTooltip : i18n.playTooltip} (${i18n.readOnlyControlTooltip})'
                                         : (isPlaying
-                                            ? i18n.pauseTooltip
-                                            : i18n.playTooltip),
+                                              ? i18n.pauseTooltip
+                                              : i18n.playTooltip),
                                     child: Tooltip(
                                       message: !isHostOrAdmin
                                           ? i18n.readOnlyControlTooltip
                                           : (isPlaying
-                                              ? i18n.pauseTooltip
-                                              : i18n.playTooltip),
+                                                ? i18n.pauseTooltip
+                                                : i18n.playTooltip),
                                       child: IconButton(
                                         key: const ValueKey(
-                                            'cinema-play-pause-btn'),
+                                          'cinema-play-pause-btn',
+                                        ),
                                         padding: isShort
                                             ? const EdgeInsets.all(4)
                                             : const EdgeInsets.all(8),
@@ -4502,7 +5254,7 @@ class _CinemaViewState extends State<CinemaView> {
                                         icon: Icon(
                                           isPlaying
                                               ? Icons
-                                                  .pause_circle_filled_rounded
+                                                    .pause_circle_filled_rounded
                                               : Icons.play_circle_fill_rounded,
                                           color: isHostOrAdmin
                                               ? tc.primary
@@ -4529,7 +5281,8 @@ class _CinemaViewState extends State<CinemaView> {
                                   // Forward 10s button
                                   IconButton(
                                     key: const ValueKey(
-                                        'cinema-forward-10-btn'),
+                                      'cinema-forward-10-btn',
+                                    ),
                                     padding: isShort
                                         ? const EdgeInsets.all(4)
                                         : const EdgeInsets.all(6),
@@ -4562,7 +5315,8 @@ class _CinemaViewState extends State<CinemaView> {
                                           : i18n.muteTooltip,
                                       child: IconButton(
                                         key: const ValueKey(
-                                            'cinema-volume-mute-btn'),
+                                          'cinema-volume-mute-btn',
+                                        ),
                                         padding: isShort
                                             ? const EdgeInsets.all(4)
                                             : const EdgeInsets.all(8),
@@ -4580,7 +5334,8 @@ class _CinemaViewState extends State<CinemaView> {
                                           _restartControlsTimer();
                                           setState(() => _isMuted = !_isMuted);
                                           widget.session.player.setVolume(
-                                              _isMuted ? 0.0 : _volume * 100.0);
+                                            _isMuted ? 0.0 : _volume * 100.0,
+                                          );
                                         },
                                       ),
                                     ),
@@ -4598,7 +5353,8 @@ class _CinemaViewState extends State<CinemaView> {
                                           : '${i18n.playbackRate} (${i18n.readOnlyControlTooltip})',
                                       child: GestureDetector(
                                         key: const ValueKey(
-                                            'cinema-playback-rate-btn'),
+                                          'cinema-playback-rate-btn',
+                                        ),
                                         onTap: isHostOrAdmin
                                             ? () {
                                                 _restartControlsTimer();
@@ -4612,8 +5368,9 @@ class _CinemaViewState extends State<CinemaView> {
                                           ),
                                           decoration: BoxDecoration(
                                             color: Colors.white12,
-                                            borderRadius:
-                                                BorderRadius.circular(6),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
                                           ),
                                           child: Text(
                                             '${widget.session.playback.rate}x',
@@ -4638,7 +5395,8 @@ class _CinemaViewState extends State<CinemaView> {
                                         '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? "适应" : (_aspectFit == BoxFit.cover ? "铺满" : "拉伸")}',
                                     child: IconButton(
                                       key: const ValueKey(
-                                          'cinema-aspect-ratio-btn'),
+                                        'cinema-aspect-ratio-btn',
+                                      ),
                                       padding: isShort
                                           ? const EdgeInsets.all(4)
                                           : const EdgeInsets.all(8),
@@ -4663,7 +5421,8 @@ class _CinemaViewState extends State<CinemaView> {
                                       message: i18n.exitFullscreenTooltip,
                                       child: IconButton(
                                         key: const ValueKey(
-                                            'cinema-fullscreen-btn'),
+                                          'cinema-fullscreen-btn',
+                                        ),
                                         padding: isShort
                                             ? const EdgeInsets.all(4)
                                             : const EdgeInsets.all(8),
@@ -4743,7 +5502,11 @@ class _CinemaViewState extends State<CinemaView> {
     );
   }
 
-  Widget _buildPlaylistTab(BuildContext context, bool isHostOrAdmin, {bool isShort = false}) {
+  Widget _buildPlaylistTab(
+    BuildContext context,
+    bool isHostOrAdmin, {
+    bool isShort = false,
+  }) {
     final i18n = AppI18n.of(context);
     final tc = ThemeColors.of(context);
     final playlist = widget.session.playlist;
@@ -4776,7 +5539,13 @@ class _CinemaViewState extends State<CinemaView> {
                     children: [
                       const Icon(Icons.add_rounded, size: 14),
                       const SizedBox(width: 4),
-                      Text(i18n.addMedia, style: TextStyle(fontSize: isShort ? 11 : 11.5, fontWeight: FontWeight.w600)),
+                      Text(
+                        i18n.addMedia,
+                        style: TextStyle(
+                          fontSize: isShort ? 11 : 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -4788,18 +5557,43 @@ class _CinemaViewState extends State<CinemaView> {
         Expanded(
           child: playlist.isEmpty
               ? Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.video_collection_outlined, size: isShort ? 28 : 32, color: tc.textTertiary),
+                        Icon(
+                          Icons.video_collection_outlined,
+                          size: isShort ? 28 : 32,
+                          color: tc.textTertiary,
+                        ),
                         SizedBox(height: isShort ? 4 : 6),
                         Text(
                           i18n.playlistEmpty,
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: isShort ? 11 : 12, color: tc.textTertiary),
+                          style: TextStyle(
+                            fontSize: isShort ? 11 : 12,
+                            color: tc.textTertiary,
+                          ),
                         ),
+                        if (isHostOrAdmin) ...[
+                          const SizedBox(height: 12),
+                          LiquidGlassActionButton(
+                            height: 32,
+                            onTap: () => _showAddMediaDialog(context),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.add_rounded, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  i18n.addMedia,
+                                  style: const TextStyle(fontSize: 11.5),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -4829,10 +5623,15 @@ class _CinemaViewState extends State<CinemaView> {
                             : tc.inputBackground,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: isCurrent ? tc.primary.withValues(alpha: 0.4) : Colors.transparent,
+                          color: isCurrent
+                              ? tc.primary.withValues(alpha: 0.4)
+                              : Colors.transparent,
                         ),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
                       child: Row(
                         children: [
                           if (isHostOrAdmin)
@@ -4842,12 +5641,18 @@ class _CinemaViewState extends State<CinemaView> {
                                 cursor: SystemMouseCursors.grab,
                                 child: Padding(
                                   padding: const EdgeInsets.only(right: 6),
-                                  child: Icon(Icons.drag_indicator_rounded, size: 16, color: tc.textTertiary),
+                                  child: Icon(
+                                    Icons.drag_indicator_rounded,
+                                    size: 16,
+                                    color: tc.textTertiary,
+                                  ),
                                 ),
                               ),
                             ),
                           Icon(
-                            item.sourceType == 'local' ? Icons.folder_rounded : Icons.link_rounded,
+                            item.sourceType == 'local'
+                                ? Icons.folder_rounded
+                                : Icons.link_rounded,
                             size: 16,
                             color: isCurrent ? tc.primary : tc.textSecondary,
                           ),
@@ -4862,8 +5667,12 @@ class _CinemaViewState extends State<CinemaView> {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 12.5,
-                                    fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
-                                    color: isCurrent ? tc.primary : tc.textPrimary,
+                                    fontWeight: isCurrent
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: isCurrent
+                                        ? tc.primary
+                                        : tc.textPrimary,
                                   ),
                                 ),
                                 if (item.url != null)
@@ -4871,7 +5680,10 @@ class _CinemaViewState extends State<CinemaView> {
                                     item.url!,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(fontSize: 10.5, color: tc.textTertiary),
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: tc.textTertiary,
+                                    ),
                                   ),
                               ],
                             ),
@@ -4879,28 +5691,44 @@ class _CinemaViewState extends State<CinemaView> {
                           if (isOffline)
                             Container(
                               margin: const EdgeInsets.only(right: 6),
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.orange.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                                border: Border.all(
+                                  color: Colors.orange.withValues(alpha: 0.4),
+                                ),
                               ),
                               child: Text(
                                 i18n.sourceUserLeftRoom,
-                                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.orangeAccent),
+                                style: const TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.orangeAccent,
+                                ),
                               ),
                             ),
                           if (isCurrent)
                             Container(
                               margin: const EdgeInsets.only(right: 6),
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: tc.primary,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 i18n.nowPlayingBadge,
-                                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.white),
+                                style: const TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           if (isHostOrAdmin) ...[
@@ -4910,13 +5738,22 @@ class _CinemaViewState extends State<CinemaView> {
                               enabled: index > 0,
                               label: '${i18n.moveUp}: ${item.title}',
                               child: IconButton(
-                                icon: const Icon(Icons.arrow_upward_rounded, size: 16),
+                                icon: const Icon(
+                                  Icons.arrow_upward_rounded,
+                                  size: 16,
+                                ),
                                 tooltip: i18n.moveUp,
                                 visualDensity: VisualDensity.compact,
                                 padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                constraints: const BoxConstraints(
+                                  minWidth: 28,
+                                  minHeight: 28,
+                                ),
                                 onPressed: index > 0
-                                    ? () => widget.session.reorderItem(item.itemId, index - 1)
+                                    ? () => widget.session.reorderItem(
+                                        item.itemId,
+                                        index - 1,
+                                      )
                                     : null,
                               ),
                             ),
@@ -4926,13 +5763,22 @@ class _CinemaViewState extends State<CinemaView> {
                               enabled: index < playlist.length - 1,
                               label: '${i18n.moveDown}: ${item.title}',
                               child: IconButton(
-                                icon: const Icon(Icons.arrow_downward_rounded, size: 16),
+                                icon: const Icon(
+                                  Icons.arrow_downward_rounded,
+                                  size: 16,
+                                ),
                                 tooltip: i18n.moveDown,
                                 visualDensity: VisualDensity.compact,
                                 padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                constraints: const BoxConstraints(
+                                  minWidth: 28,
+                                  minHeight: 28,
+                                ),
                                 onPressed: index < playlist.length - 1
-                                    ? () => widget.session.reorderItem(item.itemId, index + 1)
+                                    ? () => widget.session.reorderItem(
+                                        item.itemId,
+                                        index + 1,
+                                      )
                                     : null,
                               ),
                             ),
@@ -4942,12 +5788,19 @@ class _CinemaViewState extends State<CinemaView> {
                               enabled: true,
                               label: '${i18n.replaceMedia}: ${item.title}',
                               child: IconButton(
-                                icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                                icon: const Icon(
+                                  Icons.swap_horiz_rounded,
+                                  size: 16,
+                                ),
                                 tooltip: i18n.replaceMedia,
                                 visualDensity: VisualDensity.compact,
                                 padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                onPressed: () => _showReplaceMediaDialog(context, item),
+                                constraints: const BoxConstraints(
+                                  minWidth: 28,
+                                  minHeight: 28,
+                                ),
+                                onPressed: () =>
+                                    _showReplaceMediaDialog(context, item),
                               ),
                             ),
                             // Switch item (if not current)
@@ -4962,10 +5815,15 @@ class _CinemaViewState extends State<CinemaView> {
                                     size: 18,
                                     color: isOffline ? Colors.white24 : null,
                                   ),
-                                  tooltip: isOffline ? i18n.sourceUserLeftRoom : i18n.switchMedia,
+                                  tooltip: isOffline
+                                      ? i18n.sourceUserLeftRoom
+                                      : i18n.switchMedia,
                                   visualDensity: VisualDensity.compact,
                                   padding: const EdgeInsets.all(4),
-                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 28,
+                                    minHeight: 28,
+                                  ),
                                   onPressed: isOffline
                                       ? () {
                                           showLiquidGlassSnackBar(
@@ -4976,7 +5834,9 @@ class _CinemaViewState extends State<CinemaView> {
                                             iconColor: Colors.orangeAccent,
                                           );
                                         }
-                                      : () => widget.session.switchItem(item.itemId),
+                                      : () => widget.session.switchItem(
+                                          item.itemId,
+                                        ),
                                 ),
                               ),
                             // Remove item
@@ -4985,12 +5845,20 @@ class _CinemaViewState extends State<CinemaView> {
                               enabled: true,
                               label: '${i18n.removeMedia}: ${item.title}',
                               child: IconButton(
-                                icon: Icon(Icons.delete_outline_rounded, size: 16, color: tc.error),
+                                icon: Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 16,
+                                  color: tc.error,
+                                ),
                                 tooltip: i18n.removeMedia,
                                 visualDensity: VisualDensity.compact,
                                 padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                onPressed: () => widget.session.removeItem(item.itemId),
+                                constraints: const BoxConstraints(
+                                  minWidth: 28,
+                                  minHeight: 28,
+                                ),
+                                onPressed: () =>
+                                    widget.session.removeItem(item.itemId),
                               ),
                             ),
                           ],
@@ -5015,7 +5883,11 @@ class _CinemaViewState extends State<CinemaView> {
       children: [
         Text(
           '${i18n.tabMembers} (${members.length})',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: tc.textPrimary),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: tc.textPrimary,
+          ),
         ),
         const SizedBox(height: 8),
 
@@ -5035,7 +5907,10 @@ class _CinemaViewState extends State<CinemaView> {
                   color: tc.inputBackground,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Stack(
@@ -5058,10 +5933,15 @@ class _CinemaViewState extends State<CinemaView> {
                               decoration: BoxDecoration(
                                 color: isMemberOwner ? tc.warning : tc.primary,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: tc.background, width: 1.5),
+                                border: Border.all(
+                                  color: tc.background,
+                                  width: 1.5,
+                                ),
                               ),
                               child: Icon(
-                                isMemberOwner ? Icons.star_rounded : Icons.shield_rounded,
+                                isMemberOwner
+                                    ? Icons.star_rounded
+                                    : Icons.shield_rounded,
                                 size: 7,
                                 color: Colors.white,
                               ),
@@ -5089,7 +5969,11 @@ class _CinemaViewState extends State<CinemaView> {
                               if (isMe)
                                 Text(
                                   ' ${i18n.peerYou}',
-                                  style: TextStyle(fontSize: 11, color: tc.primary, fontWeight: FontWeight.w600),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: tc.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                             ],
                           ),
@@ -5097,7 +5981,9 @@ class _CinemaViewState extends State<CinemaView> {
                             formatDeviceId(member.deviceId),
                             style: TextStyle(
                               fontSize: 10.5,
-                              fontFeatures: const [FontFeature.tabularFigures()],
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
                               color: tc.textTertiary,
                             ),
                           ),
@@ -5105,7 +5991,9 @@ class _CinemaViewState extends State<CinemaView> {
                           // F08: Member Playback Telemetry (Strict truthfulness: buffering=false != synced)
                           Builder(
                             builder: (context) {
-                              final telemetry = widget.session.memberTelemetry[member.deviceId];
+                              final telemetry = widget
+                                  .session
+                                  .memberTelemetry[member.deviceId];
                               final memberName = member.displayName.isNotEmpty
                                   ? member.displayName
                                   : formatDeviceId(member.deviceId);
@@ -5117,7 +6005,9 @@ class _CinemaViewState extends State<CinemaView> {
                                 label: semanticLabel,
                                 container: true,
                                 child: Container(
-                                  key: ValueKey('member-telemetry-${member.deviceId}'),
+                                  key: ValueKey(
+                                    'member-telemetry-${member.deviceId}',
+                                  ),
                                   child: telemetry != null
                                       ? Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -5125,27 +6015,44 @@ class _CinemaViewState extends State<CinemaView> {
                                             Icon(
                                               telemetry.buffering
                                                   ? Icons.hourglass_top_rounded
-                                                  : Icons.play_circle_outline_rounded,
+                                                  : Icons
+                                                        .play_circle_outline_rounded,
                                               size: 11,
-                                              color: telemetry.buffering ? tc.warning : tc.primary,
+                                              color: telemetry.buffering
+                                                  ? tc.warning
+                                                  : tc.primary,
                                             ),
                                             const SizedBox(width: 3.5),
                                             Text(
-                                              formatDuration(Duration(milliseconds: telemetry.positionMs)),
+                                              formatDuration(
+                                                Duration(
+                                                  milliseconds:
+                                                      telemetry.positionMs,
+                                                ),
+                                              ),
                                               style: TextStyle(
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.w600,
-                                                fontFeatures: const [FontFeature.tabularFigures()],
+                                                fontFeatures: const [
+                                                  FontFeature.tabularFigures(),
+                                                ],
                                                 color: tc.textSecondary,
                                               ),
                                             ),
                                             if (telemetry.buffering) ...[
                                               const SizedBox(width: 5),
                                               Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 4,
+                                                      vertical: 0.5,
+                                                    ),
                                                 decoration: BoxDecoration(
-                                                  color: tc.warning.withValues(alpha: 0.18),
-                                                  borderRadius: BorderRadius.circular(3),
+                                                  color: tc.warning.withValues(
+                                                    alpha: 0.18,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(3),
                                                 ),
                                                 child: Text(
                                                   i18n.telemetryBuffering,
@@ -5187,19 +6094,24 @@ class _CinemaViewState extends State<CinemaView> {
 
                     // Role Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2.5,
+                      ),
                       decoration: BoxDecoration(
                         color: isMemberOwner
                             ? tc.warning.withValues(alpha: 0.16)
                             : (isMemberAdmin
-                                ? tc.primary.withValues(alpha: 0.14)
-                                : tc.inputBackground),
+                                  ? tc.primary.withValues(alpha: 0.14)
+                                  : tc.inputBackground),
                         borderRadius: BorderRadius.circular(5),
                       ),
                       child: Text(
                         isMemberOwner
                             ? i18n.roleOwner
-                            : (isMemberAdmin ? i18n.roleAdmin : i18n.roleMember),
+                            : (isMemberAdmin
+                                  ? i18n.roleAdmin
+                                  : i18n.roleMember),
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -5259,10 +6171,22 @@ class _CinemaViewState extends State<CinemaView> {
           if (session.inviteText != null)
             _buildInfoRow(context, i18n.copyInvite, session.inviteText!),
           _buildInfoRow(context, i18n.deviceIdLabel, session.identity.deviceId),
-          _buildInfoRow(context, i18n.currentSeqLabel, session.playback.seq.toString()),
-          _buildInfoRow(context, i18n.localPlaybackPos, formatDuration(session.player.state.position)),
+          _buildInfoRow(
+            context,
+            i18n.currentSeqLabel,
+            session.playback.seq.toString(),
+          ),
+          _buildInfoRow(
+            context,
+            i18n.localPlaybackPos,
+            formatDuration(session.player.state.position),
+          ),
           if (session.playback.position > Duration.zero)
-            _buildInfoRow(context, i18n.syncTargetLabel, formatDuration(session.playback.position)),
+            _buildInfoRow(
+              context,
+              i18n.syncTargetLabel,
+              formatDuration(session.playback.position),
+            ),
         ],
       ),
     );

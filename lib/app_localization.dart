@@ -430,6 +430,37 @@ class AppI18n {
   String get transportTailcat => isZh ? 'Tailcat 穿透引擎 (跨网推荐)' : 'Tailcat Magicsock (Recommended for WAN)';
   String get transportWebrtcDesc => isZh ? '超轻量无额外体积，原生支持 Web 浏览器，适合同 Wi-Fi 或具备公网条件的环境。' : 'Lightweight, native browser support, best for same LAN or reachable IP networks.';
   String get transportTailcatDesc => isZh ? '内置 Tailscale Magicsock + WireGuard，直连失败自动走全球 DERP 节点（走 443 端口），抗丢包穿透率 99.9%。' : 'WireGuard + Magicsock with automatic global DERP fallback (HTTPS 443), 99.9% NAT traversal.';
+
+  // Tabs for Settings
+  String get tabAll => isZh ? '全部' : 'All';
+  String get tabPersonalization => isZh ? '个性化与外观' : 'Personalization';
+  String get tabNetwork => isZh ? '网络与连接' : 'Network & Relay';
+  String get tabSystem => isZh ? '系统与存储' : 'System & Storage';
+
+  // Recent Rooms & Clipboard
+  String get recentRooms => isZh ? '最近放映室' : 'Recent Cinemas';
+  String get noRecentRooms => isZh ? '暂无历史房间，创建或加入放映室后将在此快捷显示' : 'No recent rooms yet. Created or joined cinemas will show here.';
+  String get clearHistory => isZh ? '清空历史' : 'Clear History';
+  String get rejoin => isZh ? '快速重连' : 'Rejoin';
+  String get clipboardInviteDetected => isZh ? '检测到放映室口令' : 'Cinema invite detected';
+  String get quickJoin => isZh ? '立即加入' : 'Quick Join';
+
+  // Greetings & Subtitles
+  String get welcomeGreetingMorning => isZh ? '早上好，来一部清晨好片？' : 'Good morning, ready for a movie?';
+  String get welcomeGreetingAfternoon => isZh ? '下午好，准备好一起看电影了吗？' : 'Good afternoon, ready for a movie?';
+  String get welcomeGreetingEvening => isZh ? '晚上好，今晚看点什么？' : 'Good evening, what to watch tonight?';
+  String get createRoomSubtitle => isZh ? '成为房主，添加本地或在线片源并邀请朋友同看' : 'Host a room, stream local or online media with friends';
+  String get joinRoomSubtitle => isZh ? '输入 6 位房间口令或邀请链接加入放映' : 'Enter 6-digit room code or invite link';
+
+  // Empty Cinema Playlist & Invite
+  String get emptyPlaylistTitle => isZh ? '放映室屏幕静默中' : 'Cinema screen is quiet';
+  String get emptyPlaylistDesc => isZh ? '房主可添加本地视频或在线流媒体链接，所有成员画面毫秒级实时同步' : 'Host can add local files or streaming links with frame-accurate sync';
+  String get addLocalVideo => isZh ? '添加本地视频' : 'Add Local Video';
+  String get addOnlineStream => isZh ? '添加在线链接' : 'Add Online URL';
+  String get shareInviteTitle => isZh ? '邀请好友同看' : 'Invite Friends to Watch';
+  String get shareInviteDesc => isZh ? '将房间口令或网页链接发送给好友，对方打开即可同步观看' : 'Send the room code or web link to friends to watch together';
+  String get copyWebLink => isZh ? '复制网页链接' : 'Copy Web Link';
+  String get webLinkCopied => isZh ? '网页邀请链接已复制' : 'Web invite link copied';
 }
 
 class AppLocalizationsDelegate extends LocalizationsDelegate<AppI18n> {
