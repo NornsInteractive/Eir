@@ -311,11 +311,20 @@ void main() {
     expect(pipTopLeft.dy, lessThanOrEqualTo(220.0));
     expect(pipTopLeft.dy, greaterThanOrEqualTo(10.0));
 
+    // Drag PIP window across screen and verify responsive displacement
+    await tester.drag(pipFinder, const Offset(60.0, 30.0));
+    await tester.pump(const Duration(milliseconds: 50));
+    final draggedPos = tester.getTopLeft(pipFinder);
+    expect(draggedPos.dx, greaterThan(pipTopLeft.dx + 30.0));
+    expect(draggedPos.dy, greaterThan(pipTopLeft.dy + 15.0));
+
     // Double tap to reset
     await tester.tap(pipFinder);
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tap(pipFinder);
     await tester.pump(const Duration(milliseconds: 100));
+    final resetPos = tester.getTopLeft(pipFinder);
+    expect(resetPos.dx, closeTo(16.0, 2.0));
 
     // Clean up
     await tester.tap(find.byKey(const ValueKey('cinema-call-hangup-btn')));

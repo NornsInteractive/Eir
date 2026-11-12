@@ -2017,6 +2017,8 @@ class _CinemaViewState extends State<CinemaView> {
     final maxDy = (size.height - pipH - 10.0).clamp(minDy, 4000.0);
     final effectivePipDx = _pipOffset.dx.clamp(minDx, maxDx);
     final effectivePipDy = _pipOffset.dy.clamp(minDy, maxDy);
+    // Normalize _pipOffset so internal coordinates match visible clamped boundaries
+    _pipOffset = Offset(effectivePipDx, effectivePipDy);
 
     return Stack(
       fit: StackFit.expand,
@@ -2024,19 +2026,25 @@ class _CinemaViewState extends State<CinemaView> {
         // Video PIP window if in video call and not minimized
         if (callSession.type == CallType.video && !callSession.isPipMinimized)
           Positioned(
-            left: effectivePipDx,
-            top: effectivePipDy,
+            left: _pipOffset.dx,
+            top: _pipOffset.dy,
             child: GestureDetector(
               onDoubleTap: () {
                 setState(() {
                   _pipOffset = Offset(16.0, minDy);
                 });
               },
+              onPanStart: (_) {
+                _pipOffset = Offset(
+                  _pipOffset.dx.clamp(minDx, maxDx),
+                  _pipOffset.dy.clamp(minDy, maxDy),
+                );
+              },
               onPanUpdate: (d) {
                 setState(() {
                   _pipOffset = Offset(
-                    (effectivePipDx + d.delta.dx).clamp(minDx, maxDx),
-                    (effectivePipDy + d.delta.dy).clamp(minDy, maxDy),
+                    (_pipOffset.dx + d.delta.dx).clamp(minDx, maxDx),
+                    (_pipOffset.dy + d.delta.dy).clamp(minDy, maxDy),
                   );
                 });
               },
