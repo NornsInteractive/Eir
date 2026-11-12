@@ -270,4 +270,56 @@ void main() {
 
     expect(find.byKey(const ValueKey('cinema-call-connected-bar')), findsNothing);
   });
+
+  testWidgets('CinemaView video call PIP window clamps properly to landscape viewport', (tester) async {
+    final session = _FakeChatCallRoomSession();
+
+    await tester.pumpWidget(
+      _wrap(
+        CinemaView(
+          session: session,
+          onLeaveRoom: () {},
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Simulate incoming video call
+    await session.callSession.handleCallSignal({
+      'type': 'call_invite',
+      'callType': 'video',
+      'callerId': 'peer-dev-video',
+      'callerName': 'PeerAlice',
+    });
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Accept Video Call
+    await tester.tap(find.byKey(const ValueKey('cinema-call-accept-btn')));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byKey(const ValueKey('cinema-video-pip-window')), findsOneWidget);
+
+    // Simulate switching screen to mobile landscape (800x360)
+    await tester.binding.setSurfaceSize(const Size(800, 360));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final pipFinder = find.byKey(const ValueKey('cinema-video-pip-window'));
+    expect(pipFinder, findsOneWidget);
+
+    final pipTopLeft = tester.getTopLeft(pipFinder);
+    // On 360 height, pip window top must be within screen (<= 360 - 145 = 215)
+    expect(pipTopLeft.dy, lessThanOrEqualTo(220.0));
+    expect(pipTopLeft.dy, greaterThanOrEqualTo(10.0));
+
+    // Double tap to reset
+    await tester.tap(pipFinder);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(pipFinder);
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Clean up
+    await tester.tap(find.byKey(const ValueKey('cinema-call-hangup-btn')));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.binding.setSurfaceSize(null);
+  });
 }

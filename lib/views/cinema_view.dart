@@ -2009,25 +2009,34 @@ class _CinemaViewState extends State<CinemaView> {
     }
 
     // Connected Call
+    final pipW = isShort ? 110.0 : 130.0;
+    final pipH = isShort ? 145.0 : 170.0;
+    const minDx = 10.0;
+    final minDy = isFullscreen ? 10.0 : (MediaQuery.paddingOf(context).top + 54.0);
+    final maxDx = (size.width - pipW - 10.0).clamp(minDx, 4000.0);
+    final maxDy = (size.height - pipH - 10.0).clamp(minDy, 4000.0);
+    final effectivePipDx = _pipOffset.dx.clamp(minDx, maxDx);
+    final effectivePipDy = _pipOffset.dy.clamp(minDy, maxDy);
+
     return Stack(
       fit: StackFit.expand,
       children: [
         // Video PIP window if in video call and not minimized
         if (callSession.type == CallType.video && !callSession.isPipMinimized)
           Positioned(
-            left: _pipOffset.dx,
-            top: _pipOffset.dy,
+            left: effectivePipDx,
+            top: effectivePipDy,
             child: GestureDetector(
+              onDoubleTap: () {
+                setState(() {
+                  _pipOffset = Offset(16.0, minDy);
+                });
+              },
               onPanUpdate: (d) {
-                final pipW = isShort ? 110.0 : 130.0;
-                final pipH = isShort ? 145.0 : 170.0;
-                final maxDx = (size.width - pipW - 10.0).clamp(10.0, 4000.0);
-                final maxDy = (size.height - pipH - 10.0).clamp(10.0, 4000.0);
-                final minDy = isFullscreen ? 10.0 : (MediaQuery.paddingOf(context).top + 54.0);
                 setState(() {
                   _pipOffset = Offset(
-                    (_pipOffset.dx + d.delta.dx).clamp(10.0, maxDx),
-                    (_pipOffset.dy + d.delta.dy).clamp(minDy, maxDy),
+                    (effectivePipDx + d.delta.dx).clamp(minDx, maxDx),
+                    (effectivePipDy + d.delta.dy).clamp(minDy, maxDy),
                   );
                 });
               },
