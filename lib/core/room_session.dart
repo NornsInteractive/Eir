@@ -449,21 +449,26 @@ class RoomSession extends ChangeNotifier {
       'signal': signal,
       ...signal,
     };
-    unawaited(_sendDc(payload));
-    if (_roomId != null) {
-      // Send as room_msg (guaranteed supported by existing/updated servers)
-      _signaling.send({
-        'type': 'signal',
-        'roomId': _roomId,
-        'kind': 'room_msg',
-        'payload': payload,
-      });
-      // Also send as direct call_signal for dedicated signal handlers
+    // Direct P2P data channel if active and open
+    final dc = _dc;
+    final tailcat = _tailcatTransport;
+    if (tailcat != null && tailcat.isOpen) {
+      try {
+        await tailcat.sendText(jsonEncode(payload));
+      } catch (_) {}
+    } else if (dc != null && _dcStateOpen() == true) {
+      try {
+        await dc.send(RTCDataChannelMessage(jsonEncode(payload)));
+      } catch (_) {}
+    }
+
+    // Always send single canonical call_signal via signaling server WebSocket
+    if (_roomId != null && _signaling.isConnected) {
       _signaling.send({
         'type': 'signal',
         'roomId': _roomId,
         'kind': 'call_signal',
-        'payload': signal,
+        'payload': payload,
       });
     }
   }
@@ -1730,6 +1735,7 @@ class RoomSession extends ChangeNotifier {
       'permission_denied': 'permission_denied',
     }[code] ??
         'signaling_unavailable';
+    debugPrint('[RoomSession] Server error: code=$code, mapped=$mapped, raw=$msg');
     _lastErrorCode = mapped;
     final query = _roomCodeQuery;
     if (query != null && !query.isCompleted) {
@@ -1924,7 +1930,8 @@ class RoomSession extends ChangeNotifier {
     if (kind == 'call_signal') {
       final payload = (msg['payload'] as Map?)?.cast<String, dynamic>();
       if (payload != null) {
-        unawaited(callSession.handleCallSignal(payload));
+        final sig = (payload['signal'] as Map?)?.cast<String, dynamic>() ?? payload;
+        unawaited(callSession.handleCallSignal(sig));
       }
       return;
     }

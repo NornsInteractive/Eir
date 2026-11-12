@@ -195,5 +195,39 @@ void main() {
       session.dispose();
       expect(session.state, CallState.idle);
     });
+
+    test('CallSession deduplicates duplicate call_invite from the same caller without busy rejection', () async {
+      final signals = <Map<String, dynamic>>[];
+      final session = CallSession(
+        sendSignal: (sig) async => signals.add(sig),
+        getCurrentDeviceId: () => 'my-dev-id',
+        getCurrentDisplayName: () => 'Alice',
+        getCurrentAvatar: () => null,
+      );
+
+      // First invite
+      await session.handleCallSignal({
+        'type': 'call_invite',
+        'callType': 'voice',
+        'callerId': 'caller-bob',
+        'callerName': 'Bob',
+      });
+      expect(session.state, CallState.incoming);
+      expect(session.peerName, 'Bob');
+
+      // Duplicate invite from the same caller (e.g. multi-path delivery)
+      await session.handleCallSignal({
+        'type': 'call_invite',
+        'callType': 'voice',
+        'callerId': 'caller-bob',
+        'callerName': 'Bob',
+      });
+
+      // Must remain in incoming state and NOT emit call_reject(busy)
+      expect(session.state, CallState.incoming);
+      expect(signals.any((s) => s['type'] == 'call_reject'), isFalse);
+
+      session.dispose();
+    });
   });
 }

@@ -491,7 +491,17 @@ export class SignalingCoordinator {
     if (!room) return conn.sendError('not_in_room');
 
     const kind = msg.kind;
-    if (kind !== 'offer' && kind !== 'answer' && kind !== 'ice' && kind !== 'room_msg' && kind !== 'tailcat_addr') {
+    const allowedKinds = new Set([
+      'offer',
+      'answer',
+      'ice',
+      'room_msg',
+      'call_signal',
+      'chat',
+      'danmaku',
+      'tailcat_addr',
+    ]);
+    if (!allowedKinds.has(kind)) {
       return conn.sendError('invalid_message');
     }
 

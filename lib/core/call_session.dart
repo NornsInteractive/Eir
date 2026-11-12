@@ -339,8 +339,15 @@ class CallSession extends ChangeNotifier {
 
     switch (sigType) {
       case 'call_invite':
+        final callerId = data['callerId'] as String?;
+        // Ignore duplicate invite from the same caller (e.g. multi-path or retry)
+        if ((_state == CallState.incoming || _state == CallState.connected) &&
+            _peerId != null &&
+            _peerId == callerId) {
+          return;
+        }
         if (_state != CallState.idle) {
-          // Already in a call or dialing, reject busy
+          // Already in a call or dialing with someone else, reject busy
           await sendSignal({
             'type': 'call_reject',
             'reason': 'busy',
@@ -349,7 +356,7 @@ class CallSession extends ChangeNotifier {
         }
         _state = CallState.incoming;
         _type = (data['callType'] == 'video') ? CallType.video : CallType.voice;
-        _peerId = data['callerId'] as String?;
+        _peerId = callerId;
         _peerName = data['callerName'] as String? ?? 'Friend';
         _peerAvatar = data['callerAvatar'] as String?;
         _duration = Duration.zero;
