@@ -162,5 +162,38 @@ void main() {
 
       session.dispose();
     });
+
+    test('CallSession buffers SDP and ICE candidates before PC is initialized', () async {
+      final signals = <Map<String, dynamic>>[];
+      final session = CallSession(
+        sendSignal: (sig) async => signals.add(sig),
+        getCurrentDeviceId: () => 'my-dev-id',
+        getCurrentDisplayName: () => 'Alice',
+        getCurrentAvatar: () => null,
+      );
+
+      // Early incoming SDP offer before call is accepted
+      await session.handleCallSignal({
+        'type': 'call_sdp',
+        'sdp': {'type': 'offer', 'sdp': 'v=0\r\no=- 123 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n'},
+      });
+
+      // Early ICE candidates before connection is ready
+      await session.handleCallSignal({
+        'type': 'call_ice',
+        'candidate': {
+          'candidate': 'candidate:1 1 UDP 2130706431 192.168.1.100 50000 typ host',
+          'sdpMid': '0',
+          'sdpMLineIndex': 0,
+        },
+      });
+
+      // Early candidates and SDP should not throw or corrupt state
+      expect(session.state, CallState.idle);
+
+      // Cleanup clears all pending state safely
+      session.dispose();
+      expect(session.state, CallState.idle);
+    });
   });
 }

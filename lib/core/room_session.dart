@@ -357,6 +357,7 @@ class RoomSession extends ChangeNotifier {
 
   bool _peerVerified = false;
   bool get peerVerified => _peerVerified;
+  String? get peerDeviceId => _peerDeviceId;
 
   bool _p2pConnecting = false;
   bool _p2pFailed = false;
@@ -450,6 +451,14 @@ class RoomSession extends ChangeNotifier {
     };
     unawaited(_sendDc(payload));
     if (_roomId != null) {
+      // Send as room_msg (guaranteed supported by existing/updated servers)
+      _signaling.send({
+        'type': 'signal',
+        'roomId': _roomId,
+        'kind': 'room_msg',
+        'payload': payload,
+      });
+      // Also send as direct call_signal for dedicated signal handlers
       _signaling.send({
         'type': 'signal',
         'roomId': _roomId,
@@ -750,6 +759,12 @@ class RoomSession extends ChangeNotifier {
     };
     unawaited(_sendDc(payload));
     if (_roomId != null) {
+      _signaling.send({
+        'type': 'signal',
+        'roomId': _roomId,
+        'kind': 'room_msg',
+        'payload': payload,
+      });
       _signaling.send({
         'type': 'signal',
         'roomId': _roomId,

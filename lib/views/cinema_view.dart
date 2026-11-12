@@ -1539,11 +1539,20 @@ class _CinemaViewState extends State<CinemaView> {
   void _handleStartCall(CallType type) {
     final i18n = AppI18n.of(context);
     final tc = ThemeColors.of(context);
-    final peers = widget.session.members
+
+    // 1. Prefer online members other than self
+    var targetList = widget.session.members
         .where((m) => m.deviceId != widget.session.identity.deviceId && m.online)
         .toList();
 
-    if (peers.isEmpty) {
+    // 2. Fallback to any room member other than self (in case online flag is lagging)
+    if (targetList.isEmpty) {
+      targetList = widget.session.members
+          .where((m) => m.deviceId != widget.session.identity.deviceId)
+          .toList();
+    }
+
+    if (targetList.isEmpty) {
       showLiquidGlassSnackBar(
         context,
         owner: this,
@@ -1554,7 +1563,7 @@ class _CinemaViewState extends State<CinemaView> {
       return;
     }
 
-    final peer = peers.first;
+    final peer = targetList.first;
     widget.session.callSession.startCall(
       type,
       targetId: peer.deviceId,

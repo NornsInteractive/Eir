@@ -117,6 +117,9 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
   bool get peerVerified => true;
 
   @override
+  String? get peerDeviceId => null;
+
+  @override
   bool get isP2pConnected => true;
 
   @override

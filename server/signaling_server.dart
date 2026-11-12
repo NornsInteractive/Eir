@@ -506,7 +506,14 @@ class SignalingServer {
       return;
     }
     final kind = msg['kind'];
-    if (kind != 'offer' && kind != 'answer' && kind != 'ice' && kind != 'room_msg' && kind != 'tailcat_addr') {
+    if (kind != 'offer' &&
+        kind != 'answer' &&
+        kind != 'ice' &&
+        kind != 'room_msg' &&
+        kind != 'call_signal' &&
+        kind != 'chat' &&
+        kind != 'danmaku' &&
+        kind != 'tailcat_addr') {
       conn.sendError('invalid_message');
       return;
     }
@@ -547,7 +554,10 @@ class SignalingServer {
         'kind': 'tailcat_addr',
         'addr': addr,
       };
-    } else if (kind == 'room_msg') {
+    } else if (kind == 'room_msg' ||
+        kind == 'call_signal' ||
+        kind == 'chat' ||
+        kind == 'danmaku') {
       final payload = msg['payload'];
       if (payload is! Map) {
         conn.sendError('invalid_message');
@@ -557,7 +567,7 @@ class SignalingServer {
         'type': 'signal',
         'roomId': room.roomId,
         'from': conn.deviceId,
-        'kind': 'room_msg',
+        'kind': kind,
         'payload': payload,
       };
     } else {

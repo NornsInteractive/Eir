@@ -146,6 +146,19 @@ class CallSession extends ChangeNotifier {
   Timer? _ringTimer;
   bool _renderersInitialized = false;
   bool _renderersUnavailable = false;
+  final List<RTCIceCandidate> _pendingCallIce = <RTCIceCandidate>[];
+  RTCSessionDescription? _pendingRemoteDesc;
+  bool _remoteDescSet = false;
+
+  Future<void> _flushPendingCallIce() async {
+    if (_callPc == null || !_remoteDescSet) return;
+    for (final cand in _pendingCallIce) {
+      try {
+        await _callPc!.addCandidate(cand);
+      } catch (_) {}
+    }
+    _pendingCallIce.clear();
+  }
 
   /// Initializes the local/remote renderers. Returns whether media rendering is
   /// available on this platform. Failures are remembered so an unsupported
@@ -225,8 +238,10 @@ class CallSession extends ChangeNotifier {
   }
 
   Future<void> _startCalleeMedia() async {
-    final mediaReady = await initRenderers();
-    if (!mediaReady || _state != CallState.connected) return;
+    if (_type == CallType.video) {
+      await initRenderers();
+    }
+    if (_state != CallState.connected) return;
     try {
       await _setupPeerConnection(isCaller: false);
     } catch (e) {
@@ -262,6 +277,9 @@ class CallSession extends ChangeNotifier {
     _ringTimer?.cancel();
     _durationTimer?.cancel();
     _duration = Duration.zero;
+    _pendingCallIce.clear();
+    _pendingRemoteDesc = null;
+    _remoteDescSet = false;
 
     if (_renderersInitialized) {
       localRenderer.srcObject = null;
@@ -354,11 +372,11 @@ class CallSession extends ChangeNotifier {
           onAudioDuckingChange?.call(true);
           notifyListeners();
 
-          // Caller creates WebRTC Offer. Renderers are initialized lazily here
-          // because an unanswered/answered outgoing call is the first point
-          // where media rendering is actually needed.
-          final mediaReady = await initRenderers();
-          if (mediaReady && _state == CallState.connected) {
+          // Caller creates WebRTC Offer. If video, try initializing renderers.
+          if (_type == CallType.video) {
+            await initRenderers();
+          }
+          if (_state == CallState.connected) {
             try {
               await _setupPeerConnection(isCaller: true);
             } catch (e) {
@@ -382,19 +400,29 @@ class CallSession extends ChangeNotifier {
 
       case 'call_sdp':
         final sdpMap = data['sdp'] as Map<String, dynamic>?;
-        if (sdpMap != null && _callPc != null) {
+        if (sdpMap != null) {
           final sdpType = sdpMap['type'] as String?;
           final sdpDesc = sdpMap['sdp'] as String?;
           if (sdpType != null && sdpDesc != null) {
             final desc = RTCSessionDescription(sdpDesc, sdpType);
-            await _callPc!.setRemoteDescription(desc);
-            if (sdpType == 'offer') {
-              final answer = await _callPc!.createAnswer();
-              await _callPc!.setLocalDescription(answer);
-              await sendSignal({
-                'type': 'call_sdp',
-                'sdp': {'type': answer.type, 'sdp': answer.sdp},
-              });
+            if (_callPc == null) {
+              _pendingRemoteDesc = desc;
+            } else {
+              try {
+                await _callPc!.setRemoteDescription(desc);
+                _remoteDescSet = true;
+                await _flushPendingCallIce();
+                if (sdpType == 'offer') {
+                  final answer = await _callPc!.createAnswer();
+                  await _callPc!.setLocalDescription(answer);
+                  await sendSignal({
+                    'type': 'call_sdp',
+                    'sdp': {'type': answer.type, 'sdp': answer.sdp},
+                  });
+                }
+              } catch (e) {
+                debugPrint('[CallSession] setRemoteDescription error: $e');
+              }
             }
           }
         }
@@ -402,15 +430,19 @@ class CallSession extends ChangeNotifier {
 
       case 'call_ice':
         final iceMap = data['candidate'] as Map<String, dynamic>?;
-        if (iceMap != null && _callPc != null) {
+        if (iceMap != null) {
           final candidate = RTCIceCandidate(
             iceMap['candidate'] as String?,
             iceMap['sdpMid'] as String?,
             iceMap['sdpMLineIndex'] as int?,
           );
-          try {
-            await _callPc!.addCandidate(candidate);
-          } catch (_) {}
+          if (_callPc != null && _remoteDescSet) {
+            try {
+              await _callPc!.addCandidate(candidate);
+            } catch (_) {}
+          } else {
+            _pendingCallIce.add(candidate);
+          }
         }
         break;
 
@@ -452,6 +484,7 @@ class CallSession extends ChangeNotifier {
     };
 
     // Obtain local media with WebRTC echo cancellation & noise suppression
+    // Using modern W3C ideal constraints compatible across modern Web and Native
     final mediaConstraints = <String, dynamic>{
       'audio': {
         'echoCancellation': true,
@@ -460,13 +493,10 @@ class CallSession extends ChangeNotifier {
       },
       'video': (_type == CallType.video)
           ? {
-              'mandatory': {
-                'minWidth': '320',
-                'minHeight': '240',
-                'minFrameRate': '15',
-              },
               'facingMode': 'user',
-              'optional': [],
+              'width': {'ideal': 640},
+              'height': {'ideal': 480},
+              'frameRate': {'ideal': 24},
             }
           : false,
     };
@@ -508,6 +538,24 @@ class CallSession extends ChangeNotifier {
         'type': 'call_sdp',
         'sdp': {'type': offer.type, 'sdp': offer.sdp},
       });
+    } else if (_pendingRemoteDesc != null) {
+      final desc = _pendingRemoteDesc!;
+      _pendingRemoteDesc = null;
+      try {
+        await pc.setRemoteDescription(desc);
+        _remoteDescSet = true;
+        await _flushPendingCallIce();
+        if (desc.type == 'offer') {
+          final answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          await sendSignal({
+            'type': 'call_sdp',
+            'sdp': {'type': answer.type, 'sdp': answer.sdp},
+          });
+        }
+      } catch (e) {
+        debugPrint('[CallSession] setRemoteDescription on setup error: $e');
+      }
     }
   }
 
@@ -542,6 +590,7 @@ class CallSession extends ChangeNotifier {
 
   /// Switch front/back camera
   Future<void> switchCamera() async {
+    if (kIsWeb) return;
     final videoTrack = _localStream?.getVideoTracks().firstOrNull;
     if (videoTrack != null) {
       try {
@@ -555,6 +604,7 @@ class CallSession extends ChangeNotifier {
 
   /// Toggle speakerphone
   void toggleSpeaker() {
+    if (kIsWeb) return;
     _isSpeakerOn = !_isSpeakerOn;
     try {
       Helper.setSpeakerphoneOn(_isSpeakerOn);
