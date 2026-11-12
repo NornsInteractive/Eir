@@ -64,7 +64,7 @@ class _CinemaViewState extends State<CinemaView> {
   bool _danmakuEnabled = true;
   final TextEditingController _chatInputController = TextEditingController();
   final ScrollController _chatScrollController = ScrollController();
-  Offset _pipOffset = const Offset(16, 16);
+  Offset _pipOffset = const Offset(16, 76);
   final FocusNode _keyboardFocusNode = FocusNode();
   bool _isLongPressSpeeding = false;
   double _preSpeedRate = 1.0;
@@ -1831,165 +1831,178 @@ class _CinemaViewState extends State<CinemaView> {
       return const SizedBox.shrink();
     }
 
+    final size = MediaQuery.sizeOf(context);
+    final topPadding = isFullscreen ? 16.0 : (MediaQuery.paddingOf(context).top + 8.0);
+
     if (callSession.state == CallState.incoming) {
-      return Positioned(
-        top: 12,
-        left: 16,
-        right: 16,
-        child: GlassContainer.card(
-          key: const ValueKey('cinema-call-incoming-card'),
-          surfaceStyle: GlassSurfaceStyle.glass,
-          color: Colors.black87,
-          shape: const LiquidRoundedSuperellipse(borderRadius: 18),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: tc.primary.withValues(alpha: 0.25),
-                ),
-                child: Icon(
-                  callSession.type == CallType.video
-                      ? Icons.videocam_rounded
-                      : Icons.phone_in_talk_rounded,
-                  color: tc.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      callSession.peerName ?? 'Friend',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      callSession.type == CallType.video
-                          ? i18n.callIncomingVideo
-                          : i18n.callIncomingVoice,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Decline Button
-              Semantics(
-                button: true,
-                label: i18n.callDecline,
-                child: GestureDetector(
-                  key: const ValueKey('cinema-call-decline-btn'),
-                  onTap: () => callSession.declineCall(),
-                  child: Container(
-                    width: 34,
-                    height: 34,
-                    decoration: const BoxDecoration(
-                      color: Colors.redAccent,
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned(
+            top: topPadding,
+            left: 16,
+            right: 16,
+            child: GlassContainer.card(
+              key: const ValueKey('cinema-call-incoming-card'),
+              surfaceStyle: GlassSurfaceStyle.glass,
+              color: Colors.black87,
+              shape: const LiquidRoundedSuperellipse(borderRadius: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.call_end_rounded,
-                        color: Colors.white, size: 16),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              // Accept Button
-              Semantics(
-                button: true,
-                label: i18n.callAccept,
-                child: GestureDetector(
-                  key: const ValueKey('cinema-call-accept-btn'),
-                  onTap: () => callSession.acceptCall(),
-                  child: Container(
-                    width: 34,
-                    height: 34,
-                    decoration: const BoxDecoration(
-                      color: Colors.green,
-                      shape: BoxShape.circle,
+                      color: tc.primary.withValues(alpha: 0.25),
                     ),
                     child: Icon(
                       callSession.type == CallType.video
                           ? Icons.videocam_rounded
-                          : Icons.call_rounded,
-                      color: Colors.white,
-                      size: 16,
+                          : Icons.phone_in_talk_rounded,
+                      color: tc.primary,
+                      size: 20,
                     ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          callSession.peerName ?? 'Friend',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          callSession.type == CallType.video
+                              ? i18n.callIncomingVideo
+                              : i18n.callIncomingVoice,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Decline Button
+                  Semantics(
+                    button: true,
+                    label: i18n.callDecline,
+                    child: GestureDetector(
+                      key: const ValueKey('cinema-call-decline-btn'),
+                      onTap: () => callSession.declineCall(),
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.call_end_rounded,
+                            color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Accept Button
+                  Semantics(
+                    button: true,
+                    label: i18n.callAccept,
+                    child: GestureDetector(
+                      key: const ValueKey('cinema-call-accept-btn'),
+                      onTap: () => callSession.acceptCall(),
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          callSession.type == CallType.video
+                              ? Icons.videocam_rounded
+                              : Icons.call_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       );
     }
 
     if (callSession.state == CallState.outgoing) {
-      return Positioned(
-        top: 12,
-        right: 16,
-        child: GlassContainer.card(
-          key: const ValueKey('cinema-call-outgoing-card'),
-          surfaceStyle: GlassSurfaceStyle.glass,
-          color: Colors.black87,
-          shape: const LiquidRoundedSuperellipse(borderRadius: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.greenAccent),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${i18n.callConnecting} ${callSession.peerName ?? ''}',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(width: 10),
-              Semantics(
-                button: true,
-                label: i18n.callEnd,
-                child: GestureDetector(
-                  key: const ValueKey('cinema-call-hangup-btn'),
-                  onTap: () => callSession.hangupCall(),
-                  child: Container(
-                    width: 26,
-                    height: 26,
-                    decoration: const BoxDecoration(
-                      color: Colors.redAccent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.call_end_rounded,
-                        color: Colors.white, size: 14),
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned(
+            top: topPadding,
+            right: 16,
+            child: GlassContainer.card(
+              key: const ValueKey('cinema-call-outgoing-card'),
+              surfaceStyle: GlassSurfaceStyle.glass,
+              color: Colors.black87,
+              shape: const LiquidRoundedSuperellipse(borderRadius: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.greenAccent),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${i18n.callConnecting} ${callSession.peerName ?? ''}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 10),
+                  Semantics(
+                    button: true,
+                    label: i18n.callEnd,
+                    child: GestureDetector(
+                      key: const ValueKey('cinema-call-hangup-btn'),
+                      onTap: () => callSession.hangupCall(),
+                      child: Container(
+                        width: 26,
+                        height: 26,
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.call_end_rounded,
+                            color: Colors.white, size: 14),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       );
     }
 
@@ -2004,10 +2017,15 @@ class _CinemaViewState extends State<CinemaView> {
             top: _pipOffset.dy,
             child: GestureDetector(
               onPanUpdate: (d) {
+                final pipW = isShort ? 110.0 : 130.0;
+                final pipH = isShort ? 145.0 : 170.0;
+                final maxDx = (size.width - pipW - 10.0).clamp(10.0, 4000.0);
+                final maxDy = (size.height - pipH - 10.0).clamp(10.0, 4000.0);
+                final minDy = isFullscreen ? 10.0 : (MediaQuery.paddingOf(context).top + 4.0);
                 setState(() {
                   _pipOffset = Offset(
-                    (_pipOffset.dx + d.delta.dx).clamp(8.0, 320.0),
-                    (_pipOffset.dy + d.delta.dy).clamp(8.0, 240.0),
+                    (_pipOffset.dx + d.delta.dx).clamp(10.0, maxDx),
+                    (_pipOffset.dy + d.delta.dy).clamp(minDy, maxDy),
                   );
                 });
               },
@@ -2114,7 +2132,7 @@ class _CinemaViewState extends State<CinemaView> {
 
         // Floating Call Controls Bar
         Positioned(
-          top: 12,
+          top: topPadding,
           right: 16,
           child: GlassContainer.card(
             key: const ValueKey('cinema-call-connected-bar'),
@@ -2338,22 +2356,27 @@ class _CinemaViewState extends State<CinemaView> {
             },
             child: Scaffold(
               backgroundColor: Colors.black,
-              body: SizedBox.expand(
-                child: _buildPlayerStage(
-                  context,
-                  isMobile: isMobile,
-                  isShort: true,
-                  isPlaying: isPlaying,
-                  isHostOrAdmin: isHostOrAdmin,
-                  progressRatio: progressRatio,
-                  currentPos: currentPos,
-                  mediaDuration: mediaDuration,
-                  currentMedia: currentMedia,
-                  syncTargetPos: syncTargetPos,
-                  syncTargetRatio: syncTargetRatio,
-                  isBuffering: isBuffering,
-                  isFullscreen: true,
-                ),
+              body: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _buildPlayerStage(
+                    context,
+                    isMobile: isMobile,
+                    isShort: true,
+                    isPlaying: isPlaying,
+                    isHostOrAdmin: isHostOrAdmin,
+                    progressRatio: progressRatio,
+                    currentPos: currentPos,
+                    mediaDuration: mediaDuration,
+                    currentMedia: currentMedia,
+                    syncTargetPos: syncTargetPos,
+                    syncTargetRatio: syncTargetRatio,
+                    isBuffering: isBuffering,
+                    isFullscreen: true,
+                  ),
+                  if (session.callSession.state != CallState.idle)
+                    _buildCallOverlay(context, isFullscreen: true, isShort: isShort),
+                ],
               ),
             ),
           );
@@ -2367,267 +2390,235 @@ class _CinemaViewState extends State<CinemaView> {
           },
           child: Material(
             type: MaterialType.transparency,
-            child: GlassScaffold(
-              resizeToAvoidBottomInset: false,
-              background: LiquidGlassAmbientBackground(child: Container()),
-              extendBody: false,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                GlassScaffold(
+                  resizeToAvoidBottomInset: false,
+                  background: LiquidGlassAmbientBackground(child: Container()),
+                  extendBody: false,
               appBar: GlassAppBar(
-                  centerTitle: false,
-                  backgroundColor: Colors.transparent,
-                  leading: Semantics(
-                    button: true,
-                    enabled: true,
-                    label: isOwner ? i18n.disbandRoom : i18n.leaveRoom,
-                    child: Tooltip(
-                      message: isOwner ? i18n.disbandRoom : i18n.leaveRoom,
-                      child: GlassIconButton(
-                        key: const ValueKey('cinema-back-leave-btn'),
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
-                        onPressed: () => _confirmAndLeaveRoom(context),
-                      ),
+                centerTitle: false,
+                backgroundColor: Colors.transparent,
+                leading: Semantics(
+                  button: true,
+                  enabled: true,
+                  label: isOwner ? i18n.disbandRoom : i18n.leaveRoom,
+                  child: Tooltip(
+                    message: isOwner ? i18n.disbandRoom : i18n.leaveRoom,
+                    child: GlassIconButton(
+                      key: const ValueKey('cinema-back-leave-btn'),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+                      onPressed: () => _confirmAndLeaveRoom(context),
                     ),
                   ),
-                  title: Row(
-                    children: [
-                      // Room ID Badge (Icon-only on narrow screens with full tooltip/semantics to prevent overflow)
-                      Flexible(
-                        child: Tooltip(
-                        message: session.roomId != null ? formatDeviceId(session.roomId!) : 'Eir',
+                ),
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Room Code / ID Badge (Click to copy code)
+                    Flexible(
+                      child: Tooltip(
+                        message: session.roomCode != null
+                            ? '${i18n.copyRoomCode}: ${session.roomCode}'
+                            : (session.roomId != null ? formatDeviceId(session.roomId!) : 'Eir'),
                         child: Semantics(
-                          label: session.roomId != null ? formatDeviceId(session.roomId!) : 'Eir',
-                          child: LiquidGlassTag(
-                            color: tc.primary.withValues(alpha: 0.16),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isNarrow ? 6 : 8,
-                              vertical: isShort ? 3 : 4,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.theater_comedy_rounded, size: isNarrow ? 13 : 14, color: tc.primary),
-                                if (!isNarrow) ...[
+                          label: session.roomCode != null
+                              ? '${i18n.copyRoomCode}: ${session.roomCode}'
+                              : (session.roomId != null ? formatDeviceId(session.roomId!) : 'Eir'),
+                          child: GestureDetector(
+                            onTap: () async {
+                              final textToCopy = session.roomCode ?? session.roomId;
+                              if (textToCopy != null && textToCopy.isNotEmpty) {
+                                await Clipboard.setData(ClipboardData(text: textToCopy));
+                                if (!context.mounted) return;
+                                showLiquidGlassSnackBar(
+                                  context,
+                                  owner: this,
+                                  message: session.roomCode != null
+                                      ? '${i18n.roomCodeCopied}: ${session.roomCode}'
+                                      : '${i18n.copyInvite}: $textToCopy',
+                                  icon: Icons.check_circle_outline_rounded,
+                                  iconColor: tc.primary,
+                                  duration: const Duration(seconds: 2),
+                                );
+                              }
+                            },
+                            child: LiquidGlassTag(
+                              color: tc.primary.withValues(alpha: 0.16),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isNarrow ? 6 : 8,
+                                vertical: isShort ? 3 : 4,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    session.roomCode != null
+                                        ? Icons.tag_rounded
+                                        : Icons.theater_comedy_rounded,
+                                    size: isNarrow ? 13 : 14,
+                                    color: tc.primary,
+                                  ),
                                   const SizedBox(width: 4),
                                   Flexible(
                                     child: Text(
-                                      session.roomId != null
-                                          ? formatDeviceId(session.roomId!)
-                                          : 'Eir',
+                                      session.roomCode ??
+                                          (session.roomId != null
+                                              ? formatDeviceId(session.roomId!)
+                                              : 'Eir'),
                                       overflow: TextOverflow.ellipsis,
                                       softWrap: false,
                                       style: TextStyle(
-                                        fontSize: 11.5,
+                                        fontSize: 12,
                                         fontWeight: FontWeight.w700,
+                                        letterSpacing: session.roomCode != null ? 1.0 : 0.5,
                                         fontFeatures: const [FontFeature.tabularFigures()],
                                         color: tc.primary,
                                       ),
                                     ),
                                   ),
                                 ],
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      ),
-                      SizedBox(width: isNarrow ? 4 : 6),
-
-                      // Role Pill
-                      LiquidGlassTag(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isNarrow ? 5 : 8,
-                          vertical: isShort ? 3 : 4,
-                        ),
-                        color: isOwner
-                            ? tc.warning.withValues(alpha: 0.18)
-                            : (isHostOrAdmin
-                                ? tc.primary.withValues(alpha: 0.16)
-                                : tc.inputBackground),
-                        child: Text(
-                          isOwner
-                              ? i18n.roleOwner
-                              : (isHostOrAdmin ? i18n.roleAdmin : i18n.roleMember),
-                          style: TextStyle(
-                            fontSize: isNarrow ? 9.5 : 10.5,
-                            fontWeight: FontWeight.w700,
-                            color: isOwner
-                                ? tc.warning
-                                : (isHostOrAdmin ? tc.primary : tc.textSecondary),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: isNarrow ? 4 : 6),
-
-                      // Connection State Indicator
-                      _buildConnectionIndicator(context, session.connectionState, isNarrow: isNarrow),
-                    ],
-                  ),
-                  actions: [
-                    // Owner Disband Room Button
-                    if (isOwner) ...[
-                      Tooltip(
-                        message: i18n.disbandRoom,
-                        child: Semantics(
-                          button: true,
-                          label: i18n.disbandRoom,
-                          child: LiquidGlassActionButton(
-                            height: isShort ? 30 : 34,
-                            onTap: () async {
-                              await session.closeRoom();
-                              widget.onLeaveRoom();
-                            },
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.power_settings_new_rounded, size: 14, color: tc.error),
-                                if (!isNarrow) ...[
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    i18n.disbandRoom,
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      color: tc.error,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: isNarrow ? 4 : 6),
-                    ],
-
-                    // Short Room Code Badge
-                    if (session.roomCode != null) ...[
-                      Tooltip(
-                        message: i18n.copyRoomCode,
-                        child: GestureDetector(
-                          onTap: () async {
-                            final code = session.roomCode!;
-                            await Clipboard.setData(ClipboardData(text: code));
-                            if (!context.mounted) return;
-                            showLiquidGlassSnackBar(
-                              context,
-                              owner: this,
-                              message: '${i18n.roomCodeCopied}: $code',
-                              icon: Icons.check_circle_outline_rounded,
-                              iconColor: tc.primary,
-                              duration: const Duration(seconds: 2),
-                            );
-                          },
-                          child: Container(
-                            height: isShort ? 30 : 34,
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: tc.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                  color: tc.primary.withValues(alpha: 0.3)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.tag_rounded,
-                                    size: 14, color: tc.primary),
-                                const SizedBox(width: 4),
-                                Text(
-                                  session.roomCode!,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 1.2,
-                                    fontFeatures: const [
-                                      FontFeature.tabularFigures()
-                                    ],
-                                    color: tc.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: isNarrow ? 4 : 6),
-                    ],
-
-                    // Copy Invite Payload
-                    if (session.inviteText != null) ...[
-                      Tooltip(
-                        message: i18n.copyInvite,
-                        child: Semantics(
-                          button: true,
-                          label: i18n.copyInvite,
-                          child: LiquidGlassActionButton(
-                            key: const ValueKey('cinema-copy-invite-btn'),
-                            height: isShort ? 30 : 34,
-                            onTap: () => _copyInviteText(context),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.copy_rounded, size: 14),
-                                if (!isNarrow) ...[
-                                  const SizedBox(width: 5),
-                                  Text(i18n.copyInvite, style: const TextStyle(fontSize: 11.5)),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: isNarrow ? 4 : 6),
-                    ],
-
-                    // Voice Call
-                    Semantics(
-                      button: true,
-                      enabled: true,
-                      label: i18n.callVoice,
-                      child: Tooltip(
-                        message: i18n.callVoice,
-                        child: GlassIconButton(
-                          key: const ValueKey('cinema-voice-call-btn'),
-                          icon: Icon(Icons.phone_rounded,
-                              size: isShort ? 16 : 18, color: tc.textPrimary),
-                          onPressed: () => _handleStartCall(CallType.voice),
                         ),
                       ),
                     ),
-                    SizedBox(width: isNarrow ? 4 : 6),
+                    const SizedBox(width: 4),
 
-                    // Video Call
-                    Semantics(
-                      button: true,
-                      enabled: true,
-                      label: i18n.callVideo,
-                      child: Tooltip(
-                        message: i18n.callVideo,
-                        child: GlassIconButton(
-                          key: const ValueKey('cinema-video-call-btn'),
-                          icon: Icon(Icons.videocam_rounded,
-                              size: isShort ? 16 : 18, color: tc.textPrimary),
-                          onPressed: () => _handleStartCall(CallType.video),
+                    // Role Pill
+                    LiquidGlassTag(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isNarrow ? 5 : 7,
+                        vertical: isShort ? 3 : 4,
+                      ),
+                      color: isOwner
+                          ? tc.warning.withValues(alpha: 0.18)
+                          : (isHostOrAdmin
+                              ? tc.primary.withValues(alpha: 0.16)
+                              : tc.inputBackground),
+                      child: Text(
+                        isOwner
+                            ? i18n.roleOwner
+                            : (isHostOrAdmin ? i18n.roleAdmin : i18n.roleMember),
+                        style: TextStyle(
+                          fontSize: isNarrow ? 9.5 : 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: isOwner
+                              ? tc.warning
+                              : (isHostOrAdmin ? tc.primary : tc.textSecondary),
                         ),
                       ),
                     ),
-                    SizedBox(width: isNarrow ? 4 : 6),
+                    const SizedBox(width: 4),
 
-                    // Settings Dialog Trigger
-                    Semantics(
-                      button: true,
-                      enabled: true,
-                      label: i18n.settingsTitle,
-                      child: Tooltip(
-                        message: i18n.settingsTitle,
-                        child: GlassIconButton(
-                          key: const ValueKey('cinema-settings-btn'),
-                          icon: Icon(Icons.settings_outlined, size: isShort ? 16 : 18, color: tc.textPrimary),
-                          onPressed: () => SettingsDialog.show(context, session: session),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: isNarrow ? 4 : 12),
+                    // Connection State Indicator
+                    _buildConnectionIndicator(context, session.connectionState, isNarrow: isNarrow),
                   ],
                 ),
+                actions: [
+                  // Owner Disband Room Button (Desktop / Tablet only)
+                  if (isOwner && !isMobile) ...[
+                    Tooltip(
+                      message: i18n.disbandRoom,
+                      child: Semantics(
+                        button: true,
+                        label: i18n.disbandRoom,
+                        child: LiquidGlassActionButton(
+                          height: isShort ? 30 : 34,
+                          onTap: () async {
+                            await session.closeRoom();
+                            widget.onLeaveRoom();
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.power_settings_new_rounded, size: 14, color: tc.error),
+                              const SizedBox(width: 4),
+                              Text(
+                                i18n.disbandRoom,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: tc.error,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+
+                  // Copy Invite Action Button (Uniform 32x32 Glass button)
+                  Semantics(
+                    button: true,
+                    enabled: true,
+                    label: i18n.copyInvite,
+                    child: Tooltip(
+                      message: i18n.copyInvite,
+                      child: GlassIconButton(
+                        key: const ValueKey('cinema-copy-invite-btn'),
+                        icon: Icon(Icons.share_rounded, size: isShort ? 16 : 18, color: tc.textPrimary),
+                        onPressed: () => _copyInviteText(context),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+
+                  // Voice Call
+                  Semantics(
+                    button: true,
+                    enabled: true,
+                    label: i18n.callVoice,
+                    child: Tooltip(
+                      message: i18n.callVoice,
+                      child: GlassIconButton(
+                        key: const ValueKey('cinema-voice-call-btn'),
+                        icon: Icon(Icons.phone_rounded,
+                            size: isShort ? 16 : 18, color: tc.textPrimary),
+                        onPressed: () => _handleStartCall(CallType.voice),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+
+                  // Video Call
+                  Semantics(
+                    button: true,
+                    enabled: true,
+                    label: i18n.callVideo,
+                    child: Tooltip(
+                      message: i18n.callVideo,
+                      child: GlassIconButton(
+                        key: const ValueKey('cinema-video-call-btn'),
+                        icon: Icon(Icons.videocam_rounded,
+                            size: isShort ? 16 : 18, color: tc.textPrimary),
+                        onPressed: () => _handleStartCall(CallType.video),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+
+                  // Settings Dialog Trigger
+                  Semantics(
+                    button: true,
+                    enabled: true,
+                    label: i18n.settingsTitle,
+                    child: Tooltip(
+                      message: i18n.settingsTitle,
+                      child: GlassIconButton(
+                        key: const ValueKey('cinema-settings-btn'),
+                        icon: Icon(Icons.settings_outlined, size: isShort ? 16 : 18, color: tc.textPrimary),
+                        onPressed: () => SettingsDialog.show(context, session: session),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: isNarrow ? 4 : 8),
+                ],
+              ),
           body: SafeArea(
             child: Padding(
               padding: EdgeInsets.symmetric(
@@ -2747,8 +2738,12 @@ class _CinemaViewState extends State<CinemaView> {
             ),
           ),
         ),
-      ),
-    );
+        if (session.callSession.state != CallState.idle)
+          _buildCallOverlay(context, isFullscreen: false, isShort: isShort),
+      ],
+    ),
+  ),
+);
     },
   ),
 );
@@ -4570,9 +4565,6 @@ class _CinemaViewState extends State<CinemaView> {
                 ),
               ),
             ),
-
-            // Call Overlay (Incoming banner, Outgoing capsule, Connected bar & Video PIP)
-            _buildCallOverlay(context, isFullscreen: isFullscreen, isShort: isShort),
           ],
         ),
       ),
