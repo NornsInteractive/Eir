@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import '../app_localization.dart';
@@ -16,11 +17,13 @@ import 'profile_view.dart';
 class CinemaView extends StatefulWidget {
   final RoomSession session;
   final VoidCallback onLeaveRoom;
+  final int initialTabIndex;
 
   const CinemaView({
     super.key,
     required this.session,
     required this.onLeaveRoom,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -59,7 +62,9 @@ class _CinemaViewState extends State<CinemaView> {
   StreamSubscription<bool>? _bufferingSub;
   String? _lastReportedCinemaError;
   bool _danmakuEnabled = true;
-  final TextEditingController _danmakuInputController = TextEditingController();
+  final TextEditingController _chatInputController = TextEditingController();
+  final ScrollController _chatScrollController = ScrollController();
+  Offset _pipOffset = const Offset(16, 16);
   final FocusNode _keyboardFocusNode = FocusNode();
   bool _isLongPressSpeeding = false;
   double _preSpeedRate = 1.0;
@@ -67,9 +72,11 @@ class _CinemaViewState extends State<CinemaView> {
   @override
   void initState() {
     super.initState();
+    _selectedTabIndex = widget.initialTabIndex;
     _videoController = VideoController(widget.session.player);
     _subscribePlayerStreams(widget.session.player);
     widget.session.addListener(_onSessionStateChanged);
+    widget.session.callSession.addListener(_onCallSessionChanged);
     _lastReportedCinemaError = widget.session.lastErrorCode;
     _restartControlsTimer();
   }
@@ -83,8 +90,14 @@ class _CinemaViewState extends State<CinemaView> {
     }
     if (oldWidget.session != widget.session) {
       oldWidget.session.removeListener(_onSessionStateChanged);
+      oldWidget.session.callSession.removeListener(_onCallSessionChanged);
       widget.session.addListener(_onSessionStateChanged);
+      widget.session.callSession.addListener(_onCallSessionChanged);
     }
+  }
+
+  void _onCallSessionChanged() {
+    if (mounted) setState(() {});
   }
 
   void _onSessionStateChanged() {
@@ -178,12 +191,14 @@ class _CinemaViewState extends State<CinemaView> {
     _optimisticSeekTimer?.cancel();
     hideLiquidGlassSnackBar();
     widget.session.removeListener(_onSessionStateChanged);
+    widget.session.callSession.removeListener(_onCallSessionChanged);
     _positionSub?.cancel();
     _durationSub?.cancel();
     _completedSub?.cancel();
     _bufferingSub?.cancel();
     _keyboardFocusNode.dispose();
-    _danmakuInputController.dispose();
+    _chatInputController.dispose();
+    _chatScrollController.dispose();
     // Note: widget.session.player is owned by widget.session, do not dispose player here!
     super.dispose();
   }
@@ -1505,82 +1520,761 @@ class _CinemaViewState extends State<CinemaView> {
     return KeyEventResult.ignored;
   }
 
-  Widget _buildDanmakuInputBar(BuildContext context, {bool isShort = false}) {
+  void _submitChatMessage() {
+    final text = _chatInputController.text.trim();
+    if (text.isEmpty) return;
+    widget.session.sendChatMessage(text);
+    _chatInputController.clear();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_chatScrollController.hasClients) {
+        _chatScrollController.animateTo(
+          _chatScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutQuad,
+        );
+      }
+    });
+  }
+
+  void _handleStartCall(CallType type) {
     final i18n = AppI18n.of(context);
     final tc = ThemeColors.of(context);
+    final peers = widget.session.members
+        .where((m) => m.deviceId != widget.session.identity.deviceId && m.online)
+        .toList();
 
-    return Container(
-      height: isShort ? 34 : 38,
-      decoration: BoxDecoration(
-        color: tc.inputBackground,
-        borderRadius: BorderRadius.circular(isShort ? 17 : 19),
-        border: Border.all(color: tc.glassBorderSubtle),
-      ),
-      padding: EdgeInsets.symmetric(horizontal: isShort ? 8 : 12),
+    if (peers.isEmpty) {
+      showLiquidGlassSnackBar(
+        context,
+        owner: this,
+        message: i18n.callBusy,
+        icon: Icons.info_outline_rounded,
+        iconColor: tc.warning,
+      );
+      return;
+    }
+
+    final peer = peers.first;
+    widget.session.callSession.startCall(
+      type,
+      targetId: peer.deviceId,
+      targetName: peer.displayName,
+      targetAvatar: peer.avatar,
+    );
+  }
+
+  Widget _buildChatTab(BuildContext context, {bool isShort = false}) {
+    final i18n = AppI18n.of(context);
+    final tc = ThemeColors.of(context);
+    final messages = widget.session.chatMessages;
+
+    return Column(
+      children: [
+        // Message Stream
+        Expanded(
+          child: messages.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: isShort ? 28 : 36,
+                        color: tc.textTertiary.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          i18n.chatEmptyNotice,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: isShort ? 11 : 12,
+                            color: tc.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  key: const ValueKey('cinema-chat-list-view'),
+                  controller: _chatScrollController,
+                  padding: EdgeInsets.symmetric(vertical: isShort ? 4 : 8, horizontal: 4),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final msg = messages[index];
+                    return _buildChatMessageItem(context, msg, isShort: isShort);
+                  },
+                ),
+        ),
+
+        const SizedBox(height: 6),
+
+        // Chat & Danmaku Inset Input Well
+        Container(
+          height: isShort ? 36 : 42,
+          padding: EdgeInsets.symmetric(horizontal: isShort ? 8 : 12),
+          decoration: BoxDecoration(
+            color: tc.inputBackground,
+            borderRadius: BorderRadius.circular(isShort ? 18 : 21),
+            border: Border.all(color: tc.glassBorderSubtle),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.subtitles_rounded,
+                size: isShort ? 14 : 16,
+                color: tc.textTertiary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('cinema-chat-input-field'),
+                  controller: _chatInputController,
+                  textInputAction: TextInputAction.send,
+                  style: TextStyle(
+                    fontSize: isShort ? 12 : 13,
+                    color: tc.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: i18n.sendChatHint,
+                    hintStyle: TextStyle(
+                      fontSize: isShort ? 12 : 13,
+                      color: tc.textTertiary,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onSubmitted: (_) => _submitChatMessage(),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Semantics(
+                button: true,
+                label: i18n.send,
+                child: GestureDetector(
+                  key: const ValueKey('cinema-chat-send-btn'),
+                  onTap: _submitChatMessage,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isShort ? 10 : 12,
+                      vertical: isShort ? 4 : 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: tc.primary,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.send_rounded,
+                          size: 13,
+                          color: Colors.white,
+                        ),
+                        if (!isShort) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            i18n.send,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChatMessageItem(BuildContext context, ChatMessage msg, {bool isShort = false}) {
+    final tc = ThemeColors.of(context);
+    final isSelf = msg.isSelf;
+
+    if (msg.type == ChatMessageType.system) {
+      return Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          decoration: BoxDecoration(
+            color: tc.inputBackground.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            msg.text,
+            style: TextStyle(
+              fontSize: isShort ? 10 : 11,
+              color: tc.textTertiary,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final timeStr = '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        mainAxisAlignment: isSelf ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Icon(
-            Icons.chat_bubble_outline_rounded,
-            size: isShort ? 14 : 16,
-            color: tc.textTertiary,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              key: const ValueKey('cinema-danmaku-input-field'),
-              controller: _danmakuInputController,
-              textInputAction: TextInputAction.send,
-              style: TextStyle(
-                fontSize: isShort ? 11.5 : 12.5,
-                color: tc.textPrimary,
-              ),
-              decoration: InputDecoration(
-                hintText: i18n.sendDanmaku,
-                hintStyle: TextStyle(
-                  fontSize: isShort ? 11.5 : 12.5,
-                  color: tc.textTertiary,
+          if (!isSelf) ...[
+            _buildChatAvatar(msg.senderName, msg.senderAvatar, size: isShort ? 24 : 28),
+            const SizedBox(width: 6),
+          ],
+          Flexible(
+            child: Column(
+              crossAxisAlignment: isSelf ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                if (!isSelf)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 2, bottom: 2),
+                    child: Text(
+                      msg.senderName,
+                      style: TextStyle(
+                        fontSize: isShort ? 10 : 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: tc.textSecondary,
+                      ),
+                    ),
+                  ),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isShort ? 10 : 12,
+                    vertical: isShort ? 6 : 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelf ? tc.primary : tc.inputBackground,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(14),
+                      topRight: const Radius.circular(14),
+                      bottomLeft: Radius.circular(isSelf ? 14 : 2),
+                      bottomRight: Radius.circular(isSelf ? 2 : 14),
+                    ),
+                    border: isSelf ? null : Border.all(color: tc.glassBorderSubtle),
+                  ),
+                  child: Text(
+                    msg.text,
+                    style: TextStyle(
+                      fontSize: isShort ? 12 : 13,
+                      color: isSelf ? Colors.white : tc.textPrimary,
+                    ),
+                  ),
                 ),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-              onSubmitted: (text) {
-                if (text.trim().isNotEmpty) {
-                  widget.session.sendDanmaku(text);
-                  _danmakuInputController.clear();
-                }
-              },
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, left: 2, right: 2),
+                  child: Text(
+                    timeStr,
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: tc.textTertiary,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 6),
-          Semantics(
-            button: true,
-            label: i18n.sendDanmaku,
-            child: GestureDetector(
-              key: const ValueKey('cinema-danmaku-send-btn'),
-              onTap: () {
-                final text = _danmakuInputController.text;
-                if (text.trim().isNotEmpty) {
-                  widget.session.sendDanmaku(text);
-                  _danmakuInputController.clear();
-                }
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: isShort ? 8 : 10, vertical: isShort ? 3 : 5),
-                decoration: BoxDecoration(
-                  color: tc.primary,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.send_rounded,
-                  size: 13,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
+          if (isSelf) const SizedBox(width: 4),
         ],
       ),
+    );
+  }
+
+  Widget _buildChatAvatar(String name, String? avatar, {double size = 28}) {
+    final initials = name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.blueAccent.withValues(alpha: 0.2),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white24, width: 1),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initials,
+        style: TextStyle(
+          fontSize: size * 0.45,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCallOverlay(BuildContext context, {bool isFullscreen = false, bool isShort = false}) {
+    final i18n = AppI18n.of(context);
+    final tc = ThemeColors.of(context);
+    final callSession = widget.session.callSession;
+
+    if (callSession.state == CallState.idle) {
+      return const SizedBox.shrink();
+    }
+
+    if (callSession.state == CallState.incoming) {
+      return Positioned(
+        top: 12,
+        left: 16,
+        right: 16,
+        child: GlassContainer.card(
+          key: const ValueKey('cinema-call-incoming-card'),
+          surfaceStyle: GlassSurfaceStyle.glass,
+          color: Colors.black87,
+          shape: const LiquidRoundedSuperellipse(borderRadius: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: tc.primary.withValues(alpha: 0.25),
+                ),
+                child: Icon(
+                  callSession.type == CallType.video
+                      ? Icons.videocam_rounded
+                      : Icons.phone_in_talk_rounded,
+                  color: tc.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      callSession.peerName ?? 'Friend',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      callSession.type == CallType.video
+                          ? i18n.callIncomingVideo
+                          : i18n.callIncomingVoice,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Decline Button
+              Semantics(
+                button: true,
+                label: i18n.callDecline,
+                child: GestureDetector(
+                  key: const ValueKey('cinema-call-decline-btn'),
+                  onTap: () => callSession.declineCall(),
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    decoration: const BoxDecoration(
+                      color: Colors.redAccent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.call_end_rounded,
+                        color: Colors.white, size: 16),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Accept Button
+              Semantics(
+                button: true,
+                label: i18n.callAccept,
+                child: GestureDetector(
+                  key: const ValueKey('cinema-call-accept-btn'),
+                  onTap: () => callSession.acceptCall(),
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    decoration: const BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      callSession.type == CallType.video
+                          ? Icons.videocam_rounded
+                          : Icons.call_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (callSession.state == CallState.outgoing) {
+      return Positioned(
+        top: 12,
+        right: 16,
+        child: GlassContainer.card(
+          key: const ValueKey('cinema-call-outgoing-card'),
+          surfaceStyle: GlassSurfaceStyle.glass,
+          color: Colors.black87,
+          shape: const LiquidRoundedSuperellipse(borderRadius: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.greenAccent),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${i18n.callConnecting} ${callSession.peerName ?? ''}',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 10),
+              Semantics(
+                button: true,
+                label: i18n.callEnd,
+                child: GestureDetector(
+                  key: const ValueKey('cinema-call-hangup-btn'),
+                  onTap: () => callSession.hangupCall(),
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    decoration: const BoxDecoration(
+                      color: Colors.redAccent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.call_end_rounded,
+                        color: Colors.white, size: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Connected Call
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Video PIP window if in video call and not minimized
+        if (callSession.type == CallType.video && !callSession.isPipMinimized)
+          Positioned(
+            left: _pipOffset.dx,
+            top: _pipOffset.dy,
+            child: GestureDetector(
+              onPanUpdate: (d) {
+                setState(() {
+                  _pipOffset = Offset(
+                    (_pipOffset.dx + d.delta.dx).clamp(8.0, 320.0),
+                    (_pipOffset.dy + d.delta.dy).clamp(8.0, 240.0),
+                  );
+                });
+              },
+              child: Container(
+                key: const ValueKey('cinema-video-pip-window'),
+                width: isShort ? 110 : 130,
+                height: isShort ? 145 : 170,
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white24, width: 1.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black54,
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(13),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Remote Video View
+                      callSession.isPeerCameraOff
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.videocam_off_rounded,
+                                      color: Colors.white38, size: 28),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    callSession.peerName ?? 'Friend',
+                                    style: const TextStyle(
+                                        color: Colors.white70, fontSize: 10),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : RTCVideoView(
+                              callSession.remoteRenderer,
+                              objectFit: RTCVideoViewObjectFit
+                                  .RTCVideoViewObjectFitCover,
+                            ),
+
+                      // Bottom Peer Name Pill
+                      Positioned(
+                        left: 6,
+                        bottom: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            callSession.peerName ?? 'Friend',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+
+                      // Local Video Inset (Bottom-right)
+                      Positioned(
+                        right: 6,
+                        bottom: 6,
+                        child: Container(
+                          width: isShort ? 32 : 38,
+                          height: isShort ? 42 : 50,
+                          decoration: BoxDecoration(
+                            color: Colors.black87,
+                            borderRadius: BorderRadius.circular(6),
+                            border:
+                                Border.all(color: Colors.white38, width: 1),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(5),
+                            child: callSession.isCameraOff
+                                ? const Center(
+                                    child: Icon(Icons.videocam_off_rounded,
+                                        color: Colors.white38, size: 14),
+                                  )
+                                : RTCVideoView(
+                                    callSession.localRenderer,
+                                    mirror: true,
+                                    objectFit: RTCVideoViewObjectFit
+                                        .RTCVideoViewObjectFitCover,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+        // Floating Call Controls Bar
+        Positioned(
+          top: 12,
+          right: 16,
+          child: GlassContainer.card(
+            key: const ValueKey('cinema-call-connected-bar'),
+            surfaceStyle: GlassSurfaceStyle.glass,
+            color: Colors.black87,
+            shape: const LiquidRoundedSuperellipse(borderRadius: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Timer & Green pulse dot
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.greenAccent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  formatDuration(callSession.duration),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Mic Toggle
+                GestureDetector(
+                  key: const ValueKey('cinema-call-mic-btn'),
+                  onTap: () => callSession.toggleMic(),
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: callSession.isMicMuted
+                          ? Colors.redAccent.withValues(alpha: 0.3)
+                          : Colors.white12,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      callSession.isMicMuted
+                          ? Icons.mic_off_rounded
+                          : Icons.mic_rounded,
+                      color: callSession.isMicMuted
+                          ? Colors.redAccent
+                          : Colors.white,
+                      size: 15,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+
+                // Speaker Toggle
+                GestureDetector(
+                  key: const ValueKey('cinema-call-speaker-btn'),
+                  onTap: () => callSession.toggleSpeaker(),
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      color: Colors.white12,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      callSession.isSpeakerOn
+                          ? Icons.volume_up_rounded
+                          : Icons.volume_down_rounded,
+                      color: Colors.white,
+                      size: 15,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+
+                // Video-specific controls
+                if (callSession.type == CallType.video) ...[
+                  // Camera Toggle
+                  GestureDetector(
+                    key: const ValueKey('cinema-call-camera-btn'),
+                    onTap: () => callSession.toggleCamera(),
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: callSession.isCameraOff
+                            ? Colors.redAccent.withValues(alpha: 0.3)
+                            : Colors.white12,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        callSession.isCameraOff
+                            ? Icons.videocam_off_rounded
+                            : Icons.videocam_rounded,
+                        color: callSession.isCameraOff
+                            ? Colors.redAccent
+                            : Colors.white,
+                        size: 15,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+
+                  // Switch Camera
+                  GestureDetector(
+                    key: const ValueKey('cinema-call-flip-btn'),
+                    onTap: () => callSession.switchCamera(),
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: const BoxDecoration(
+                        color: Colors.white12,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.flip_camera_ios_rounded,
+                        color: Colors.white,
+                        size: 15,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+
+                  // PIP Minimize/Maximize
+                  GestureDetector(
+                    key: const ValueKey('cinema-call-pip-toggle-btn'),
+                    onTap: () => setState(() => callSession.isPipMinimized =
+                        !callSession.isPipMinimized),
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: const BoxDecoration(
+                        color: Colors.white12,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        callSession.isPipMinimized
+                            ? Icons.open_in_full_rounded
+                            : Icons.close_fullscreen_rounded,
+                        color: Colors.white,
+                        size: 15,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+
+                // Hangup Button
+                Semantics(
+                  button: true,
+                  label: i18n.callEnd,
+                  child: GestureDetector(
+                    key: const ValueKey('cinema-call-hangup-btn'),
+                    onTap: () => callSession.hangupCall(),
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: const BoxDecoration(
+                        color: Colors.redAccent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.call_end_rounded,
+                          color: Colors.white, size: 15),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1874,6 +2568,40 @@ class _CinemaViewState extends State<CinemaView> {
                       SizedBox(width: isNarrow ? 4 : 6),
                     ],
 
+                    // Voice Call
+                    Semantics(
+                      button: true,
+                      enabled: true,
+                      label: i18n.callVoice,
+                      child: Tooltip(
+                        message: i18n.callVoice,
+                        child: GlassIconButton(
+                          key: const ValueKey('cinema-voice-call-btn'),
+                          icon: Icon(Icons.phone_rounded,
+                              size: isShort ? 16 : 18, color: tc.textPrimary),
+                          onPressed: () => _handleStartCall(CallType.voice),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: isNarrow ? 4 : 6),
+
+                    // Video Call
+                    Semantics(
+                      button: true,
+                      enabled: true,
+                      label: i18n.callVideo,
+                      child: Tooltip(
+                        message: i18n.callVideo,
+                        child: GlassIconButton(
+                          key: const ValueKey('cinema-video-call-btn'),
+                          icon: Icon(Icons.videocam_rounded,
+                              size: isShort ? 16 : 18, color: tc.textPrimary),
+                          onPressed: () => _handleStartCall(CallType.video),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: isNarrow ? 4 : 6),
+
                     // Settings Dialog Trigger
                     Semantics(
                       button: true,
@@ -1935,14 +2663,9 @@ class _CinemaViewState extends State<CinemaView> {
 
                           const SizedBox(height: 8),
 
-                          // Danmaku Input Bar
-                          _buildDanmakuInputBar(context, isShort: true),
-
-                          const SizedBox(height: 8),
-
-                          // Bottom Dock (Tabs: Playlist / Peers / Info) (Dedicated height so items are fully visible & scrollable)
+                          // Bottom Dock (Tabs: Chat / Playlist / Peers / Info)
                           SizedBox(
-                            height: 220,
+                            height: 250,
                             child: _buildInspectorDock(
                               context,
                               isMobile: isMobile,
@@ -2000,12 +2723,7 @@ class _CinemaViewState extends State<CinemaView> {
 
                         const SizedBox(height: 10),
 
-                        // Danmaku Input Bar
-                        _buildDanmakuInputBar(context, isShort: false),
-
-                        const SizedBox(height: 10),
-
-                        // Bottom Dock (Tabs: Playlist / Peers / Info)
+                        // Bottom Dock (Tabs: Chat / Playlist / Peers / Info)
                         Expanded(
                           child: _buildInspectorDock(
                             context,
@@ -3843,6 +4561,9 @@ class _CinemaViewState extends State<CinemaView> {
                 ),
               ),
             ),
+
+            // Call Overlay (Incoming banner, Outgoing capsule, Connected bar & Video PIP)
+            _buildCallOverlay(context, isFullscreen: isFullscreen, isShort: isShort),
           ],
         ),
       ),
@@ -3871,6 +4592,7 @@ class _CinemaViewState extends State<CinemaView> {
             selectedIndex: _selectedTabIndex,
             onSegmentSelected: (idx) => setState(() => _selectedTabIndex = idx),
             segments: [
+              GlassSegment(label: i18n.tabChat),
               GlassSegment(label: i18n.tabPlaylist),
               GlassSegment(label: i18n.tabMembers),
               GlassSegment(label: i18n.tabSession),
@@ -3883,6 +4605,7 @@ class _CinemaViewState extends State<CinemaView> {
             child: IndexedStack(
               index: _selectedTabIndex,
               children: [
+                _buildChatTab(context, isShort: isShort),
                 _buildPlaylistTab(context, isHostOrAdmin, isShort: isShort),
                 _buildMembersTab(context, isOwner),
                 _buildSessionInfoTab(context),

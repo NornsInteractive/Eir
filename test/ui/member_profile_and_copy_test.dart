@@ -86,6 +86,20 @@ class _FakeRoomSession extends ChangeNotifier implements RoomSession {
   Stream<DanmakuMessage> get danmakuStream => const Stream.empty();
 
   @override
+  List<ChatMessage> get chatMessages => const [];
+
+  @override
+  late final CallSession callSession = CallSession(
+    sendSignal: (_) async {},
+    getCurrentDeviceId: () => identity.deviceId,
+    getCurrentDisplayName: () => 'Tester',
+    getCurrentAvatar: () => null,
+  );
+
+  @override
+  void sendChatMessage(String text) {}
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 

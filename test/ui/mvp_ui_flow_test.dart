@@ -79,6 +79,32 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
     ));
   }
 
+  final List<ChatMessage> _chatMessages = [];
+  @override
+  List<ChatMessage> get chatMessages => List.unmodifiable(_chatMessages);
+
+  @override
+  late final CallSession callSession = CallSession(
+    sendSignal: (_) async {},
+    getCurrentDeviceId: () => identity.deviceId,
+    getCurrentDisplayName: () => 'Tester',
+    getCurrentAvatar: () => null,
+  );
+
+  @override
+  void sendChatMessage(String text) {
+    sendDanmaku(text);
+    _chatMessages.add(ChatMessage(
+      id: 'fake-chat-${DateTime.now().microsecondsSinceEpoch}',
+      senderDeviceId: identity.deviceId,
+      senderName: 'Tester',
+      text: text,
+      timestamp: DateTime.now(),
+      isSelf: true,
+    ));
+    notifyListeners();
+  }
+
   @override
   final Player player = Player();
 
@@ -622,6 +648,10 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
+
+    final i18n = AppI18n(const Locale('zh', 'CN'));
+    await tester.tap(find.text(i18n.tabPlaylist));
     await tester.pumpAndSettle();
 
     // Sample One appears in both player HUD title pill and playlist item tile

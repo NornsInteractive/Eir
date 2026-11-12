@@ -155,9 +155,32 @@ class AppI18n {
   String get rewind10 => isZh ? '-10秒' : '-10s';
 
   // Dock Tabs
+  String get tabChat => isZh ? '聊天' : 'Chat';
   String get tabPlaylist => isZh ? '播放列表' : 'Playlist';
   String get tabMembers => isZh ? '同看好友' : 'Friends';
   String get tabSession => isZh ? '放映详情' : 'Room Info';
+
+  // Chat & Calling
+  String get chatEmptyNotice => isZh ? '暂无聊天记录，发条消息和好友互动吧' : 'No messages yet. Send a message to chat!';
+  String get sendChatHint => isZh ? '发一条弹幕聊天...' : 'Send chat & danmaku...';
+  String get send => isZh ? '发送' : 'Send';
+  String get callVoice => isZh ? '语音通话' : 'Voice Call';
+  String get callVideo => isZh ? '视频通话' : 'Video Call';
+  String get callIncomingVoice => isZh ? '邀请你进行语音通话' : 'invited you to a voice call';
+  String get callIncomingVideo => isZh ? '邀请你进行视频通话' : 'invited you to a video call';
+  String get callAccept => isZh ? '接听' : 'Accept';
+  String get callDecline => isZh ? '拒绝' : 'Decline';
+  String get callEnd => isZh ? '挂断' : 'End';
+  String get callEnded => isZh ? '通话已结束' : 'Call ended';
+  String get callConnecting => isZh ? '正在呼叫...' : 'Calling...';
+  String get callConnected => isZh ? '通话中' : 'In Call';
+  String get callBusy => isZh ? '对方忙或已拒绝' : 'Peer is busy or declined';
+  String get cameraFlip => isZh ? '翻转' : 'Flip';
+  String get cameraToggle => isZh ? '摄像头' : 'Camera';
+  String get micToggle => isZh ? '麦克风' : 'Mic';
+  String get speakerToggle => isZh ? '扬声器' : 'Speaker';
+  String get voiceCallStarted => isZh ? '发起了语音通话' : 'started a voice call';
+  String get videoCallStarted => isZh ? '发起了视频通话' : 'started a video call';
 
   // Playlist & Media
   String get addMedia => isZh ? '添加媒体' : 'Add Media';

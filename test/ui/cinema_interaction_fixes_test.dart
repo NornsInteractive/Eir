@@ -83,6 +83,20 @@ class _FakeCinemaRoomSession extends ChangeNotifier implements RoomSession {
   @override
   Stream<DanmakuMessage> get danmakuStream => const Stream.empty();
 
+  @override
+  List<ChatMessage> get chatMessages => const [];
+
+  @override
+  late final CallSession callSession = CallSession(
+    sendSignal: (_) async {},
+    getCurrentDeviceId: () => identity.deviceId,
+    getCurrentDisplayName: () => 'Tester',
+    getCurrentAvatar: () => null,
+  );
+
+  @override
+  void sendChatMessage(String text) {}
+
   int closeRoomCalls = 0;
   int leaveRoomCalls = 0;
 

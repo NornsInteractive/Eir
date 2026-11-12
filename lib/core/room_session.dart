@@ -28,8 +28,12 @@ import 'commit_log.dart';
 import 'identity.dart';
 import 'invite.dart';
 import 'protocol.dart';
+import 'call_session.dart';
 import 'transport/tailcat_stub.dart'
     if (dart.library.ffi) 'transport/tailcat_ffi.dart';
+
+export 'call_session.dart'
+    show ChatMessage, ChatMessageType, CallSession, CallState, CallType;
 
 export '../platform/signaling_client.dart' show SignalingClient;
 export 'identity.dart'
@@ -410,6 +414,51 @@ class RoomSession extends ChangeNotifier {
   @visibleForTesting
   LocalMediaService? get debugMediaService => _media;
 
+  final List<ChatMessage> _chatMessages = [];
+  List<ChatMessage> get chatMessages => List.unmodifiable(_chatMessages);
+
+  double? _preCallVolume;
+  late final CallSession callSession = CallSession(
+    sendSignal: (sig) => _sendCallSignal(sig),
+    getCurrentDeviceId: () => _keyPair?.identity.deviceId ?? '',
+    getCurrentDisplayName: () => AppSettings.instance.effectiveDisplayName,
+    getCurrentAvatar: () => AppSettings.instance.avatar,
+    onAudioDuckingChange: (inCall) {
+      if (inCall) {
+        _preCallVolume = _player?.state.volume;
+        if (_preCallVolume != null) {
+          _player?.setVolume((_preCallVolume! * 0.45).clamp(5.0, 100.0));
+        }
+      } else {
+        if (_preCallVolume != null) {
+          _player?.setVolume(_preCallVolume!);
+          _preCallVolume = null;
+        }
+      }
+    },
+  );
+
+  Future<void> _sendCallSignal(Map<String, dynamic> signal) async {
+    final payload = <String, Object?>{
+      'protocolVersion': kProtocolVersion,
+      'roomId': _roomId,
+      'sessionId': _sessionId,
+      'senderId': _selfId,
+      'type': 'call_signal',
+      'signal': signal,
+      ...signal,
+    };
+    unawaited(_sendDc(payload));
+    if (_roomId != null) {
+      _signaling.send({
+        'type': 'signal',
+        'roomId': _roomId,
+        'kind': 'call_signal',
+        'payload': signal,
+      });
+    }
+  }
+
   Player? _player;
   Player get player {
     final p = _player;
@@ -659,22 +708,43 @@ class RoomSession extends ChangeNotifier {
   Stream<DanmakuMessage> get danmakuStream => _danmakuController.stream;
 
   void sendDanmaku(String text) {
+    sendChatMessage(text);
+  }
+
+  void sendChatMessage(String text) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
-    final senderName = AppSettings.instance.nickname.isNotEmpty
-        ? AppSettings.instance.nickname
-        : (_keyPair?.identity.deviceId.substring(0, 6) ?? 'User');
-    final msg = DanmakuMessage(
+    final senderName = AppSettings.instance.effectiveDisplayName;
+    final senderAvatar = AppSettings.instance.avatar;
+    final currentDevId = _keyPair?.identity.deviceId ?? '';
+    final msg = ChatMessage(
       id: _uuid.v4(),
-      sender: senderName,
+      senderDeviceId: currentDevId,
+      senderName: senderName,
+      senderAvatar: senderAvatar,
       text: trimmed,
       timestamp: DateTime.now(),
+      isSelf: true,
     );
-    _danmakuController.add(msg);
+    _chatMessages.add(msg);
+    _danmakuController.add(DanmakuMessage(
+      id: msg.id,
+      sender: msg.senderName,
+      text: msg.text,
+      timestamp: msg.timestamp,
+    ));
+    notifyListeners();
+
     final payload = <String, dynamic>{
-      'type': 'danmaku_msg',
+      'protocolVersion': kProtocolVersion,
+      'roomId': _roomId,
+      'sessionId': _sessionId,
+      'senderId': _selfId,
+      'type': 'chat_msg',
       'id': msg.id,
-      'sender': msg.sender,
+      'senderDeviceId': msg.senderDeviceId,
+      'senderName': msg.senderName,
+      'senderAvatar': msg.senderAvatar,
       'text': msg.text,
       'timestamp': msg.timestamp.toIso8601String(),
     };
@@ -683,28 +753,48 @@ class RoomSession extends ChangeNotifier {
       _signaling.send({
         'type': 'signal',
         'roomId': _roomId,
-        'kind': 'danmaku',
+        'kind': 'chat',
         'payload': payload,
       });
     }
   }
 
   void _handleIncomingDanmaku(Map<String, dynamic> msg) {
-    final text = msg['text'] as String?;
-    final sender = msg['sender'] as String? ?? 'Peer';
+    _handleIncomingChatMessage(msg);
+  }
+
+  void _handleIncomingChatMessage(Map<String, dynamic> msg) {
+    final text = (msg['text'] as String?)?.trim();
+    if (text == null || text.isEmpty) return;
     final id = msg['id'] as String? ?? _uuid.v4();
+    if (_chatMessages.any((m) => m.id == id)) return;
+
+    final currentDevId = _keyPair?.identity.deviceId ?? '';
+    final senderDevId = msg['senderDeviceId'] as String? ?? '';
+    final sender = (msg['senderName'] as String?) ?? (msg['sender'] as String?) ?? 'Friend';
+    final avatar = msg['senderAvatar'] as String?;
     final timeStr = msg['timestamp'] as String?;
     final time = timeStr != null
         ? (DateTime.tryParse(timeStr) ?? DateTime.now())
         : DateTime.now();
-    if (text != null && text.trim().isNotEmpty) {
-      _danmakuController.add(DanmakuMessage(
-        id: id,
-        sender: sender,
-        text: text.trim(),
-        timestamp: time,
-      ));
-    }
+
+    final chatMsg = ChatMessage(
+      id: id,
+      senderDeviceId: senderDevId,
+      senderName: sender,
+      senderAvatar: avatar,
+      text: text,
+      timestamp: time,
+      isSelf: senderDevId.isNotEmpty && senderDevId == currentDevId,
+    );
+    _chatMessages.add(chatMsg);
+    _danmakuController.add(DanmakuMessage(
+      id: id,
+      sender: sender,
+      text: text,
+      timestamp: time,
+    ));
+    notifyListeners();
   }
 
   PlaylistItem? _findNextPlayableItem([String? fromItemId]) {
@@ -1157,6 +1247,8 @@ class RoomSession extends ChangeNotifier {
     _peerBaseSeqHigh = 0;
     _localChallenge = null;
     if (full) {
+      _chatMessages.clear();
+      unawaited(callSession.hangupCall(reason: 'room_reset'));
       _knownLocalMediaIds.clear();
       _knownLocalMediaSources.clear();
       _localMediaPaths.clear();
@@ -1807,10 +1899,17 @@ class RoomSession extends ChangeNotifier {
       }
       return;
     }
-    if (kind == 'danmaku') {
+    if (kind == 'danmaku' || kind == 'chat') {
       final payload = (msg['payload'] as Map?)?.cast<String, dynamic>();
       if (payload != null) {
-        _handleIncomingDanmaku(payload);
+        _handleIncomingChatMessage(payload);
+      }
+      return;
+    }
+    if (kind == 'call_signal') {
+      final payload = (msg['payload'] as Map?)?.cast<String, dynamic>();
+      if (payload != null) {
+        unawaited(callSession.handleCallSignal(payload));
       }
       return;
     }
@@ -2140,6 +2239,14 @@ class RoomSession extends ChangeNotifier {
     switch (type) {
       case 'danmaku_msg':
         _handleIncomingDanmaku(msg);
+        return;
+      case 'chat_msg':
+        _handleIncomingChatMessage(msg);
+        return;
+      case 'call_signal':
+        final sig = (msg['signal'] as Map?)?.cast<String, dynamic>() ??
+            Map<String, dynamic>.from(msg);
+        unawaited(callSession.handleCallSignal(sig));
         return;
       case 'handshake_hello':
         await _handleHandshakeHello(msg);
@@ -4952,6 +5059,7 @@ class RoomSession extends ChangeNotifier {
       unawaited(media.dispose());
     }
     unawaited(_teardownPeer());
+    callSession.dispose();
     unawaited(_player?.dispose() ?? Future<void>.value());
     unawaited(_signaling.disconnect());
     super.dispose();

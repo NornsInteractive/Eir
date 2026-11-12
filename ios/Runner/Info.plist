@@ -22,6 +22,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Eir 需要访问您的相机以支持边看边聊视频通话</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Eir 需要访问您的麦克风以支持边看边聊语音通话</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

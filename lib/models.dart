@@ -17,6 +17,14 @@ export 'core/room_session.dart'
         MemberTelemetry,
         RoomSession;
 
+export 'core/call_session.dart'
+    show
+        CallState,
+        CallType,
+        ChatMessageType,
+        ChatMessage,
+        CallSession;
+
 export 'media/local_media_service.dart' show MediaCacheTelemetrySnapshot;
 
 /// Helper to format a Duration as HH:MM:SS or MM:SS
