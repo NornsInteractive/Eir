@@ -15,7 +15,7 @@ void main() {
     });
 
     test('TURN Server Configuration & effectiveIceServers', () async {
-      expect(RoomSession.effectiveIceServers.length, 1);
+      expect(RoomSession.effectiveIceServers.length, 2);
       expect(RoomSession.effectiveIceServers.first['urls'], RoomSession.iceServers);
 
       await AppSettings.instance.setTurnConfig(

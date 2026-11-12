@@ -584,9 +584,86 @@ export class SignalingCoordinator {
   }
 }
 
+const DEFAULT_EIR_CONFIG = {
+  server_domain: "https://eir.norns.cc.cd",
+  signaling_server: "wss://eir.norns.cc.cd/ws",
+  turn_server: "ip.norns.cc.cd:3478",
+  turn_username: "norns",
+  turn_credential: "norns",
+};
+
+async function encryptConfigPayload(plainTextJson, secretStr) {
+  const enc = new TextEncoder();
+  const keyRaw = await crypto.subtle.digest("SHA-256", enc.encode(secretStr));
+  const key = await crypto.subtle.importKey("raw", keyRaw, { name: "AES-GCM" }, false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encryptedBuf = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, tagLength: 128 },
+    key,
+    enc.encode(plainTextJson)
+  );
+
+  const encryptedBytes = new Uint8Array(encryptedBuf);
+  const ciphertextBytes = encryptedBytes.slice(0, -16);
+  const tagBytes = encryptedBytes.slice(-16);
+
+  const ivBase64 = btoa(String.fromCharCode(...iv));
+  const ciphertextBase64 = btoa(String.fromCharCode(...ciphertextBytes));
+  const tagBase64 = btoa(String.fromCharCode(...tagBytes));
+
+  return {
+    version: 1,
+    algorithm: "AES-256-GCM",
+    iv: ivBase64,
+    tag: tagBase64,
+    ciphertext: ciphertextBase64,
+  };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    // 0. API Config Endpoint (/api/config & /api/v1/config)
+    if (url.pathname === '/api/config' || url.pathname === '/api/v1/config') {
+      const corsHeaders = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      };
+
+      if (request.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: corsHeaders });
+      }
+
+      if (request.method !== 'GET') {
+        return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
+      }
+
+      let configObj = { ...DEFAULT_EIR_CONFIG };
+      if (env && env.EIR_CONFIG) {
+        try {
+          const parsed = typeof env.EIR_CONFIG === 'string' ? JSON.parse(env.EIR_CONFIG) : env.EIR_CONFIG;
+          if (parsed && typeof parsed === 'object') {
+            configObj = { ...configObj, ...parsed };
+          }
+        } catch (e) {
+          console.error('Failed to parse EIR_CONFIG JSON:', e);
+        }
+      }
+
+      const secret = (env && env.EIR_CONFIG_SECRET) || 'eir_secure_config_key_2026';
+      const payload = await encryptConfigPayload(JSON.stringify(configObj), secret);
+
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          ...corsHeaders,
+        },
+      });
+    }
 
     // 1. WebSocket Upgrade handling (/ws or root with Upgrade header)
     const isWs = request.headers.get('Upgrade') === 'websocket' || url.pathname === '/ws';

@@ -334,6 +334,18 @@ class AppI18n {
   String get pickFromGallery => isZh ? '自选本地图片' : 'Pick Local Image';
   String get shortcutCreated => isZh ? '已请求添加桌面快捷方式' : 'Home screen shortcut requested';
 
+  // Remote Config & Web Transport Engine
+  String get serverDomain => isZh ? '服务器域名' : 'Server Domain';
+  String get syncRemoteConfig => isZh ? '从云端同步配置' : 'Sync from Cloud';
+  String get syncingConfig => isZh ? '正在同步...' : 'Syncing...';
+  String get syncSuccess => isZh ? '配置同步成功' : 'Config synced';
+  String get syncFailed => isZh ? '同步失败，请检查域名' : 'Sync failed';
+  String get lastSyncTime => isZh ? '上次同步' : 'Last sync';
+  String get tailcatClientOnly => isZh ? '仅客户端支持' : 'Client only';
+  String get tailcatWebUnsupportedNote => isZh
+      ? '当前为 Web 浏览器环境，仅支持 WebRTC 传输引擎；Tailcat (WireGuard P2P 底层穿透) 专供桌面端与移动客户端使用。'
+      : 'Web browser environment only supports WebRTC; Tailcat engine is reserved for desktop and mobile clients.';
+
   // Cache Management (V1-PRD §9)
   String get cacheTitle => isZh ? '本地媒体缓存' : 'Media Cache';
   String get cacheDesc => isZh

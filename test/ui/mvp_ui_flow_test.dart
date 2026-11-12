@@ -829,7 +829,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('全局偏好设置'), findsOneWidget);
-    expect(find.text('信令配置'), findsOneWidget);
+    expect(find.text('信令配置'), findsNWidgets(2));
     expect(find.text('独立主题色配置'), findsOneWidget);
 
     // Verify mock cache/IP stats are absent

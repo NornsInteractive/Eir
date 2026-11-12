@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'app_localization.dart';
 import 'apple_glass.dart';
 import 'core/app_icon_manager.dart';
+import 'core/remote_config_service.dart';
 import 'core/room_session.dart';
 import 'core/update_service.dart';
 import 'views/lobby_view.dart';
@@ -14,6 +16,7 @@ void main() async {
   await AppSettings.instance.init();
   await AppIconManager.init();
   await UpdateService.ensureInitialized();
+  unawaited(RemoteConfigService.syncOnStartup());
 
   runApp(
     LiquidGlassWidgets.wrap(

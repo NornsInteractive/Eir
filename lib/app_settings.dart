@@ -31,6 +31,8 @@ class AppSettings extends ChangeNotifier {
   static const String _kWaitForPeerBufferingKey = 'eir_setting_wait_for_peer_buffering';
   static const String _kAppIconStyleKey = 'eir_setting_app_icon_style';
   static const String _kCustomAppIconPathKey = 'eir_setting_custom_app_icon_path';
+  static const String _kServerDomainKey = 'eir_setting_server_domain';
+  static const String _kLastConfigSyncTimeKey = 'eir_last_config_sync_time';
 
   static const List<String> _adjectives = [
     'Starlight', 'Velvet', 'Neon', 'Cosmic', 'Solar', 'Lunar', 'Silent',
@@ -60,6 +62,10 @@ class AppSettings extends ChangeNotifier {
   static const String defaultSignalingUrl = 'ws://127.0.0.1:8080/ws';
   static const String defaultAvatar = 'preset:aurora';
   static const String defaultNickname = '';
+  static const String defaultServerDomain = 'https://eir.norns.cc.cd';
+  static const String defaultTurnServer = 'ip.norns.cc.cd:3478';
+  static const String defaultTurnUsername = 'norns';
+  static const String defaultTurnCredential = 'norns';
 
   /// Dynamically resolved default signaling URL:
   /// On Web, automatically matches current origin (wss:// for HTTPS, ws:// for HTTP) and appends /ws.
@@ -119,12 +125,19 @@ class AppSettings extends ChangeNotifier {
   bool _backgroundKeepAlive = true;
   bool get backgroundKeepAlive => _backgroundKeepAlive;
 
+  // Server Domain Configuration
+  String _serverDomain = defaultServerDomain;
+  String get serverDomain => _serverDomain;
+
+  int _lastConfigSyncTime = 0;
+  int get lastConfigSyncTime => _lastConfigSyncTime;
+
   // TURN Relay Server Configuration
-  String _turnServer = '';
+  String _turnServer = defaultTurnServer;
   String get turnServer => _turnServer;
-  String _turnUsername = '';
+  String _turnUsername = defaultTurnUsername;
   String get turnUsername => _turnUsername;
-  String _turnCredential = '';
+  String _turnCredential = defaultTurnCredential;
   String get turnCredential => _turnCredential;
 
   // Transport Engine Preference: 'webrtc' | 'tailcat'
@@ -286,14 +299,36 @@ class AppSettings extends ChangeNotifier {
 
       // 11. TURN Relay Server Configuration (Isolated try-catch)
       try {
-        _turnServer = prefs.getString(_kTurnServerKey) ?? '';
-        _turnUsername = prefs.getString(_kTurnUsernameKey) ?? '';
-        _turnCredential = prefs.getString(_kTurnCredentialKey) ?? '';
+        final savedTurn = prefs.getString(_kTurnServerKey);
+        _turnServer = (savedTurn != null && savedTurn.isNotEmpty)
+            ? savedTurn
+            : defaultTurnServer;
+        final savedUser = prefs.getString(_kTurnUsernameKey);
+        _turnUsername = (savedUser != null && savedUser.isNotEmpty)
+            ? savedUser
+            : defaultTurnUsername;
+        final savedCred = prefs.getString(_kTurnCredentialKey);
+        _turnCredential = (savedCred != null && savedCred.isNotEmpty)
+            ? savedCred
+            : defaultTurnCredential;
       } catch (e) {
-        _turnServer = '';
-        _turnUsername = '';
-        _turnCredential = '';
+        _turnServer = defaultTurnServer;
+        _turnUsername = defaultTurnUsername;
+        _turnCredential = defaultTurnCredential;
         debugPrint('[AppSettings] Reset corrupted TURN settings: $e');
+      }
+
+      // 11.1 Server Domain & Last Config Sync (Isolated try-catch)
+      try {
+        final savedDomain = prefs.getString(_kServerDomainKey);
+        _serverDomain = (savedDomain != null && savedDomain.isNotEmpty)
+            ? savedDomain
+            : defaultServerDomain;
+        _lastConfigSyncTime = prefs.getInt(_kLastConfigSyncTimeKey) ?? 0;
+      } catch (e) {
+        _serverDomain = defaultServerDomain;
+        _lastConfigSyncTime = 0;
+        debugPrint('[AppSettings] Reset corrupted Server Domain settings: $e');
       }
 
       // 12. Transport Engine Preference (Isolated try-catch)
@@ -381,6 +416,31 @@ class AppSettings extends ChangeNotifier {
       await prefs.setString(_kTurnCredentialKey, _turnCredential);
     } catch (e) {
       debugPrint('[AppSettings] Failed to persist TURN config: $e');
+    }
+  }
+
+  Future<void> setServerDomain(String domain) async {
+    final trimmed = domain.trim();
+    final target = trimmed.isNotEmpty ? trimmed : defaultServerDomain;
+    if (_serverDomain == target) return;
+    _serverDomain = target;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kServerDomainKey, _serverDomain);
+    } catch (e) {
+      debugPrint('[AppSettings] Failed to persist Server Domain: $e');
+    }
+  }
+
+  Future<void> setLastConfigSyncTime(int timestamp) async {
+    _lastConfigSyncTime = timestamp;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_kLastConfigSyncTimeKey, timestamp);
+    } catch (e) {
+      debugPrint('[AppSettings] Failed to persist Last Config Sync Time: $e');
     }
   }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../app_localization.dart';
@@ -604,21 +605,52 @@ class _LobbyViewState extends State<LobbyView> {
                         ),
                       ),
                       const Spacer(),
-                      SizedBox(
-                        width: isShort ? 160 : 190,
-                        child: GlassSegmentedControl(
-                          selectedIndex:
-                              AppSettings.instance.isTailcatEngine ? 1 : 0,
-                          onSegmentSelected: (index) {
-                            AppSettings.instance.setTransportEngine(
-                                index == 1 ? 'tailcat' : 'webrtc');
-                          },
-                          segments: const [
-                            GlassSegment(label: '⚡ WebRTC'),
-                            GlassSegment(label: '🚀 Tailcat'),
-                          ],
+                      if (!kIsWeb)
+                        SizedBox(
+                          width: isShort ? 160 : 190,
+                          child: GlassSegmentedControl(
+                            selectedIndex:
+                                AppSettings.instance.isTailcatEngine ? 1 : 0,
+                            onSegmentSelected: (index) {
+                              AppSettings.instance.setTransportEngine(
+                                  index == 1 ? 'tailcat' : 'webrtc');
+                            },
+                            segments: const [
+                              GlassSegment(label: '⚡ WebRTC'),
+                              GlassSegment(label: '🚀 Tailcat'),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: tc.inputBackground,
+                            border: Border.all(color: tc.glassBorder),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                '⚡ WebRTC',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                '(${i18n.tailcatClientOnly})',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: tc.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),

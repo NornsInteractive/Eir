@@ -6,6 +6,7 @@ import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../models.dart';
 import '../core/app_icon_manager.dart';
+import '../core/remote_config_service.dart';
 import 'color_picker_dialog.dart';
 
 class SettingsDialog extends StatefulWidget {
@@ -26,10 +27,14 @@ class SettingsDialog extends StatefulWidget {
 }
 
 class _SettingsDialogState extends State<SettingsDialog> {
+  late final TextEditingController _serverDomainController;
   late final TextEditingController _signalingController;
   late final TextEditingController _turnServerController;
   late final TextEditingController _turnUsernameController;
   late final TextEditingController _turnCredentialController;
+  bool _isSyncingConfig = false;
+  String? _syncConfigFeedback;
+  bool _syncConfigSuccess = false;
   bool _isCleaningCache = false;
   String? _cacheCleanMessage;
   bool? _cacheCleanSuccess;
@@ -60,6 +65,8 @@ class _SettingsDialogState extends State<SettingsDialog> {
   @override
   void initState() {
     super.initState();
+    _serverDomainController =
+        TextEditingController(text: AppSettings.instance.serverDomain);
     _signalingController =
         TextEditingController(text: AppSettings.instance.signalingUrl);
     _signalingController.addListener(_onSignalingDraftChanged);
@@ -73,12 +80,42 @@ class _SettingsDialogState extends State<SettingsDialog> {
 
   @override
   void dispose() {
+    _serverDomainController.dispose();
     _signalingController.removeListener(_onSignalingDraftChanged);
     _signalingController.dispose();
     _turnServerController.dispose();
     _turnUsernameController.dispose();
     _turnCredentialController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleSyncRemoteConfig() async {
+    final i18n = AppI18n.of(context);
+    setState(() {
+      _isSyncingConfig = true;
+      _syncConfigFeedback = null;
+    });
+
+    final domain = _serverDomainController.text.trim();
+    await AppSettings.instance.setServerDomain(domain);
+    final result = await RemoteConfigService.fetchAndApply(serverDomain: domain);
+
+    if (!mounted) return;
+    setState(() {
+      _isSyncingConfig = false;
+      _syncConfigSuccess = result.success;
+      if (result.success) {
+        _syncConfigFeedback = i18n.syncSuccess;
+        final s = AppSettings.instance;
+        _serverDomainController.text = s.serverDomain;
+        _signalingController.text = s.signalingUrl;
+        _turnServerController.text = s.turnServer;
+        _turnUsernameController.text = s.turnUsername;
+        _turnCredentialController.text = s.turnCredential;
+      } else {
+        _syncConfigFeedback = '${i18n.syncFailed}: ${result.message ?? ''}';
+      }
+    });
   }
 
   Future<void> _handleSaveTurnConfig() async {
@@ -503,7 +540,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                 _buildAppIconSection(context, i18n, tc),
                                 const SizedBox(height: 18),
 
-                                // 4. Signaling Configuration
+                                // 4. Signaling & Remote Config Configuration
                                 _buildSectionHeader(
                                   context,
                                   icon: Icons.alt_route_rounded,
@@ -514,11 +551,128 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                   surfaceStyle: GlassSurfaceStyle.solid,
                                   color: tc.inputBackground,
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
+                                      horizontal: 12, vertical: 10),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
+                                      Text(
+                                        i18n.serverDomain,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: tc.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: GlassTextField(
+                                              key: const ValueKey(
+                                                  'settings-server-domain-input'),
+                                              controller:
+                                                  _serverDomainController,
+                                              placeholder:
+                                                  'https://eir.norns.cc.cd',
+                                              height: 38,
+                                              surfaceStyle:
+                                                  GlassSurfaceStyle.solid,
+                                              color: Colors.transparent,
+                                              textStyle: TextStyle(
+                                                color: tc.textPrimary,
+                                                fontSize: 12.5,
+                                              ),
+                                              placeholderStyle: TextStyle(
+                                                  color: tc.textTertiary,
+                                                  fontSize: 12.5),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          LiquidGlassActionButton(
+                                            key: const ValueKey(
+                                                'settings-sync-remote-config-btn'),
+                                            height: 36,
+                                            onTap: _isSyncingConfig
+                                                ? () {}
+                                                : _handleSyncRemoteConfig,
+                                            child: _isSyncingConfig
+                                                ? SizedBox(
+                                                    width: 14,
+                                                    height: 14,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                                  Color>(
+                                                              tc.textPrimary),
+                                                    ),
+                                                  )
+                                                : Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      const Icon(
+                                                          Icons
+                                                              .cloud_sync_rounded,
+                                                          size: 15),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        i18n.syncRemoteConfig,
+                                                        style: const TextStyle(
+                                                            fontSize: 12),
+                                                      ),
+                                                    ],
+                                                  ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (_syncConfigFeedback != null) ...[
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Icon(
+                                              _syncConfigSuccess
+                                                  ? Icons
+                                                      .check_circle_outline_rounded
+                                                  : Icons
+                                                      .error_outline_rounded,
+                                              size: 14,
+                                              color: _syncConfigSuccess
+                                                  ? tc.success
+                                                  : tc.error,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: Text(
+                                                _syncConfigFeedback!,
+                                                style: TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: _syncConfigSuccess
+                                                      ? tc.success
+                                                      : tc.error,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                      const SizedBox(height: 12),
+                                      Divider(height: 1, color: tc.glassBorder),
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        i18n.configuringSignaling,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: tc.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
                                       Row(
                                         children: [
                                           Expanded(
@@ -644,20 +798,52 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                         ),
                                       ),
                                       const SizedBox(height: 8),
-                                      GlassSegmentedControl(
-                                        selectedIndex:
-                                            settings.isTailcatEngine ? 1 : 0,
-                                        onSegmentSelected: (index) {
-                                          settings.setTransportEngine(
-                                              index == 1 ? "tailcat" : "webrtc");
-                                        },
-                                        segments: [
-                                          GlassSegment(
-                                              label: i18n.transportWebrtc),
-                                          GlassSegment(
-                                              label: i18n.transportTailcat),
-                                        ],
-                                      ),
+                                      if (kIsWeb)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            color: tc.glassSurfaceSubtle,
+                                            border: Border.all(
+                                                color: tc.glassBorder),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                  Icons.info_outline_rounded,
+                                                  size: 15,
+                                                  color: tc.textSecondary),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  i18n.tailcatWebUnsupportedNote,
+                                                  style: TextStyle(
+                                                    fontSize: 11.5,
+                                                    color: tc.textSecondary,
+                                                    height: 1.3,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      else
+                                        GlassSegmentedControl(
+                                          selectedIndex:
+                                              settings.isTailcatEngine ? 1 : 0,
+                                          onSegmentSelected: (index) {
+                                            settings.setTransportEngine(
+                                                index == 1 ? "tailcat" : "webrtc");
+                                          },
+                                          segments: [
+                                            GlassSegment(
+                                                label: i18n.transportWebrtc),
+                                            GlassSegment(
+                                                label: i18n.transportTailcat),
+                                          ],
+                                        ),
                                       const SizedBox(height: 14),
                                       Divider(height: 1, color: tc.glassBorder),
                                       const SizedBox(height: 12),
@@ -672,8 +858,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                       const SizedBox(height: 6),
                                       GlassTextField(
                                         controller: _turnServerController,
-                                        placeholder:
-                                            "turn:turn.example.com:3478",
+                                        placeholder: "ip.norns.cc.cd:3478",
                                         height: 38,
                                         surfaceStyle: GlassSurfaceStyle.solid,
                                         color: Colors.transparent,
@@ -691,7 +876,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                             child: GlassTextField(
                                               controller:
                                                   _turnUsernameController,
-                                              placeholder: i18n.turnUsername,
+                                              placeholder: "norns",
                                               height: 38,
                                               surfaceStyle:
                                                   GlassSurfaceStyle.solid,
@@ -709,7 +894,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                             child: GlassTextField(
                                               controller:
                                                   _turnCredentialController,
-                                              placeholder: i18n.turnCredential,
+                                              placeholder: "norns",
                                               obscureText: true,
                                               height: 38,
                                               surfaceStyle:

@@ -2,6 +2,7 @@ name = "eir"
 main = "cloudflare/_worker.js"
 compatibility_date = "2024-09-01"
 compatibility_flags = ["nodejs_compat"]
+keep_vars = true
 
 # Static assets from Flutter Web build
 [assets]
