@@ -1,7 +1,11 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../models.dart';
+import '../core/app_icon_manager.dart';
+import 'color_picker_dialog.dart';
 
 class SettingsDialog extends StatefulWidget {
   final RoomSession? session;
@@ -492,6 +496,10 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                   resetText: i18n.resetDefault,
                                   i18n: i18n,
                                 ),
+                                const SizedBox(height: 16),
+
+                                // 3.5 App Launcher Icon Selection
+                                _buildAppIconSection(context, i18n, tc),
                                 const SizedBox(height: 18),
 
                                 // 4. Signaling Configuration
@@ -920,50 +928,275 @@ class _SettingsDialogState extends State<SettingsDialog> {
         Wrap(
           spacing: 10,
           runSpacing: 8,
-          children: presets.map((p) {
-            final color = p['color'] as Color;
-            final isCurrent = currentColor.value == color.value;
-            final name = _getColorName(i18n, p['key'] as String);
+          children: [
+            ...presets.map((p) {
+              final color = p['color'] as Color;
+              final isCurrent = currentColor.value == color.value;
+              final name = _getColorName(i18n, p['key'] as String);
 
-            return Semantics(
-              button: true,
-              selected: isCurrent,
-              label: '$title: $name',
-              value: isCurrent ? i18n.selected : null,
-              child: Tooltip(
-                message: name,
-                child: GestureDetector(
-                  key: ValueKey('settings-color-${p['key']}-${isCurrent ? "selected" : "idle"}'),
-                  onTap: () => onSelectColor(color),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 140),
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isCurrent
-                            ? (tc.isDark ? Colors.white : Colors.black)
-                            : Colors.transparent,
-                        width: 2.2,
+              return Semantics(
+                button: true,
+                selected: isCurrent,
+                label: '$title: $name',
+                value: isCurrent ? i18n.selected : null,
+                child: Tooltip(
+                  message: name,
+                  child: GestureDetector(
+                    key: ValueKey('settings-color-${p['key']}-${isCurrent ? "selected" : "idle"}'),
+                    onTap: () => onSelectColor(color),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 140),
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isCurrent
+                              ? (tc.isDark ? Colors.white : Colors.black)
+                              : Colors.transparent,
+                          width: 2.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withValues(alpha: 0.35),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.withValues(alpha: 0.35),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
+                      child: isCurrent
+                          ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                          : null,
+                    ),
+                  ),
+                ),
+              );
+            }),
+            // Custom Color Swatch
+            Builder(builder: (context) {
+              final isCustomSelected = !presets.any((p) => (p['color'] as Color).value == currentColor.value);
+              return Semantics(
+                button: true,
+                selected: isCustomSelected,
+                label: '$title: ${i18n.customColor}',
+                child: Tooltip(
+                  message: '${i18n.customColor}${isCustomSelected ? " (#${currentColor.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()})" : ""}',
+                  child: GestureDetector(
+                    key: ValueKey('settings-color-custom-${isCustomSelected ? "selected" : "idle"}'),
+                    onTap: () async {
+                      final picked = await showLiquidGlassColorPicker(
+                        context,
+                        initialColor: currentColor,
+                        title: '$title · ${i18n.customColor}',
+                      );
+                      if (picked != null) {
+                        onSelectColor(picked);
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 140),
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: isCustomSelected ? currentColor : Colors.transparent,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isCustomSelected
+                              ? (tc.isDark ? Colors.white : Colors.black)
+                              : tc.textTertiary.withValues(alpha: 0.5),
+                          width: isCustomSelected ? 2.2 : 1.5,
+                        ),
+                        boxShadow: isCustomSelected
+                            ? [
+                                BoxShadow(
+                                  color: currentColor.withValues(alpha: 0.35),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: isCustomSelected
+                          ? const Icon(Icons.colorize_rounded, size: 16, color: Colors.white)
+                          : Icon(Icons.colorize_rounded, size: 16, color: tc.textSecondary),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAppIconSection(
+      BuildContext context, AppI18n i18n, ThemeColors tc) {
+    final settings = AppSettings.instance;
+    final currentStyleId = settings.appIconStyle;
+    final customPath = settings.customAppIconPath;
+
+    final styles = [
+      AppIconStyle.classic,
+      AppIconStyle.neon,
+      AppIconStyle.stealth,
+      AppIconStyle.silver,
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          context,
+          icon: Icons.app_shortcut_rounded,
+          title: i18n.appIconTitle,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          i18n.appIconDesc,
+          style: TextStyle(fontSize: 12, color: tc.textSecondary),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 82,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              ...styles.map((style) {
+                final isSelected = currentStyleId == style.id && (customPath == null || customPath.isEmpty);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: GestureDetector(
+                    key: ValueKey('settings-app-icon-${style.id}'),
+                    onTap: () async {
+                      await settings.setCustomAppIconPath(null);
+                      await AppIconManager.setAppIcon(style);
+                      if (context.mounted) {
+                        showLiquidGlassSnackBar(
+                          context,
+                          message: '${i18n.appIconUpdated}: ${style.nameZh}',
+                          icon: Icons.check_circle_rounded,
+                          iconColor: tc.success,
+                        );
+                      }
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSelected ? tc.primary : Colors.white12,
+                              width: isSelected ? 2.5 : 1.0,
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: tc.primary.withValues(alpha: 0.35),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(style.assetPath!, fit: BoxFit.cover),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          i18n.isZh ? style.nameZh : style.nameEn,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? tc.primary : tc.textSecondary,
+                          ),
                         ),
                       ],
                     ),
-                    child: isCurrent
-                        ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
-                        : null,
                   ),
-                ),
-              ),
-            );
-          }).toList(),
+                );
+              }),
+              // Custom Image Card
+              Builder(builder: (context) {
+                final isCustomSelected = currentStyleId == AppIconStyle.custom.id || (customPath != null && customPath.isNotEmpty);
+                final hasFile = customPath != null && !kIsWeb && File(customPath).existsSync();
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: GestureDetector(
+                    key: const ValueKey('settings-app-icon-custom'),
+                    onTap: () async {
+                      final path = await AppIconManager.pickCustomIconImage();
+                      if (path != null && context.mounted) {
+                        await AppIconManager.applyCustomIcon(path);
+                        if (context.mounted) {
+                          showLiquidGlassSnackBar(
+                            context,
+                            message: '${i18n.appIconUpdated} (${i18n.shortcutCreated})',
+                            icon: Icons.check_circle_rounded,
+                          iconColor: tc.success,
+                          );
+                        }
+                      }
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            color: tc.inputBackground,
+                            border: Border.all(
+                              color: isCustomSelected ? tc.primary : Colors.white24,
+                              width: isCustomSelected ? 2.5 : 1.0,
+                            ),
+                            boxShadow: isCustomSelected
+                                ? [
+                                    BoxShadow(
+                                      color: tc.primary.withValues(alpha: 0.35),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: hasFile
+                                ? Image.file(File(customPath), fit: BoxFit.cover)
+                                : Center(
+                                    child: Icon(
+                                      Icons.add_photo_alternate_rounded,
+                                      color: tc.primary,
+                                      size: 22,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          i18n.pickFromGallery,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isCustomSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isCustomSelected ? tc.primary : tc.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
         ),
       ],
     );

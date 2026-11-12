@@ -5,6 +5,7 @@ import '../apple_glass.dart';
 import '../models.dart';
 import 'settings_dialog.dart';
 import 'profile_view.dart';
+import '../widgets/app_logo.dart';
 
 class LobbyView extends StatefulWidget {
   final RoomSession session;
@@ -251,10 +252,13 @@ class _LobbyViewState extends State<LobbyView> {
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.movie_filter_rounded,
-                    color: Colors.white,
-                    size: 17,
+                  child: const Center(
+                    child: AppLogo(
+                      size: 20,
+                      color: Colors.white,
+                      useGradient: false,
+                      hasGlow: false,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),

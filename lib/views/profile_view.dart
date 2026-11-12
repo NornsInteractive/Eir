@@ -10,6 +10,7 @@ import '../apple_glass.dart';
 import '../models.dart';
 import '../core/update_service.dart';
 import 'settings_dialog.dart';
+import '../widgets/app_logo.dart';
 
 class AvatarPreset {
   final String key;
@@ -850,7 +851,9 @@ class _ProfileViewState extends State<ProfileView> {
                                 color: tc.primary,
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Icon(Icons.movie_filter_rounded, size: 14, color: Colors.white),
+                              child: const Center(
+                                child: AppLogo(size: 16, color: Colors.white, useGradient: false, hasGlow: false),
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Text(

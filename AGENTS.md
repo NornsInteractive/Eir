@@ -15,3 +15,5 @@
 - 免费模型接续规则：OpenCode 免费额度不可用时，自动切换至已核实免费的 CodeBuddy 模型继续，不要求用户重复选择。当前已从本机 CodeBuddy `product.json` 核实 `hy3` 的 `credits` 为 `x0.00 credits`；选择时须重新确认免费标识，不配置付费回退或自动购买。
 
 - 已核实 CodeBuddy `deepseek-v4.1-flash` 当前也标注 `x0.00 credits`，可作为免费接续模型；任何切换仍须重新核实免费标识，禁止付费回退。UI 既有 Agy 会话/模型限制保持不变。
+
+- 本地 APK 保留规则：每次编译 APK，本地不需要保留历史安装包，须全部清除（`rm -f eir-v*.apk`），本地仅保留当前目标版本的单份产物。

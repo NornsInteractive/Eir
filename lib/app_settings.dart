@@ -29,6 +29,8 @@ class AppSettings extends ChangeNotifier {
   static const String _kTurnCredentialKey = 'eir_setting_turn_credential';
   static const String _kTransportEngineKey = 'eir_setting_transport_engine';
   static const String _kWaitForPeerBufferingKey = 'eir_setting_wait_for_peer_buffering';
+  static const String _kAppIconStyleKey = 'eir_setting_app_icon_style';
+  static const String _kCustomAppIconPathKey = 'eir_setting_custom_app_icon_path';
 
   static const List<String> _adjectives = [
     'Starlight', 'Velvet', 'Neon', 'Cosmic', 'Solar', 'Lunar', 'Silent',
@@ -133,6 +135,13 @@ class AppSettings extends ChangeNotifier {
   // Playback sync: wait for peer buffering
   bool _waitForPeerBuffering = true;
   bool get waitForPeerBuffering => _waitForPeerBuffering;
+
+  // App Launcher Icon Style: 'classic' | 'neon' | 'stealth' | 'silver' | 'custom'
+  String _appIconStyle = 'classic';
+  String get appIconStyle => _appIconStyle;
+
+  String? _customAppIconPath;
+  String? get customAppIconPath => _customAppIconPath;
 
   /// Effective display name: returns trimmed nickname if non-empty, otherwise empty
   String get effectiveDisplayName => _nickname.trim();
@@ -303,6 +312,22 @@ class AppSettings extends ChangeNotifier {
         _waitForPeerBuffering = true;
         debugPrint('[AppSettings] Reset corrupted wait for peer buffering setting: $e');
       }
+
+      // 14. App Icon Style (Isolated try-catch)
+      try {
+        _appIconStyle = prefs.getString(_kAppIconStyleKey) ?? 'classic';
+      } catch (e) {
+        _appIconStyle = 'classic';
+        debugPrint('[AppSettings] Reset corrupted app icon style setting: $e');
+      }
+
+      // 15. Custom App Icon Path (Isolated try-catch)
+      try {
+        _customAppIconPath = prefs.getString(_kCustomAppIconPathKey);
+      } catch (e) {
+        _customAppIconPath = null;
+        debugPrint('[AppSettings] Reset corrupted custom app icon path setting: $e');
+      }
     }
 
     _isInitialized = true;
@@ -459,6 +484,38 @@ class AppSettings extends ChangeNotifier {
         await prefs.setString(_kAvatarKey, clean);
       } catch (e) {
         debugPrint('[AppSettings] Failed to persist avatar: $e');
+      }
+    }
+  }
+
+  Future<void> setAppIconStyle(String style) async {
+    final clean = style.trim();
+    if (_appIconStyle != clean) {
+      _appIconStyle = clean;
+      notifyListeners();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_kAppIconStyleKey, clean);
+      } catch (e) {
+        debugPrint('[AppSettings] Failed to persist app icon style: $e');
+      }
+    }
+  }
+
+  Future<void> setCustomAppIconPath(String? path) async {
+    final clean = path?.trim();
+    if (_customAppIconPath != clean) {
+      _customAppIconPath = clean;
+      notifyListeners();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        if (clean != null && clean.isNotEmpty) {
+          await prefs.setString(_kCustomAppIconPathKey, clean);
+        } else {
+          await prefs.remove(_kCustomAppIconPathKey);
+        }
+      } catch (e) {
+        debugPrint('[AppSettings] Failed to persist custom app icon path: $e');
       }
     }
   }

@@ -1,11 +1,17 @@
 package com.norns.eir
 
 import android.app.Activity
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ShortcutInfo
+import android.content.pm.ShortcutManager
+import android.graphics.BitmapFactory
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.PowerManager
 import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
@@ -255,6 +261,80 @@ class MainActivity : FlutterActivity() {
             } else if (call.method == "releaseKeepAliveLock") {
                 releaseKeepAlive()
                 result.success(true)
+            } else {
+                result.notImplemented()
+            }
+        }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.norns.eir/app_icon").setMethodCallHandler { call, result ->
+            if (call.method == "setAppIcon") {
+                val iconName = call.argument<String>("icon") ?: "classic"
+                val pm = applicationContext.packageManager
+                val pkg = applicationContext.packageName
+
+                val aliases = mapOf(
+                    "classic" to "$pkg.MainActivity",
+                    "neon" to "$pkg.MainActivityAliasNeon",
+                    "stealth" to "$pkg.MainActivityAliasStealth",
+                    "silver" to "$pkg.MainActivityAliasSilver"
+                )
+
+                try {
+                    val targetComponent = aliases[iconName] ?: aliases["classic"]!!
+                    for ((_, compName) in aliases) {
+                        val state = if (compName == targetComponent) {
+                            PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                        } else {
+                            PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                        }
+                        pm.setComponentEnabledSetting(
+                            ComponentName(pkg, compName),
+                            state,
+                            PackageManager.DONT_KILL_APP
+                        )
+                    }
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("ICON_ERROR", e.message, null)
+                }
+            } else if (call.method == "createPinShortcut") {
+                val iconPath = call.argument<String>("iconPath")
+                val label = call.argument<String>("label") ?: "Eir"
+                if (iconPath.isNullOrEmpty()) {
+                    result.error("INVALID_ARGS", "iconPath required", null)
+                    return@setMethodCallHandler
+                }
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        val shortcutManager = getSystemService(ShortcutManager::class.java)
+                        if (shortcutManager != null && shortcutManager.isRequestPinShortcutSupported) {
+                            val bitmap = BitmapFactory.decodeFile(iconPath)
+                            if (bitmap != null) {
+                                val icon = Icon.createWithBitmap(bitmap)
+                                val intent = Intent(applicationContext, MainActivity::class.java).apply {
+                                    action = Intent.ACTION_MAIN
+                                    addCategory(Intent.CATEGORY_LAUNCHER)
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                }
+                                val pinShortcutInfo = ShortcutInfo.Builder(applicationContext, "eir_shortcut_" + System.currentTimeMillis())
+                                    .setIcon(icon)
+                                    .setShortLabel(label)
+                                    .setIntent(intent)
+                                    .build()
+                                shortcutManager.requestPinShortcut(pinShortcutInfo, null)
+                                result.success(true)
+                            } else {
+                                result.error("DECODE_ERROR", "Failed to decode image file", null)
+                            }
+                        } else {
+                            result.error("UNSUPPORTED", "Pin shortcuts not supported on this device/launcher", null)
+                        }
+                    } else {
+                        result.error("UNSUPPORTED", "Requires Android 8.0+", null)
+                    }
+                } catch (e: Exception) {
+                    result.error("SHORTCUT_ERROR", e.message, null)
+                }
             } else {
                 result.notImplemented()
             }
