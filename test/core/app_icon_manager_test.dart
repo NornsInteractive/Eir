@@ -42,4 +42,12 @@ void main() {
     await settings.setCustomAppIconPath(null);
     expect(settings.customAppIconPath, isNull);
   });
+
+  test('AppIconManager.init runs without throwing and handles web favicon stub', () async {
+    final settings = AppSettings.instance;
+    await settings.init();
+    await settings.setAppIconStyle('silver');
+    await AppIconManager.init();
+    expect(settings.appIconStyle, equals('silver'));
+  });
 }

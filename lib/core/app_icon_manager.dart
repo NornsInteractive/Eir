@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../app_settings.dart';
+import '../platform/web_favicon.dart';
 
 enum AppIconStyle {
   classic('classic', '经典黑晶', 'Classic Dark', 'assets/images/icons/icon_default.png'),
@@ -29,6 +31,19 @@ enum AppIconStyle {
 
 class AppIconManager {
   static const MethodChannel _channel = MethodChannel('com.norns.eir/app_icon');
+
+  /// Initializes web favicon and icon synchronization on app start
+  static Future<void> init() async {
+    final style = AppIconStyle.fromId(AppSettings.instance.appIconStyle);
+    final customPath = AppSettings.instance.customAppIconPath;
+    if (kIsWeb) {
+      if (style == AppIconStyle.custom && customPath != null && customPath.isNotEmpty) {
+        _setWebFavicon(customPath);
+      } else {
+        _setWebFavicon(style.id);
+      }
+    }
+  }
 
   /// Switches app launcher icon or active icon style
   static Future<bool> setAppIcon(AppIconStyle style) async {
@@ -96,8 +111,20 @@ class AppIconManager {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+        withData: kIsWeb,
       );
       if (result != null && result.files.isNotEmpty) {
+        if (kIsWeb) {
+          final file = result.files.first;
+          if (file.bytes != null) {
+            final ext = (file.extension ?? 'png').toLowerCase();
+            final mime = ext == 'png'
+                ? 'image/png'
+                : (ext == 'webp' ? 'image/webp' : 'image/jpeg');
+            final base64Data = base64Encode(file.bytes!);
+            return 'data:$mime;base64,$base64Data';
+          }
+        }
         return result.files.first.path;
       }
     } catch (e) {
@@ -107,10 +134,11 @@ class AppIconManager {
   }
 
   static void _setWebFavicon(String iconIdOrPath) {
-    // Dynamic favicon for web browsers
     if (!kIsWeb) return;
     try {
-      // Intentionally guarded for web environments
-    } catch (_) {}
+      updateWebFavicon(iconIdOrPath);
+    } catch (e) {
+      debugPrint('[AppIconManager] updateWebFavicon failed: $e');
+    }
   }
 }

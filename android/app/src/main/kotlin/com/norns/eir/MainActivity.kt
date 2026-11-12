@@ -273,7 +273,7 @@ class MainActivity : FlutterActivity() {
                 val pkg = applicationContext.packageName
 
                 val aliases = mapOf(
-                    "classic" to "$pkg.MainActivity",
+                    "classic" to "$pkg.MainActivityAliasClassic",
                     "neon" to "$pkg.MainActivityAliasNeon",
                     "stealth" to "$pkg.MainActivityAliasStealth",
                     "silver" to "$pkg.MainActivityAliasSilver"
@@ -293,6 +293,12 @@ class MainActivity : FlutterActivity() {
                             PackageManager.DONT_KILL_APP
                         )
                     }
+                    // Ensure root MainActivity itself is always enabled
+                    pm.setComponentEnabledSetting(
+                        ComponentName(pkg, "$pkg.MainActivity"),
+                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                        PackageManager.DONT_KILL_APP
+                    )
                     result.success(true)
                 } catch (e: Exception) {
                     result.error("ICON_ERROR", e.message, null)
@@ -311,15 +317,20 @@ class MainActivity : FlutterActivity() {
                             val bitmap = BitmapFactory.decodeFile(iconPath)
                             if (bitmap != null) {
                                 val icon = Icon.createWithBitmap(bitmap)
-                                val intent = Intent(applicationContext, MainActivity::class.java).apply {
-                                    action = Intent.ACTION_MAIN
-                                    addCategory(Intent.CATEGORY_LAUNCHER)
-                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                                }
+                                val pm = applicationContext.packageManager
+                                val pkg = applicationContext.packageName
+                                val launchIntent = pm.getLaunchIntentForPackage(pkg)
+                                    ?: Intent(applicationContext, MainActivity::class.java).apply {
+                                        action = Intent.ACTION_MAIN
+                                        addCategory(Intent.CATEGORY_DEFAULT)
+                                    }
+                                launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+
                                 val pinShortcutInfo = ShortcutInfo.Builder(applicationContext, "eir_shortcut_" + System.currentTimeMillis())
                                     .setIcon(icon)
                                     .setShortLabel(label)
-                                    .setIntent(intent)
+                                    .setLongLabel(label)
+                                    .setIntent(launchIntent)
                                     .build()
                                 shortcutManager.requestPinShortcut(pinShortcutInfo, null)
                                 result.success(true)

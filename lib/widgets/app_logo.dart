@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -28,35 +29,52 @@ class AppLogo extends StatelessWidget {
     final customPath = AppSettings.instance.customAppIconPath;
 
     // If user has a valid custom image, render it inside a glass rounded container
-    if (!kIsWeb && customPath != null && customPath.isNotEmpty) {
-      final file = File(customPath);
-      if (file.existsSync()) {
-        return Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(size * 0.22),
-            boxShadow: hasGlow
-                ? [
-                    BoxShadow(
-                      color: targetColor.withValues(alpha: 0.35),
-                      blurRadius: size * 0.3,
-                      offset: Offset(0, size * 0.08),
-                    ),
-                  ]
-                : null,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(size * 0.22),
-            child: Image.file(
-              file,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-            ),
-          ),
-        );
+    Widget? customImageWidget;
+    if (customPath != null && customPath.isNotEmpty) {
+      if (kIsWeb && customPath.startsWith('data:')) {
+        try {
+          final bytes = base64Decode(customPath.split(',').last);
+          customImageWidget = Image.memory(
+            bytes,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+          );
+        } catch (_) {}
+      } else if (!kIsWeb) {
+        final file = File(customPath);
+        if (file.existsSync()) {
+          customImageWidget = Image.file(
+            file,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+          );
+        }
       }
+    }
+
+    if (customImageWidget != null) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * 0.22),
+          boxShadow: hasGlow
+              ? [
+                  BoxShadow(
+                    color: targetColor.withValues(alpha: 0.35),
+                    blurRadius: size * 0.3,
+                    offset: Offset(0, size * 0.08),
+                  ),
+                ]
+              : null,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(size * 0.22),
+          child: customImageWidget,
+        ),
+      );
     }
 
     Widget logoImage = Image.asset(

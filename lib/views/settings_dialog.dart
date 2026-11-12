@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -1072,14 +1073,6 @@ class _SettingsDialogState extends State<SettingsDialog> {
                     onTap: () async {
                       await settings.setCustomAppIconPath(null);
                       await AppIconManager.setAppIcon(style);
-                      if (context.mounted) {
-                        showLiquidGlassSnackBar(
-                          context,
-                          message: '${i18n.appIconUpdated}: ${style.nameZh}',
-                          icon: Icons.check_circle_rounded,
-                          iconColor: tc.success,
-                        );
-                      }
                     },
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -1126,6 +1119,15 @@ class _SettingsDialogState extends State<SettingsDialog> {
               Builder(builder: (context) {
                 final isCustomSelected = currentStyleId == AppIconStyle.custom.id || (customPath != null && customPath.isNotEmpty);
                 final hasFile = customPath != null && !kIsWeb && File(customPath).existsSync();
+                final hasWebData = customPath != null && kIsWeb && customPath.startsWith('data:');
+                Widget? previewImage;
+                if (hasWebData) {
+                  try {
+                    previewImage = Image.memory(base64Decode(customPath.split(',').last), fit: BoxFit.cover);
+                  } catch (_) {}
+                } else if (hasFile) {
+                  previewImage = Image.file(File(customPath), fit: BoxFit.cover);
+                }
 
                 return Padding(
                   padding: const EdgeInsets.only(right: 12),
@@ -1135,14 +1137,6 @@ class _SettingsDialogState extends State<SettingsDialog> {
                       final path = await AppIconManager.pickCustomIconImage();
                       if (path != null && context.mounted) {
                         await AppIconManager.applyCustomIcon(path);
-                        if (context.mounted) {
-                          showLiquidGlassSnackBar(
-                            context,
-                            message: '${i18n.appIconUpdated} (${i18n.shortcutCreated})',
-                            icon: Icons.check_circle_rounded,
-                          iconColor: tc.success,
-                          );
-                        }
                       }
                     },
                     child: Column(
@@ -1170,15 +1164,14 @@ class _SettingsDialogState extends State<SettingsDialog> {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: hasFile
-                                ? Image.file(File(customPath), fit: BoxFit.cover)
-                                : Center(
-                                    child: Icon(
-                                      Icons.add_photo_alternate_rounded,
-                                      color: tc.primary,
-                                      size: 22,
-                                    ),
+                            child: previewImage ??
+                                Center(
+                                  child: Icon(
+                                    Icons.add_photo_alternate_rounded,
+                                    color: tc.primary,
+                                    size: 22,
                                   ),
+                                ),
                           ),
                         ),
                         const SizedBox(height: 4),

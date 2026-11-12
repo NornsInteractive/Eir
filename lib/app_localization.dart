@@ -327,7 +327,9 @@ class AppI18n {
   String get colorHexCode => isZh ? '十六进制色值' : 'Hex Code';
   String get applyColor => isZh ? '应用' : 'Apply';
   String get appIconTitle => isZh ? '桌面图标' : 'Launcher Icon';
-  String get appIconDesc => isZh ? '自定义设备桌面与应用启动图标样式' : 'Customize home screen launcher icon';
+  String get appIconDesc => isZh
+      ? '预设图标直接切换应用主图标；自选图片置于桌面启动快捷方式并在应用内全量生效'
+      : 'Preset styles switch the native app icon; custom images pin desktop shortcuts and apply in-app';
   String get appIconUpdated => isZh ? '桌面图标已更新' : 'Launcher icon updated';
   String get pickFromGallery => isZh ? '自选本地图片' : 'Pick Local Image';
   String get shortcutCreated => isZh ? '已请求添加桌面快捷方式' : 'Home screen shortcut requested';
