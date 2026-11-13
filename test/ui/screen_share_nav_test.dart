@@ -77,6 +77,9 @@ void main() {
       expect(find.byKey(const ValueKey('join-cast-btn')), findsOneWidget);
       expect(find.text('60 FPS 极速推流'), findsOneWidget);
       expect(find.text('系统伴音直传'), findsOneWidget);
+      expect(find.text('声学防回声保障 · 畅享原声'), findsOneWidget);
+      expect(find.text('60 FPS 极速推流'), findsOneWidget);
+      expect(find.text('精准窗口捕获'), findsOneWidget);
 
       // 2. Switch to 我的 tab
       await tester.tap(find.text('我的').first);

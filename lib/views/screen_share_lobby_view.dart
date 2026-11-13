@@ -25,8 +25,10 @@ class ScreenShareLobbyView extends StatefulWidget {
 
 class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
   final TextEditingController _codeController = TextEditingController();
+  final FocusNode _codeFocusNode = FocusNode();
   bool _isConnecting = false;
   String? _errorMessage;
+  int _selectedQualityPreset = 0; // 0 = 60 FPS, 1 = 1080p, 2 = Low Latency
 
   ScreenShareService get _service => widget.session.screenShareService;
 
@@ -34,13 +36,20 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
   void initState() {
     super.initState();
     _service.addListener(_onServiceUpdate);
+    _codeController.addListener(_onCodeChanged);
   }
 
   @override
   void dispose() {
     _service.removeListener(_onServiceUpdate);
+    _codeController.removeListener(_onCodeChanged);
     _codeController.dispose();
+    _codeFocusNode.dispose();
     super.dispose();
+  }
+
+  void _onCodeChanged() {
+    if (mounted) setState(() {});
   }
 
   void _onServiceUpdate() {
@@ -148,7 +157,10 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
             children: [
               // 1. Header Section
               _buildHeaderSection(context, i18n, tc),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+
+              // Anti-Echo Trust Banner
+              _buildEchoTrustBanner(context, i18n, tc),
 
               // Active Session Pill if broadcasting/viewing
               if (_service.isActive) ...[
@@ -256,6 +268,95 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEchoTrustBanner(BuildContext context, AppI18n i18n, ThemeColors tc) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: tc.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: tc.primary.withValues(alpha: 0.18), width: 1),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: tc.primary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.shield_outlined, color: tc.primary, size: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '声学防回声保障 · 畅享原声',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: tc.primary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  i18n.echoFreeNotice,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: tc.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPresetPill(int index, String label, IconData icon, ThemeColors tc) {
+    final isSelected = _selectedQualityPreset == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedQualityPreset = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? tc.primary.withValues(alpha: 0.14)
+              : tc.inputBackground.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? tc.primary : tc.glassBorderSubtle.withValues(alpha: 0.5),
+            width: isSelected ? 1.5 : 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? tc.primary : tc.textSecondary,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                color: isSelected ? tc.primary : tc.textPrimary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -398,16 +499,31 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
+          // Scene presets
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _buildPresetPill(0, i18n.presetMotion, Icons.speed_rounded, tc),
+              _buildPresetPill(1, i18n.presetCrystal, Icons.hd_rounded, tc),
+              _buildPresetPill(2, i18n.presetLowLatency, Icons.bolt_rounded, tc),
+            ],
+          ),
+          const SizedBox(height: 14),
           Text(
-            '支持选择特定软件窗口（如抖音、浏览器）或手机录屏推流，系统音频立体声伴奏同步直传。',
+            _selectedQualityPreset == 0
+                ? '60 FPS 极速推流：专为抖音短视频优化，运动画面丝滑流畅。'
+                : (_selectedQualityPreset == 1
+                    ? '1080p 超清原画：分辨率优先，适合清晰查看网页、文档与图纸。'
+                    : '极低延迟模式：大幅缩短抖动缓存，适合双人实时操作演示。'),
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: 12,
               color: tc.textSecondary,
-              height: 1.45,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -488,6 +604,49 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
             ],
           ),
           const SizedBox(height: 16),
+          // Segmented 6-digit PIN boxes preview
+          GestureDetector(
+            onTap: () => _codeFocusNode.requestFocus(),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(6, (index) {
+                final text = _codeController.text;
+                final hasChar = index < text.length;
+                final isCurrent = index == text.length;
+                final char = hasChar ? text[index] : '';
+
+                return Container(
+                  width: 38,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: isCurrent
+                        ? tc.primary.withValues(alpha: 0.1)
+                        : (hasChar ? tc.cardBackground : tc.inputBackground.withValues(alpha: 0.5)),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isCurrent
+                          ? tc.primary
+                          : (hasChar
+                              ? tc.primary.withValues(alpha: 0.5)
+                              : tc.glassBorderSubtle.withValues(alpha: 0.4)),
+                      width: isCurrent ? 1.8 : 1,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      char,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: tc.textPrimary,
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          const SizedBox(height: 12),
           // 6-digit Code Input Field
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -504,6 +663,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                   child: TextField(
                     key: const ValueKey('cast-code-input'),
                     controller: _codeController,
+                    focusNode: _codeFocusNode,
                     keyboardType: TextInputType.number,
                     maxLength: 6,
                     style: TextStyle(
@@ -513,9 +673,9 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                       color: tc.textPrimary,
                     ),
                     decoration: InputDecoration(
-                      hintText: '6 位投屏码',
+                      hintText: '点击输入 6 位投屏码',
                       hintStyle: TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         letterSpacing: 0,
                         fontWeight: FontWeight.normal,
                         color: tc.textSecondary,
@@ -527,6 +687,13 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                     onSubmitted: (val) => _handleJoinCast(val),
                   ),
                 ),
+                if (_codeController.text.isNotEmpty)
+                  IconButton(
+                    tooltip: '清除',
+                    icon: const Icon(Icons.clear_rounded, size: 18),
+                    color: tc.textSecondary,
+                    onPressed: () => _codeController.clear(),
+                  ),
                 IconButton(
                   tooltip: '粘贴',
                   icon: const Icon(Icons.content_paste_rounded, size: 18),

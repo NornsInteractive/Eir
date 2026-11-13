@@ -67,6 +67,29 @@ class ScreenShareService extends ChangeNotifier {
   double _volume = 1.0;
   double get volume => _volume;
 
+  double _companionVolume = 1.0;
+  double get companionVolume => _companionVolume;
+
+  double _voiceVolume = 1.0;
+  double get voiceVolume => _voiceVolume;
+
+  bool _isAudioDuckingEnabled = true;
+  bool get isAudioDuckingEnabled => _isAudioDuckingEnabled;
+
+  bool _isCoverMode = false;
+  bool get isCoverMode => _isCoverMode;
+
+  final StreamController<String> _reactionController = StreamController<String>.broadcast();
+  Stream<String> get onReaction => _reactionController.stream;
+
+  // Stream health statistics
+  int _rttMs = 0;
+  int get rttMs => _rttMs;
+  double _bitrateMbps = 0.0;
+  double get bitrateMbps => _bitrateMbps;
+  double _packetLoss = 0.0;
+  double get packetLoss => _packetLoss;
+
   bool _isMuted = false;
   bool get isMuted => _isMuted;
 
@@ -391,6 +414,13 @@ class ScreenShareService extends ChangeNotifier {
         }
         break;
 
+      case 'screen_share_reaction':
+        final emoji = data['emoji'] as String?;
+        if (emoji != null && emoji.isNotEmpty) {
+          _reactionController.add(emoji);
+        }
+        break;
+
       case 'screen_share_stop':
         stop(reason: data['reason'] as String? ?? 'remote_stopped');
         break;
@@ -477,8 +507,47 @@ class ScreenShareService extends ChangeNotifier {
   /// Set remote audio volume (0.0 to 1.0)
   void setVolume(double val) {
     _volume = val.clamp(0.0, 1.0);
+    _companionVolume = _volume;
     _isMuted = _volume == 0.0;
     notifyListeners();
+  }
+
+  /// Set companion media volume (0.0 to 1.0)
+  void setCompanionVolume(double val) {
+    _companionVolume = val.clamp(0.0, 1.0);
+    _volume = _companionVolume;
+    _isMuted = _companionVolume == 0.0;
+    notifyListeners();
+  }
+
+  /// Set voice chat volume (0.0 to 2.0 with gain boost)
+  void setVoiceVolume(double val) {
+    _voiceVolume = val.clamp(0.0, 2.0);
+    notifyListeners();
+  }
+
+  /// Toggle audio ducking (lower media volume when speaking)
+  void setAudioDucking(bool enabled) {
+    _isAudioDuckingEnabled = enabled;
+    notifyListeners();
+  }
+
+  /// Toggle aspect ratio (Contain vs Cover)
+  void toggleAspectMode() {
+    _isCoverMode = !_isCoverMode;
+    notifyListeners();
+  }
+
+  /// Broadcast reaction emoji to peers
+  Future<void> sendReaction(String emoji) async {
+    _reactionController.add(emoji);
+    try {
+      await sendSignal({
+        'type': 'screen_share_reaction',
+        'emoji': emoji,
+        'castCode': _activeCastCode,
+      });
+    } catch (_) {}
   }
 
   /// Toggle mute state
@@ -487,12 +556,20 @@ class ScreenShareService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Toggle microphone talkback during screen share
+  /// Toggle microphone talkback during screen share with WebRTC 3A echo cancellation
   Future<void> toggleMic() async {
     _isMicEnabled = !_isMicEnabled;
     if (_isMicEnabled) {
       try {
-        _micStream = await navigator.mediaDevices.getUserMedia({'audio': true, 'video': false});
+        _micStream = await navigator.mediaDevices.getUserMedia({
+          'audio': {
+            'echoCancellation': true,
+            'noiseSuppression': true,
+            'autoGainControl': true,
+            'highpassFilter': true,
+          },
+          'video': false,
+        });
         if (_pc != null && _micStream != null) {
           for (final track in _micStream!.getAudioTracks()) {
             await _pc!.addTrack(track, _micStream!);
@@ -517,6 +594,7 @@ class ScreenShareService extends ChangeNotifier {
   @override
   void dispose() {
     _cleanup();
+    _reactionController.close();
     if (_renderersInitialized) {
       localRenderer.dispose();
       remoteRenderer.dispose();

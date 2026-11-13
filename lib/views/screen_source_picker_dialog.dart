@@ -42,9 +42,11 @@ class _ScreenSourcePickerDialogState extends State<ScreenSourcePickerDialog> {
   final List<DesktopCapturerSource> _windows = [];
   final List<DesktopCapturerSource> _screens = [];
   final List<StreamSubscription> _subscriptions = [];
+  final TextEditingController _searchController = TextEditingController();
 
   bool _isLoading = true;
   int _selectedTabIndex = 0; // 0 = Windows, 1 = Screens
+  String _searchQuery = '';
   DesktopCapturerSource? _selectedSource;
   bool _shareAudio = true;
   bool _highFps = true;
@@ -64,6 +66,7 @@ class _ScreenSourcePickerDialogState extends State<ScreenSourcePickerDialog> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     for (final sub in _subscriptions) {
       sub.cancel();
     }
@@ -226,13 +229,17 @@ class _ScreenSourcePickerDialogState extends State<ScreenSourcePickerDialog> {
       );
     }
 
-    final activeSources = _selectedTabIndex == 0 ? _windows : _screens;
+    final query = _searchQuery.trim().toLowerCase();
+    final filteredWindows = query.isEmpty
+        ? _windows
+        : _windows.where((w) => w.name.toLowerCase().contains(query)).toList();
+    final activeSources = _selectedTabIndex == 0 ? filteredWindows : _screens;
 
     return Column(
       children: [
         // Tab switcher
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
           child: Row(
             children: [
               Expanded(
@@ -248,13 +255,13 @@ class _ScreenSourcePickerDialogState extends State<ScreenSourcePickerDialog> {
                         child: _buildTabPill(
                           title: i18n.shareAppWindow,
                           icon: Icons.window_rounded,
-                          count: _windows.length,
+                          count: filteredWindows.length,
                           isSelected: _selectedTabIndex == 0,
                           onTap: () {
                             setState(() {
                               _selectedTabIndex = 0;
-                              if (_windows.isNotEmpty) {
-                                _selectedSource = _windows.first;
+                              if (filteredWindows.isNotEmpty) {
+                                _selectedSource = filteredWindows.first;
                               }
                             });
                           },
@@ -298,6 +305,57 @@ class _ScreenSourcePickerDialogState extends State<ScreenSourcePickerDialog> {
             ],
           ),
         ),
+
+        // Search Bar for Windows
+        if (_selectedTabIndex == 0)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Container(
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: tc.inputBackground.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: tc.glassBorderSubtle.withValues(alpha: 0.4), width: 0.8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.search_rounded, size: 18, color: tc.textSecondary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      style: TextStyle(fontSize: 12.5, color: tc.textPrimary),
+                      decoration: InputDecoration(
+                        hintText: i18n.searchWindowsHint,
+                        hintStyle: TextStyle(fontSize: 12.5, color: tc.textTertiary),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          _searchQuery = val;
+                          if (filteredWindows.isNotEmpty &&
+                              !filteredWindows.any((w) => w.id == _selectedSource?.id)) {
+                            _selectedSource = filteredWindows.first;
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                  if (_searchQuery.isNotEmpty)
+                    GestureDetector(
+                      onTap: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                      child: Icon(Icons.clear_rounded, size: 16, color: tc.textSecondary),
+                    ),
+                ],
+              ),
+            ),
+          ),
 
         // Grid
         Expanded(

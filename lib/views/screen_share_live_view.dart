@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -32,6 +34,8 @@ class ScreenShareLiveView extends StatefulWidget {
 class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
   bool _controlsVisible = true;
   bool _isFullscreen = false;
+  final List<_FloatingEmojiData> _activeReactions = [];
+  StreamSubscription<String>? _reactionSub;
 
   ScreenShareService get _service => widget.session.screenShareService;
 
@@ -39,12 +43,29 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
   void initState() {
     super.initState();
     _service.addListener(_onServiceChanged);
+    _reactionSub = _service.onReaction.listen(_onReactionReceived);
   }
 
   @override
   void dispose() {
+    _reactionSub?.cancel();
     _service.removeListener(_onServiceChanged);
     super.dispose();
+  }
+
+  void _onReactionReceived(String emoji) {
+    if (!mounted) return;
+    final item = _FloatingEmojiData(
+      id: UniqueKey().toString(),
+      emoji: emoji,
+      startX: 0.7 + (DateTime.now().millisecond % 25) / 100.0,
+    );
+    setState(() => _activeReactions.add(item));
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      if (mounted) {
+        setState(() => _activeReactions.removeWhere((e) => e.id == item.id));
+      }
+    });
   }
 
   void _onServiceChanged() {
@@ -93,11 +114,22 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
               child: _service.renderersInitialized
                   ? RTCVideoView(
                       renderer,
-                      objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                      objectFit: _service.isCoverMode
+                          ? RTCVideoViewObjectFit.RTCVideoViewObjectFitCover
+                          : RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
                       mirror: false,
                     )
                   : const CircularProgressIndicator(color: Colors.white70),
             ),
+
+            // 1.5 Floating Emoji Reactions Layer
+            ..._activeReactions.map((item) {
+              return _FloatingEmojiWidget(
+                key: ValueKey(item.id),
+                emoji: item.emoji,
+                startX: item.startX,
+              );
+            }),
 
             // 2. Top HUD Bar
             AnimatedPositioned(
@@ -170,35 +202,38 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
 
                       const Spacer(),
 
-                      // 60 FPS Live indicator
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.greenAccent.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.4), width: 0.8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 7,
-                              height: 7,
-                              decoration: const BoxDecoration(
-                                color: Colors.greenAccent,
-                                shape: BoxShape.circle,
+                      // 60 FPS Live indicator (clickable for stream health HUD)
+                      GestureDetector(
+                        onTap: () => _showStreamHealthSheet(context, i18n, tc),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.greenAccent.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.4), width: 0.8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 7,
+                                height: 7,
+                                decoration: const BoxDecoration(
+                                  color: Colors.greenAccent,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${_service.targetFps} FPS',
-                              style: const TextStyle(
-                                color: Colors.greenAccent,
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.bold,
+                              const SizedBox(width: 6),
+                              Text(
+                                '${_service.targetFps} FPS',
+                                style: const TextStyle(
+                                  color: Colors.greenAccent,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -214,6 +249,34 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                       ),
                     ],
                   ),
+                ),
+              ),
+            ),
+
+            // 2.8 Floating Emoji Quick Dock
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              bottom: _controlsVisible ? 94 : -60,
+              right: 24,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white24, width: 0.8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: ['❤️', '😂', '🔥', '👏', '666'].map((emoji) {
+                    return InkWell(
+                      onTap: () => _service.sendReaction(emoji),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        child: Text(emoji, style: const TextStyle(fontSize: 18)),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
             ),
@@ -244,15 +307,15 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        // Audio Mute / Unmute
+                        // Audio Mixer & Mute Button
                         IconButton(
-                          tooltip: _service.isMuted ? '取消静音' : '静音',
+                          tooltip: i18n.audioMixer,
                           icon: Icon(
-                            _service.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                            _service.isMuted ? Icons.volume_off_rounded : Icons.tune_rounded,
                             color: _service.isMuted ? Colors.redAccent : Colors.white,
                             size: 22,
                           ),
-                          onPressed: () => _service.toggleMute(),
+                          onPressed: () => _showAudioMixerSheet(context, i18n, tc),
                         ),
 
                         // Talkback Mic
@@ -264,6 +327,17 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                             size: 22,
                           ),
                           onPressed: () => _service.toggleMic(),
+                        ),
+
+                        // Aspect Ratio Toggle (Cover vs Contain)
+                        IconButton(
+                          tooltip: _service.isCoverMode ? i18n.aspectRatioContain : i18n.aspectRatioCover,
+                          icon: Icon(
+                            _service.isCoverMode ? Icons.fit_screen_rounded : Icons.crop_free_rounded,
+                            color: _service.isCoverMode ? Colors.amberAccent : Colors.white,
+                            size: 22,
+                          ),
+                          onPressed: () => _service.toggleAspectMode(),
                         ),
 
                         // Switch Source (if desktop broadcaster)
@@ -337,5 +411,349 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
       return '${d.inHours}:$minutes:$seconds';
     }
     return '$minutes:$seconds';
+  }
+
+  void _showAudioMixerSheet(BuildContext context, AppI18n i18n, ThemeColors tc) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Container(
+                margin: const EdgeInsets.all(16),
+                child: GlassContainer.card(
+                  surfaceStyle: GlassSurfaceStyle.solid,
+                  color: tc.cardBackground,
+                  shape: const LiquidRoundedSuperellipse(borderRadius: 24),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.tune_rounded, size: 20, color: tc.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            i18n.audioMixer,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: tc.textPrimary,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: Icon(Icons.close_rounded, size: 20, color: tc.textSecondary),
+                            onPressed: () => Navigator.of(ctx).pop(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Companion Volume Slider
+                      Row(
+                        children: [
+                          Icon(Icons.music_note_rounded, size: 18, color: tc.textSecondary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              i18n.companionVolume,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: tc.textPrimary,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${(_service.companionVolume * 100).round()}%',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: tc.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Slider(
+                        value: _service.companionVolume,
+                        min: 0.0,
+                        max: 1.0,
+                        activeColor: tc.primary,
+                        inactiveColor: tc.glassBorder,
+                        onChanged: (val) {
+                          setSheetState(() => _service.setCompanionVolume(val));
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Voice Volume Slider
+                      Row(
+                        children: [
+                          Icon(Icons.record_voice_over_rounded, size: 18, color: tc.textSecondary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              i18n.voiceVolume,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: tc.textPrimary,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${(_service.voiceVolume * 100).round()}%',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: tc.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Slider(
+                        value: _service.voiceVolume,
+                        min: 0.0,
+                        max: 2.0,
+                        activeColor: tc.primary,
+                        inactiveColor: tc.glassBorder,
+                        onChanged: (val) {
+                          setSheetState(() => _service.setVoiceVolume(val));
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Smart Audio Ducking
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: tc.glassSurfaceSubtle,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: tc.glassBorderSubtle, width: 0.8),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    i18n.audioDucking,
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: tc.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '连麦说话时自动压低画面伴音40%',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: tc.textTertiary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch.adaptive(
+                              value: _service.isAudioDuckingEnabled,
+                              activeColor: tc.primary,
+                              onChanged: (val) {
+                                setSheetState(() => _service.setAudioDucking(val));
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Anti-echo trust note
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.verified_user_rounded, size: 14, color: tc.success),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              i18n.echoFreeNotice,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: tc.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showStreamHealthSheet(BuildContext context, AppI18n i18n, ThemeColors tc) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            child: GlassContainer.card(
+              surfaceStyle: GlassSurfaceStyle.solid,
+              color: tc.cardBackground,
+              shape: const LiquidRoundedSuperellipse(borderRadius: 24),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.monitor_heart_rounded, size: 20, color: tc.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        i18n.streamHealthTitle,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: tc.textPrimary,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: Icon(Icons.close_rounded, size: 20, color: tc.textSecondary),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildMetricRow(i18n.fpsMetric, '${_service.targetFps} FPS', Colors.greenAccent, tc),
+                  const Divider(height: 16),
+                  _buildMetricRow(i18n.rttMetric, '${_service.rttMs} ms', tc.primary, tc),
+                  const Divider(height: 16),
+                  _buildMetricRow(i18n.bitrateMetric, '${_service.bitrateMbps.toStringAsFixed(1)} Mbps', tc.textPrimary, tc),
+                  const Divider(height: 16),
+                  _buildMetricRow(i18n.packetLossMetric, '${(_service.packetLoss * 100).toStringAsFixed(1)}%', tc.success, tc),
+                  const Divider(height: 16),
+                  _buildMetricRow('画面比例模式', _service.isCoverMode ? i18n.aspectRatioCover : i18n.aspectRatioContain, tc.textSecondary, tc),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetricRow(String label, String value, Color valueColor, ThemeColors tc) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13.5,
+            color: tc.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: valueColor,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FloatingEmojiData {
+  final String id;
+  final String emoji;
+  final double startX;
+
+  _FloatingEmojiData({
+    required this.id,
+    required this.emoji,
+    required this.startX,
+  });
+}
+
+class _FloatingEmojiWidget extends StatefulWidget {
+  final String emoji;
+  final double startX;
+
+  const _FloatingEmojiWidget({
+    super.key,
+    required this.emoji,
+    required this.startX,
+  });
+
+  @override
+  State<_FloatingEmojiWidget> createState() => _FloatingEmojiWidgetState();
+}
+
+class _FloatingEmojiWidgetState extends State<_FloatingEmojiWidget> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..forward();
+    _progress = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final val = _progress.value;
+        final opacity = (1.0 - val).clamp(0.0, 1.0);
+        final bottomOffset = 100.0 + val * 380.0;
+        final xWobble = math.sin(val * math.pi * 3) * 16.0;
+
+        return Positioned(
+          bottom: bottomOffset,
+          right: (MediaQuery.of(context).size.width * (1.0 - widget.startX)) + xWobble,
+          child: Opacity(
+            opacity: opacity,
+            child: Transform.scale(
+              scale: 0.8 + val * 0.5,
+              child: Text(
+                widget.emoji,
+                style: const TextStyle(fontSize: 32),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

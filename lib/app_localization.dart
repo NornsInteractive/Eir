@@ -502,6 +502,32 @@ class AppI18n {
   String get screenShareFailed => isZh ? '投屏连接失败' : 'Screen share failed';
   String get screenShareEnded => isZh ? '投屏已结束' : 'Screen share ended';
   String get talkbackToggle => isZh ? '对讲通话' : 'Voice Talkback';
+
+  // Enhanced Screen Share & Audio Controls
+  String get audioMixer => isZh ? '独立混音' : 'Audio Mixer';
+  String get companionVolume => isZh ? '投屏伴声音量' : 'Cast Audio';
+  String get voiceVolume => isZh ? '对讲人声音量' : 'Voice Volume';
+  String get audioDucking => isZh ? '智能人声闪避' : 'Audio Ducking';
+  String get audioDuckingDesc => isZh
+      ? '开麦说话时伴奏自动降音 40%，清晰畅聊'
+      : 'Lowers media 40% while speaking';
+  String get aspectRatioContain => isZh ? '等比居中' : 'Fit Screen';
+  String get aspectRatioCover => isZh ? '铺满无黑边' : 'Fill Screen';
+  String get reactions => isZh ? '互动表情' : 'Reactions';
+  String get liveBroadcastActive => isZh ? '当前房间正在推流中' : 'Live Stream Active';
+  String get viewLiveNow => isZh ? '进入全屏视窗' : 'View Live Stream';
+  String get searchWindowsHint => isZh ? '搜索应用窗口名称...' : 'Search windows...';
+  String get streamHealthTitle => isZh ? '实时网络与画质看板' : 'Stream Diagnostics';
+  String get fpsMetric => isZh ? '实时帧率' : 'FPS';
+  String get rttMetric => isZh ? '往返延迟' : 'RTT Latency';
+  String get bitrateMetric => isZh ? '实时码率' : 'Bitrate';
+  String get packetLossMetric => isZh ? '丢包率' : 'Packet Loss';
+  String get echoFreeNotice => isZh
+      ? '已启用 Android 媒体与通话音轨隔离及 WebRTC 硬件级回声消除，双方开麦畅聊绝无回声困扰。'
+      : 'Hardware AEC & OS audio sandboxing enabled. Zero echo loops during voice chat.';
+  String get presetMotion => isZh ? '动态短视频 (60 FPS 优先)' : 'Motion (60 FPS)';
+  String get presetCrystal => isZh ? '超清原画 (1080p 高清)' : 'Crystal (1080p)';
+  String get presetLowLatency => isZh ? '极低延迟 (协同演示)' : 'Low Latency';
 }
 
 class AppLocalizationsDelegate extends LocalizationsDelegate<AppI18n> {

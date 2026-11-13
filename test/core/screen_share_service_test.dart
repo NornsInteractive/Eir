@@ -95,5 +95,88 @@ void main() {
 
       service.dispose();
     });
+
+    test('dual-channel volume and smart audio ducking', () {
+      final service = ScreenShareService(
+        sendSignal: (_) async {},
+        getCurrentDeviceId: () => 'dev-1',
+        getCurrentDisplayName: () => 'Tester',
+        getCurrentAvatar: () => null,
+      );
+
+      expect(service.companionVolume, 1.0);
+      expect(service.voiceVolume, 1.0);
+      expect(service.isAudioDuckingEnabled, isTrue);
+
+      service.setCompanionVolume(0.7);
+      service.setVoiceVolume(1.4);
+      service.setAudioDucking(false);
+
+      expect(service.companionVolume, 0.7);
+      expect(service.voiceVolume, 1.4);
+      expect(service.isAudioDuckingEnabled, isFalse);
+
+      service.dispose();
+    });
+
+    test('aspect ratio mode toggle (cover vs contain)', () {
+      final service = ScreenShareService(
+        sendSignal: (_) async {},
+        getCurrentDeviceId: () => 'dev-1',
+        getCurrentDisplayName: () => 'Tester',
+        getCurrentAvatar: () => null,
+      );
+
+      expect(service.isCoverMode, isFalse);
+      service.toggleAspectMode();
+      expect(service.isCoverMode, isTrue);
+      service.toggleAspectMode();
+      expect(service.isCoverMode, isFalse);
+
+      service.dispose();
+    });
+
+    test('reaction emoji streaming and signaling', () async {
+      final sentSignals = <Map<String, dynamic>>[];
+      final receivedReactions = <String>[];
+
+      final service = ScreenShareService(
+        sendSignal: (sig) async => sentSignals.add(sig),
+        getCurrentDeviceId: () => 'dev-1',
+        getCurrentDisplayName: () => 'Tester',
+        getCurrentAvatar: () => null,
+      );
+
+      final sub = service.onReaction.listen(receivedReactions.add);
+
+      await service.sendReaction('🔥');
+      expect(sentSignals.length, 1);
+      expect(sentSignals.first['type'], 'screen_share_reaction');
+      expect(sentSignals.first['emoji'], '🔥');
+
+      await service.handleSignal({
+        'type': 'screen_share_reaction',
+        'emoji': '❤️',
+      });
+      expect(receivedReactions, contains('❤️'));
+
+      await sub.cancel();
+      service.dispose();
+    });
+
+    test('stream health diagnostics report defaults', () {
+      final service = ScreenShareService(
+        sendSignal: (_) async {},
+        getCurrentDeviceId: () => 'dev-1',
+        getCurrentDisplayName: () => 'Tester',
+        getCurrentAvatar: () => null,
+      );
+
+      expect(service.rttMs, 0);
+      expect(service.bitrateMbps, 0.0);
+      expect(service.packetLoss, 0.0);
+
+      service.dispose();
+    });
   });
 }
