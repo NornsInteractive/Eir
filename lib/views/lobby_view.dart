@@ -9,6 +9,7 @@ import '../models.dart';
 import '../core/room_history_service.dart';
 import 'settings_dialog.dart';
 import 'profile_view.dart';
+import 'screen_share_lobby_view.dart';
 import '../widgets/app_logo.dart';
 
 class LobbyView extends StatefulWidget {
@@ -272,7 +273,7 @@ class _LobbyViewState extends State<LobbyView> {
         final screenHeight = mediaQuery.size.height;
         final isMobile = screenWidth < 768;
         final isShortWindow = screenHeight < 500;
-        final showBottomBar = isMobile && !isShortWindow;
+        final showBottomBar = !isShortWindow;
         final session = widget.session;
         final isConnecting =
             session.connectionState == RoomConnectionState.connecting ||
@@ -391,7 +392,7 @@ class _LobbyViewState extends State<LobbyView> {
                     child: GestureDetector(
                       onTap: () {
                         if (showBottomBar) {
-                          setState(() => _mobileNavIndex = 1);
+                          setState(() => _mobileNavIndex = 2);
                         } else {
                           ProfileView.show(context, session: session);
                         }
@@ -446,6 +447,11 @@ class _LobbyViewState extends State<LobbyView> {
                         label: i18n.mobileNavLobby,
                       ),
                       GlassTab(
+                        icon: const Icon(Icons.screen_share_outlined),
+                        activeIcon: const Icon(Icons.screen_share_rounded),
+                        label: i18n.mobileNavScreenShare,
+                      ),
+                      GlassTab(
                         icon: Badge(
                           isLabelVisible: AppSettings.instance.hasPendingUpdate,
                           backgroundColor: Colors.redAccent,
@@ -467,12 +473,18 @@ class _LobbyViewState extends State<LobbyView> {
                 ? SafeArea(
                     top: false,
                     bottom: !showBottomBar,
-                    child: ProfileView(session: session),
+                    child: ScreenShareLobbyView(session: session),
                   )
-                : SafeArea(
-                    top: false,
-                    bottom: !showBottomBar,
-                    child: SingleChildScrollView(
+                : _mobileNavIndex == 2
+                    ? SafeArea(
+                        top: false,
+                        bottom: !showBottomBar,
+                        child: ProfileView(session: session),
+                      )
+                    : SafeArea(
+                        top: false,
+                        bottom: !showBottomBar,
+                        child: SingleChildScrollView(
                       padding: EdgeInsets.symmetric(
                         horizontal: isMobile ? 18 : 36,
                         vertical: isShortWindow ? 10 : (isMobile ? 16 : 28),

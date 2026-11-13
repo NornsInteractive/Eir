@@ -1,0 +1,655 @@
+import 'dart:async';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import '../app_localization.dart';
+import '../apple_glass.dart';
+
+/// Configuration options selected from the dialog
+class ScreenShareOptions {
+  final DesktopCapturerSource? source;
+  final bool shareAudio;
+  final int fps;
+  final String? customTitle;
+
+  const ScreenShareOptions({
+    this.source,
+    this.shareAudio = true,
+    this.fps = 60,
+    this.customTitle,
+  });
+}
+
+/// Dialog for choosing screen or application window capture source
+class ScreenSourcePickerDialog extends StatefulWidget {
+  const ScreenSourcePickerDialog({super.key});
+
+  static Future<ScreenShareOptions?> show(BuildContext context) {
+    return showDialog<ScreenShareOptions>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => const ScreenSourcePickerDialog(),
+    );
+  }
+
+  @override
+  State<ScreenSourcePickerDialog> createState() => _ScreenSourcePickerDialogState();
+}
+
+class _ScreenSourcePickerDialogState extends State<ScreenSourcePickerDialog> {
+  final List<DesktopCapturerSource> _windows = [];
+  final List<DesktopCapturerSource> _screens = [];
+  final List<StreamSubscription> _subscriptions = [];
+
+  bool _isLoading = true;
+  int _selectedTabIndex = 0; // 0 = Windows, 1 = Screens
+  DesktopCapturerSource? _selectedSource;
+  bool _shareAudio = true;
+  bool _highFps = true;
+
+  bool get _isDesktop => !kIsWeb && (WebRTC.platformIsWindows || WebRTC.platformIsMacOS || WebRTC.platformIsDesktop);
+  bool get _isMobile => !kIsWeb && (WebRTC.platformIsAndroid || WebRTC.platformIsIOS);
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isDesktop) {
+      _loadDesktopSources();
+    } else {
+      _isLoading = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    super.dispose();
+  }
+
+  Future<void> _loadDesktopSources() async {
+    setState(() => _isLoading = true);
+    try {
+      final sources = await desktopCapturer.getSources(
+        types: [SourceType.Screen, SourceType.Window],
+      );
+
+      _windows.clear();
+      _screens.clear();
+
+      for (final s in sources) {
+        if (s.type == SourceType.Window) {
+          _windows.add(s);
+        } else {
+          _screens.add(s);
+        }
+      }
+
+      // Default selection to first item
+      if (_windows.isNotEmpty) {
+        _selectedSource = _windows.first;
+      } else if (_screens.isNotEmpty) {
+        _selectedSource = _screens.first;
+        _selectedTabIndex = 1;
+      }
+    } catch (e) {
+      debugPrint('[ScreenSourcePickerDialog] load sources error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final i18n = AppI18n.of(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final tc = ThemeColors.of(context);
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 580, maxHeight: 620),
+        child: Container(
+          decoration: BoxDecoration(
+            color: tc.cardBackground.withValues(alpha: 0.94),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: tc.glassBorderSubtle.withValues(alpha: 0.7),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
+                blurRadius: 32,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                _buildHeader(context, i18n, tc),
+                const Divider(height: 1, thickness: 1),
+
+                // Content Body
+                Expanded(
+                  child: _isMobile
+                      ? _buildMobileNotice(context, i18n, tc)
+                      : (kIsWeb
+                          ? _buildWebNotice(context, i18n, tc)
+                          : _buildDesktopSourceGrid(context, i18n, tc)),
+                ),
+
+                const Divider(height: 1, thickness: 1),
+
+                // Options Footer & Action Buttons
+                _buildFooter(context, i18n, tc),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, AppI18n i18n, ThemeColors tc) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: tc.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.screen_share_rounded,
+              color: tc.primary,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  i18n.selectSourceTitle,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: tc.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  i18n.selectSourceDesc,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: tc.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close_rounded, color: tc.textSecondary, size: 20),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopSourceGrid(BuildContext context, AppI18n i18n, ThemeColors tc) {
+    if (_isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2.5,
+          color: tc.primary,
+        ),
+      );
+    }
+
+    final activeSources = _selectedTabIndex == 0 ? _windows : _screens;
+
+    return Column(
+      children: [
+        // Tab switcher
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: tc.inputBackground.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildTabPill(
+                          title: i18n.shareAppWindow,
+                          icon: Icons.window_rounded,
+                          count: _windows.length,
+                          isSelected: _selectedTabIndex == 0,
+                          onTap: () {
+                            setState(() {
+                              _selectedTabIndex = 0;
+                              if (_windows.isNotEmpty) {
+                                _selectedSource = _windows.first;
+                              }
+                            });
+                          },
+                          tc: tc,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: _buildTabPill(
+                          title: i18n.shareEntireScreen,
+                          icon: Icons.desktop_windows_rounded,
+                          count: _screens.length,
+                          isSelected: _selectedTabIndex == 1,
+                          onTap: () {
+                            setState(() {
+                              _selectedTabIndex = 1;
+                              if (_screens.isNotEmpty) {
+                                _selectedSource = _screens.first;
+                              }
+                            });
+                          },
+                          tc: tc,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Tooltip(
+                message: i18n.refreshSources,
+                child: InkWell(
+                  onTap: _loadDesktopSources,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Icon(Icons.refresh_rounded, size: 20, color: tc.textSecondary),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Grid
+        Expanded(
+          child: activeSources.isEmpty
+              ? Center(
+                  child: Text(
+                    _selectedTabIndex == 0 ? i18n.noWindowsFound : i18n.noScreensFound,
+                    style: TextStyle(color: tc.textSecondary, fontSize: 13),
+                  ),
+                )
+              : GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 1.25,
+                  ),
+                  itemCount: activeSources.length,
+                  itemBuilder: (context, index) {
+                    final s = activeSources[index];
+                    final isSelected = _selectedSource?.id == s.id;
+                    return _buildSourceCard(s, isSelected, tc);
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabPill({
+    required String title,
+    required IconData icon,
+    required int count,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required ThemeColors tc,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? tc.cardBackground : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? tc.primary : tc.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '$title ($count)',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? tc.textPrimary : tc.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSourceCard(DesktopCapturerSource s, bool isSelected, ThemeColors tc) {
+    return GestureDetector(
+      onTap: () => setState(() => _selectedSource = s),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? tc.primary.withValues(alpha: 0.08)
+              : tc.inputBackground.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? tc.primary : tc.glassBorderSubtle.withValues(alpha: 0.6),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Thumbnail preview
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+                child: _ThumbnailView(source: s),
+              ),
+            ),
+            // Title bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: tc.cardBackground.withValues(alpha: 0.6),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(10)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    s.type == SourceType.Window ? Icons.window_rounded : Icons.desktop_windows_rounded,
+                    size: 14,
+                    color: isSelected ? tc.primary : tc.textSecondary,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      s.name.isEmpty ? '窗口 ${s.id}' : s.name,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        color: isSelected ? tc.primary : tc.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileNotice(BuildContext context, AppI18n i18n, ThemeColors tc) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: tc.primary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.phone_android_rounded, size: 48, color: tc.primary),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            '手机全屏与应用投屏',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: tc.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            i18n.mobileScreenNotice,
+            style: TextStyle(
+              fontSize: 13,
+              color: tc.textSecondary,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebNotice(BuildContext context, AppI18n i18n, ThemeColors tc) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: tc.primary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.language_rounded, size: 48, color: tc.primary),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            '浏览器投屏支持',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: tc.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '点击开始投屏后，浏览器将弹出系统原生的标签页、应用窗口或整屏选择器。勾选“共享音频”可同步伴奏声音。',
+            style: TextStyle(
+              fontSize: 13,
+              color: tc.textSecondary,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(BuildContext context, AppI18n i18n, ThemeColors tc) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: Row(
+        children: [
+          // Audio & FPS switches
+          Expanded(
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: () => setState(() => _shareAudio = !_shareAudio),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _shareAudio ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                        size: 16,
+                        color: _shareAudio ? tc.primary : tc.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        i18n.shareSystemAudio,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _shareAudio ? tc.textPrimary : tc.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setState(() => _highFps = !_highFps),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.speed_rounded,
+                        size: 16,
+                        color: _highFps ? Colors.amber : tc.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        i18n.fpsHighProfile,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _highFps ? tc.textPrimary : tc.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Action buttons
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              '取消',
+              style: TextStyle(color: tc.textSecondary, fontSize: 13.5),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: tc.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              Navigator.of(context).pop(ScreenShareOptions(
+                source: _isDesktop ? _selectedSource : null,
+                shareAudio: _shareAudio,
+                fps: _highFps ? 60 : 30,
+                customTitle: _selectedSource?.name,
+              ));
+            },
+            child: Text(
+              i18n.startScreenShare,
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThumbnailView extends StatefulWidget {
+  final DesktopCapturerSource source;
+  const _ThumbnailView({required this.source});
+
+  @override
+  State<_ThumbnailView> createState() => _ThumbnailViewState();
+}
+
+class _ThumbnailViewState extends State<_ThumbnailView> {
+  StreamSubscription? _sub;
+  Uint8List? _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _bytes = widget.source.thumbnail;
+    _sub = widget.source.onThumbnailChanged.stream.listen((bytes) {
+      if (mounted) setState(() => _bytes = bytes);
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_bytes != null && _bytes!.isNotEmpty) {
+      return Image.memory(
+        _bytes!,
+        fit: BoxFit.contain,
+        gaplessPlayback: true,
+      );
+    }
+    return Container(
+      color: Colors.black12,
+      child: const Center(
+        child: Icon(Icons.desktop_windows_outlined, color: Colors.grey, size: 32),
+      ),
+    );
+  }
+}

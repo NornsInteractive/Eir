@@ -29,11 +29,14 @@ import 'identity.dart';
 import 'invite.dart';
 import 'protocol.dart';
 import 'call_session.dart';
+import 'screen_share_service.dart';
 import 'transport/tailcat_stub.dart'
     if (dart.library.ffi) 'transport/tailcat_ffi.dart';
 
 export 'call_session.dart'
     show ChatMessage, ChatMessageType, CallSession, CallState, CallType;
+export 'screen_share_service.dart'
+    show ScreenShareService, ScreenShareRole, ScreenShareState;
 
 export '../platform/signaling_client.dart' show SignalingClient;
 export 'identity.dart'
@@ -479,6 +482,46 @@ class RoomSession extends ChangeNotifier {
         'type': 'signal',
         'roomId': _roomId,
         'kind': 'call_signal',
+        'payload': payload,
+      });
+    }
+  }
+
+  late final ScreenShareService screenShareService = ScreenShareService(
+    sendSignal: (sig) => _sendScreenShareSignal(sig),
+    getCurrentDeviceId: () => _keyPair?.identity.deviceId ?? '',
+    getCurrentDisplayName: () => AppSettings.instance.effectiveDisplayName,
+    getCurrentAvatar: () => AppSettings.instance.avatar,
+    getIceServers: () => RoomSession.effectiveIceServers,
+  );
+
+  Future<void> _sendScreenShareSignal(Map<String, dynamic> signal) async {
+    final payload = <String, Object?>{
+      'protocolVersion': kProtocolVersion,
+      'roomId': _roomId,
+      'sessionId': _sessionId,
+      'senderId': _selfId,
+      'type': 'screen_share_signal',
+      'signal': signal,
+      ...signal,
+    };
+    final dc = _dc;
+    final tailcat = _tailcatTransport;
+    if (tailcat != null && tailcat.isOpen) {
+      try {
+        await tailcat.sendText(jsonEncode(payload));
+      } catch (_) {}
+    } else if (dc != null && _dcStateOpen() == true) {
+      try {
+        await dc.send(RTCDataChannelMessage(jsonEncode(payload)));
+      } catch (_) {}
+    }
+
+    if (_roomId != null && _signaling.isConnected) {
+      _signaling.send({
+        'type': 'signal',
+        'roomId': _roomId,
+        'kind': 'screen_share_signal',
         'payload': payload,
       });
     }
@@ -1280,6 +1323,7 @@ class RoomSession extends ChangeNotifier {
     if (full) {
       _chatMessages.clear();
       unawaited(callSession.hangupCall(reason: 'room_reset'));
+      unawaited(screenShareService.stop(reason: 'room_reset'));
       _knownLocalMediaIds.clear();
       _knownLocalMediaSources.clear();
       _localMediaPaths.clear();
@@ -1946,6 +1990,14 @@ class RoomSession extends ChangeNotifier {
       }
       return;
     }
+    if (kind == 'screen_share_signal') {
+      final payload = (msg['payload'] as Map?)?.cast<String, dynamic>();
+      if (payload != null) {
+        final sig = (payload['signal'] as Map?)?.cast<String, dynamic>() ?? payload;
+        unawaited(screenShareService.handleSignal(sig));
+      }
+      return;
+    }
     if (kind == 'ice') {
       final candMap = (msg['candidate'] as Map?)?.cast<String, dynamic>();
       if (candMap == null) return;
@@ -2283,6 +2335,11 @@ class RoomSession extends ChangeNotifier {
         final sig = (msg['signal'] as Map?)?.cast<String, dynamic>() ??
             Map<String, dynamic>.from(msg);
         unawaited(callSession.handleCallSignal(sig));
+        return;
+      case 'screen_share_signal':
+        final sig = (msg['signal'] as Map?)?.cast<String, dynamic>() ??
+            Map<String, dynamic>.from(msg);
+        unawaited(screenShareService.handleSignal(sig));
         return;
       case 'handshake_hello':
         await _handleHandshakeHello(msg);
@@ -5096,6 +5153,7 @@ class RoomSession extends ChangeNotifier {
     }
     unawaited(_teardownPeer());
     callSession.dispose();
+    screenShareService.dispose();
     unawaited(_player?.dispose() ?? Future<void>.value());
     unawaited(_signaling.disconnect());
     super.dispose();

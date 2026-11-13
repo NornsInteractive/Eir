@@ -13,6 +13,7 @@ import 'package:eir/media/local_media_service.dart';
 import 'package:eir/views/lobby_view.dart';
 import 'package:eir/views/cinema_view.dart';
 import 'package:eir/views/settings_dialog.dart';
+import 'package:eir/core/screen_share_service.dart';
 
 /// Controlled fake room session for UI isolated testing without network or WebRTC side-effects.
 class FakeRoomSession extends ChangeNotifier implements RoomSession {
@@ -85,6 +86,14 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
 
   @override
   late final CallSession callSession = CallSession(
+    sendSignal: (_) async {},
+    getCurrentDeviceId: () => identity.deviceId,
+    getCurrentDisplayName: () => 'Tester',
+    getCurrentAvatar: () => null,
+  );
+
+  @override
+  late final ScreenShareService screenShareService = ScreenShareService(
     sendSignal: (_) async {},
     getCurrentDeviceId: () => identity.deviceId,
     getCurrentDisplayName: () => 'Tester',

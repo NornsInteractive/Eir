@@ -17,6 +17,7 @@ class AppI18n {
   String get navLobby => isZh ? '大厅' : 'Lobby';
   String get navRoom => isZh ? '放映室' : 'Cinema';
   String get mobileNavLobby => isZh ? '大厅' : 'Lobby';
+  String get mobileNavScreenShare => isZh ? '投屏' : 'Cast';
   String get mobileNavSettings => isZh ? '设置' : 'Settings';
   String get mobileNavProfile => isZh ? '我的' : 'Me';
   String get profileTitle => isZh ? '个人中心' : 'Profile';
@@ -461,6 +462,46 @@ class AppI18n {
   String get shareInviteDesc => isZh ? '将房间口令或网页链接发送给好友，对方打开即可同步观看' : 'Send the room code or web link to friends to watch together';
   String get copyWebLink => isZh ? '复制网页链接' : 'Copy Web Link';
   String get webLinkCopied => isZh ? '网页邀请链接已复制' : 'Web invite link copied';
+
+  // Screen & Window Sharing
+  String get navScreenShare => isZh ? '实时投屏' : 'Screen Mirror';
+  String get screenShareTabTitle => isZh ? '实时投屏 · 60 FPS' : 'Screen Mirror · 60 FPS';
+  String get screenShareTabSubtitle => isZh
+      ? '电脑窗口 / 手机全屏 · 伴音直传 · 异地同看抖音'
+      : 'App window or display with stereo audio';
+  String get startScreenShare => isZh ? '发起投屏' : 'Start Cast';
+  String get joinScreenShare => isZh ? '观看投屏' : 'Join Cast';
+  String get enterCastCodeHint => isZh ? '输入 6 位投屏码' : 'Enter 6-digit cast code';
+  String get enterCastCodePrompt => isZh
+      ? '输入对方分享的 6 位投屏码即可同步观看画面与声音'
+      : 'Enter the 6-digit cast code to watch stream with audio';
+  String get shareAppWindow => isZh ? '应用窗口' : 'Application Window';
+  String get shareEntireScreen => isZh ? '整个屏幕' : 'Entire Display';
+  String get shareSystemAudio => isZh ? '同时共享系统声音' : 'Share System Audio';
+  String get fpsHighProfile => isZh ? '60 FPS 高帧率模式' : '60 FPS Motion';
+  String get stopScreenShare => isZh ? '停止投屏' : 'Stop Cast';
+  String get switchScreenShareSource => isZh ? '切换源' : 'Switch Source';
+  String get castingToPeers => isZh ? '正在投屏推流中' : 'Casting to peers';
+  String get watchingCastStream => isZh ? '正在观看投屏' : 'Watching cast stream';
+  String get castCodeCopied => isZh ? '已复制投屏码' : 'Cast code copied';
+  String get recentCasts => isZh ? '最近投屏' : 'Recent Casts';
+  String get noRecentCasts => isZh ? '暂无历史投屏记录' : 'No recent cast sessions';
+  String get selectSourceTitle => isZh ? '选择投屏内容' : 'Select Cast Source';
+  String get selectSourceDesc => isZh
+      ? '可选择特定软件窗口（如抖音、浏览器）或完整桌面'
+      : 'Select a specific application window or entire display';
+  String get refreshSources => isZh ? '刷新窗口列表' : 'Refresh Windows';
+  String get noWindowsFound => isZh ? '未检测到可共享的应用窗口' : 'No sharable windows found';
+  String get noScreensFound => isZh ? '未检测到显示器' : 'No displays found';
+  String get mobileScreenNotice => isZh
+      ? '手机端将捕获整机屏幕，开启后可切至后台打开抖音，对方将实时接收画面与内录伴音。'
+      : 'Mobile captures entire screen. Start cast and switch to Douyin/TikTok; companion hears internal audio and sees your screen live.';
+  String get joinCast => isZh ? '加入观看' : 'Join';
+  String get screenShareConnecting => isZh ? '正在建立投屏推流...' : 'Connecting screen stream...';
+  String get screenShareReady => isZh ? '投屏流已就绪' : 'Screen stream ready';
+  String get screenShareFailed => isZh ? '投屏连接失败' : 'Screen share failed';
+  String get screenShareEnded => isZh ? '投屏已结束' : 'Screen share ended';
+  String get talkbackToggle => isZh ? '对讲通话' : 'Voice Talkback';
 }
 
 class AppLocalizationsDelegate extends LocalizationsDelegate<AppI18n> {
