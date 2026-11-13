@@ -71,15 +71,12 @@ void main() {
 
       // Verify ScreenShareLobbyView is rendered
       expect(find.byType(ScreenShareLobbyView), findsOneWidget);
-      expect(find.text('实时投屏 · 60 FPS'), findsOneWidget);
+      expect(find.text('实时投屏'), findsOneWidget);
       expect(find.byKey(const ValueKey('start-screen-share-btn')), findsOneWidget);
       expect(find.byKey(const ValueKey('cast-code-input')), findsOneWidget);
       expect(find.byKey(const ValueKey('join-cast-btn')), findsOneWidget);
-      expect(find.text('60 FPS 极速推流'), findsOneWidget);
-      expect(find.text('系统伴音直传'), findsOneWidget);
-      expect(find.text('声学防回声保障 · 畅享原声'), findsOneWidget);
-      expect(find.text('60 FPS 极速推流'), findsOneWidget);
-      expect(find.text('精准窗口捕获'), findsOneWidget);
+      expect(find.text('捕获指定应用窗口或整机屏幕'), findsOneWidget);
+      expect(find.text('或输入 6 位投屏码观看'), findsOneWidget);
 
       // 2. Switch to 我的 tab
       await tester.tap(find.text('我的').first);

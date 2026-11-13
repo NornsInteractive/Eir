@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
@@ -10,7 +11,7 @@ import '../apple_glass.dart';
 import 'screen_share_live_view.dart';
 import 'screen_source_picker_dialog.dart';
 
-/// Screen Share Lobby View - First-class bottom navigation destination
+/// Screen Share Lobby View - Focused, human-centric design mirroring LobbyView
 class ScreenShareLobbyView extends StatefulWidget {
   final RoomSession session;
 
@@ -28,7 +29,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
   final FocusNode _codeFocusNode = FocusNode();
   bool _isConnecting = false;
   String? _errorMessage;
-  int _selectedQualityPreset = 0; // 0 = 60 FPS, 1 = 1080p, 2 = Low Latency
+  String? _detectedClipboardCastCode;
 
   ScreenShareService get _service => widget.session.screenShareService;
 
@@ -37,6 +38,9 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     super.initState();
     _service.addListener(_onServiceUpdate);
     _codeController.addListener(_onCodeChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkClipboard();
+    });
   }
 
   @override
@@ -46,6 +50,20 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     _codeController.dispose();
     _codeFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkClipboard() async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final raw = data?.text?.trim();
+      if (raw == null || raw.isEmpty) return;
+      final digits = raw.replaceAll(RegExp(r'\D'), '');
+      if (digits.length == 6 && digits != _codeController.text.trim()) {
+        if (mounted) {
+          setState(() => _detectedClipboardCastCode = digits);
+        }
+      }
+    } catch (_) {}
   }
 
   void _onCodeChanged() {
@@ -66,7 +84,6 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     });
 
     try {
-      // If not already in a room, create a dedicated cast room
       if (widget.session.roomCode == null || widget.session.roomCode!.isEmpty) {
         await widget.session.createRoom();
       }
@@ -93,9 +110,9 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     }
   }
 
-  Future<void> _handleJoinCast(String code) async {
-    final cleanCode = code.trim();
-    if (cleanCode.length != 6) {
+  Future<void> _handleJoinCast([String? explicitCode]) async {
+    final code = (explicitCode ?? _codeController.text).trim();
+    if (code.length != 6) {
       setState(() => _errorMessage = '请输入 6 位有效投屏码');
       return;
     }
@@ -106,12 +123,11 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     });
 
     try {
-      // Connect to room if not already in it
-      if (widget.session.roomCode != cleanCode) {
-        await widget.session.joinRoomByCode(cleanCode);
+      if (widget.session.roomCode != code) {
+        await widget.session.joinRoomByCode(code);
       }
 
-      final success = await _service.startViewing(castCode: cleanCode);
+      final success = await _service.startViewing(castCode: code);
       if (success && mounted) {
         await ScreenShareLiveView.launch(context, session: widget.session);
       } else if (mounted) {
@@ -125,65 +141,84 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
   }
 
   Future<void> _pasteFromClipboard() async {
-    final data = await Clipboard.getData('text/plain');
-    if (data?.text != null && mounted) {
-      final text = data!.text!.replaceAll(RegExp(r'\D'), '');
-      if (text.length >= 6) {
-        _codeController.text = text.substring(0, 6);
-      } else {
-        _codeController.text = text;
+    try {
+      final data = await Clipboard.getData('text/plain');
+      if (data?.text != null && mounted) {
+        final digits = data!.text!.replaceAll(RegExp(r'\D'), '');
+        if (digits.length >= 6) {
+          final code = digits.substring(0, 6);
+          _codeController.text = code;
+          await _handleJoinCast(code);
+          return;
+        } else if (digits.isNotEmpty) {
+          _codeController.text = digits;
+        }
       }
+    } catch (_) {}
+    if (_codeController.text.trim().isNotEmpty) {
+      await _handleJoinCast(_codeController.text.trim());
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final i18n = AppI18n.of(context);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final tc = ThemeColors.of(context);
-    final isMobile = MediaQuery.of(context).size.width < 768;
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+    final isMobile = screenWidth < 768;
+    final isShort = screenHeight < 500;
 
     return SingleChildScrollView(
       padding: EdgeInsets.symmetric(
         horizontal: isMobile ? 18 : 36,
-        vertical: isMobile ? 16 : 28,
+        vertical: isShort ? 10 : (isMobile ? 16 : 28),
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 860),
+          constraints: const BoxConstraints(maxWidth: 680),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Header Section
-              _buildHeaderSection(context, i18n, tc),
-              const SizedBox(height: 16),
+              // 1. Hero Header
+              _buildHeroSection(context, i18n, tc, isMobile, isShort),
 
-              // Anti-Echo Trust Banner
-              _buildEchoTrustBanner(context, i18n, tc),
+              // 2. Clipboard Invite Banner (if detected)
+              _buildClipboardCastBanner(context, i18n, tc),
 
-              // Active Session Pill if broadcasting/viewing
+              // 3. Active Session Banner (if broadcasting or viewing)
               if (_service.isActive) ...[
                 _buildActiveSessionBanner(context, i18n, tc),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
               ],
 
-              // Error Notice
+              // 4. Error Notice
               if (_errorMessage != null) ...[
                 _buildErrorBanner(context, _errorMessage!, tc),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
               ],
 
-              // 2. Dual Action Section (Start Cast vs Join Cast)
-              _buildActionCards(context, i18n, tc, isMobile),
-              const SizedBox(height: 24),
+              // 5. Main Action Console (Double-bezel hardware feel, identical to LobbyView)
+              _buildActionBox(context, i18n, tc, isMobile, isShort),
 
-              // 3. Feature Highlights Bento Grid
-              _buildFeatureBadges(context, i18n, tc, isMobile),
-              const SizedBox(height: 24),
+              SizedBox(height: isShort ? 20 : 36),
 
-              // 4. Recent Cast History
-              _buildRecentCasts(context, i18n, tc),
+              // 6. Recent Cast History
+              _buildRecentCastsSection(context, i18n, tc),
+
+              SizedBox(height: isShort ? 24 : 48),
+
+              // Footer
+              Text(
+                '端到端低延迟传输 · 智能声画分离与回声消除',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: tc.textTertiary,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              SizedBox(height: isShort ? 12 : 24),
             ],
           ),
         ),
@@ -191,169 +226,128 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     );
   }
 
-  Widget _buildHeaderSection(BuildContext context, AppI18n i18n, ThemeColors tc) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: tc.cardBackground.withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: tc.glassBorderSubtle.withValues(alpha: 0.6), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [tc.primary, tc.primary.withValues(alpha: 0.7)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: tc.primary.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.screen_share_rounded, color: Colors.white, size: 24),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      i18n.screenShareTabTitle,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: tc.textPrimary,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.greenAccent.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.3), width: 0.8),
-                      ),
-                      child: const Text(
-                        '60 FPS',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  i18n.screenShareTabSubtitle,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: tc.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildHeroSection(
+    BuildContext context,
+    AppI18n i18n,
+    ThemeColors tc,
+    bool isMobile,
+    bool isShort,
+  ) {
+    return Column(
+      children: [
+        SizedBox(height: isShort ? 4 : 8),
+        const GlassChip(
+          icon: Icon(Icons.bolt_rounded, size: 14),
+          label: '60 FPS · 超清低延迟',
+        ),
+        SizedBox(height: isShort ? 6 : 14),
 
-  Widget _buildEchoTrustBanner(BuildContext context, AppI18n i18n, ThemeColors tc) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: tc.primary.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: tc.primary.withValues(alpha: 0.18), width: 1),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: tc.primary.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.shield_outlined, color: tc.primary, size: 16),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '声学防回声保障 · 畅享原声',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: tc.primary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  i18n.echoFreeNotice,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: tc.textSecondary,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPresetPill(int index, String label, IconData icon, ThemeColors tc) {
-    final isSelected = _selectedQualityPreset == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedQualityPreset = index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? tc.primary.withValues(alpha: 0.14)
-              : tc.inputBackground.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? tc.primary : tc.glassBorderSubtle.withValues(alpha: 0.5),
-            width: isSelected ? 1.5 : 0.8,
+        // Main Title
+        Text(
+          '实时投屏',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: isShort ? 22 : (isMobile ? 28 : 40),
+            fontWeight: FontWeight.w800,
+            letterSpacing: isShort ? -0.8 : -1.2,
+            height: 1.15,
+            color: tc.textPrimary,
           ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 14,
-              color: isSelected ? tc.primary : tc.textSecondary,
+        SizedBox(height: isShort ? 6 : 10),
+
+        // Subtitle
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580),
+          child: Text(
+            '捕获应用窗口或手机屏幕，系统伴音无损直传，异地双人同看',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: isShort ? 12 : (isMobile ? 13.5 : 15),
+              height: isShort ? 1.35 : 1.45,
+              fontWeight: FontWeight.w400,
+              color: tc.textSecondary,
             ),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
-                color: isSelected ? tc.primary : tc.textPrimary,
+          ),
+        ),
+        SizedBox(height: isShort ? 14 : 26),
+      ],
+    );
+  }
+
+  Widget _buildClipboardCastBanner(BuildContext context, AppI18n i18n, ThemeColors tc) {
+    if (_detectedClipboardCastCode == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: GlassContainer.card(
+        surfaceStyle: GlassSurfaceStyle.solid,
+        color: tc.primary.withValues(alpha: 0.12),
+        shape: const LiquidRoundedSuperellipse(borderRadius: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: tc.primary.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
               ),
+              child: Icon(Icons.cast_connected_rounded, size: 16, color: tc.primary),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '检测到剪贴板投屏码',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: tc.primary,
+                    ),
+                  ),
+                  Text(
+                    _detectedClipboardCastCode!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      color: tc.textSecondary,
+                      letterSpacing: 1,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            LiquidGlassActionButton(
+              height: 28,
+              isPrimary: true,
+              onTap: () {
+                final code = _detectedClipboardCastCode!;
+                setState(() => _detectedClipboardCastCode = null);
+                _codeController.text = code;
+                _handleJoinCast(code);
+              },
+              child: const Text(
+                '一键观看',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: Icon(Icons.close_rounded, size: 14, color: tc.textTertiary),
+              splashRadius: 14,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+              onPressed: () => setState(() => _detectedClipboardCastCode = null),
             ),
           ],
         ),
@@ -362,17 +356,15 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
   }
 
   Widget _buildActiveSessionBanner(BuildContext context, AppI18n i18n, ThemeColors tc) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: tc.primary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: tc.primary.withValues(alpha: 0.3), width: 1),
-      ),
+    return GlassContainer.card(
+      surfaceStyle: GlassSurfaceStyle.solid,
+      color: tc.primary.withValues(alpha: 0.12),
+      shape: const LiquidRoundedSuperellipse(borderRadius: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Icon(Icons.live_tv_rounded, color: tc.primary, size: 22),
-          const SizedBox(width: 12),
+          Icon(Icons.live_tv_rounded, color: tc.primary, size: 20),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               _service.isBroadcasting ? i18n.castingToPeers : i18n.watchingCastStream,
@@ -383,16 +375,11 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
               ),
             ),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: tc.primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () => ScreenShareLiveView.launch(context, session: widget.session),
-            child: const Text('返回全屏视窗', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+          LiquidGlassActionButton(
+            height: 32,
+            isPrimary: true,
+            onTap: () => ScreenShareLiveView.launch(context, session: widget.session),
+            child: const Text('返回视窗', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -400,13 +387,11 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
   }
 
   Widget _buildErrorBanner(BuildContext context, String message, ThemeColors tc) {
-    return Container(
+    return GlassContainer.card(
+      surfaceStyle: GlassSurfaceStyle.solid,
+      color: Colors.redAccent.withValues(alpha: 0.12),
+      shape: const LiquidRoundedSuperellipse(borderRadius: 14),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.redAccent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3), width: 1),
-      ),
       child: Row(
         children: [
           const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 18),
@@ -419,6 +404,8 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
           ),
           IconButton(
             icon: const Icon(Icons.close_rounded, size: 16, color: Colors.redAccent),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
             onPressed: () => setState(() => _errorMessage = null),
           ),
         ],
@@ -426,466 +413,295 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     );
   }
 
-  Widget _buildActionCards(BuildContext context, AppI18n i18n, ThemeColors tc, bool isMobile) {
-    final startCard = _buildStartCastCard(context, i18n, tc);
-    final joinCard = _buildJoinCastCard(context, i18n, tc);
-
-    if (isMobile) {
-      return Column(
-        children: [
-          startCard,
-          const SizedBox(height: 14),
-          joinCard,
-        ],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: startCard),
-        const SizedBox(width: 16),
-        Expanded(child: joinCard),
-      ],
-    );
-  }
-
-  Widget _buildStartCastCard(BuildContext context, AppI18n i18n, ThemeColors tc) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: tc.cardBackground,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: tc.glassBorderSubtle.withValues(alpha: 0.7), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+  Widget _buildActionBox(
+    BuildContext context,
+    AppI18n i18n,
+    ThemeColors tc,
+    bool isMobile,
+    bool isShort,
+  ) {
+    return GlassContainer.card(
+      surfaceStyle: GlassSurfaceStyle.solid,
+      color: tc.cardBackground,
+      shape: const LiquidRoundedSuperellipse(borderRadius: 22),
+      padding: EdgeInsets.all(isShort ? 12 : 18),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          // 1. Start Cast Primary Button
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: tc.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.broadcast_on_personal_rounded, color: tc.primary, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    i18n.startScreenShare,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: tc.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '捕获窗口或手机全屏推流',
-                    style: TextStyle(fontSize: 12, color: tc.textSecondary),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          // Scene presets
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _buildPresetPill(0, i18n.presetMotion, Icons.speed_rounded, tc),
-              _buildPresetPill(1, i18n.presetCrystal, Icons.hd_rounded, tc),
-              _buildPresetPill(2, i18n.presetLowLatency, Icons.bolt_rounded, tc),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            _selectedQualityPreset == 0
-                ? '60 FPS 极速推流：专为抖音短视频优化，运动画面丝滑流畅。'
-                : (_selectedQualityPreset == 1
-                    ? '1080p 超清原画：分辨率优先，适合清晰查看网页、文档与图纸。'
-                    : '极低延迟模式：大幅缩短抖动缓存，适合双人实时操作演示。'),
-            style: TextStyle(
-              fontSize: 12,
-              color: tc.textSecondary,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              key: const ValueKey('start-screen-share-btn'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: tc.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              icon: _isConnecting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.play_arrow_rounded, size: 20),
-              label: Text(
-                _isConnecting ? i18n.screenShareConnecting : i18n.startScreenShare,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-              ),
-              onPressed: _isConnecting ? null : _handleStartCast,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildJoinCastCard(BuildContext context, AppI18n i18n, ThemeColors tc) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: tc.cardBackground,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: tc.glassBorderSubtle.withValues(alpha: 0.7), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.teal.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.tv_rounded, color: Colors.teal, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    i18n.joinScreenShare,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: tc.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    i18n.enterCastCodeHint,
-                    style: TextStyle(fontSize: 12, color: tc.textSecondary),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Segmented 6-digit PIN boxes preview
-          GestureDetector(
-            onTap: () => _codeFocusNode.requestFocus(),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(6, (index) {
-                final text = _codeController.text;
-                final hasChar = index < text.length;
-                final isCurrent = index == text.length;
-                final char = hasChar ? text[index] : '';
-
-                return Container(
-                  width: 38,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: isCurrent
-                        ? tc.primary.withValues(alpha: 0.1)
-                        : (hasChar ? tc.cardBackground : tc.inputBackground.withValues(alpha: 0.5)),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isCurrent
-                          ? tc.primary
-                          : (hasChar
-                              ? tc.primary.withValues(alpha: 0.5)
-                              : tc.glassBorderSubtle.withValues(alpha: 0.4)),
-                      width: isCurrent ? 1.8 : 1,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      char,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: tc.textPrimary,
+              Semantics(
+                button: true,
+                label: i18n.startScreenShare,
+                child: LiquidGlassActionButton(
+                  key: const ValueKey('start-screen-share-btn'),
+                  isPrimary: true,
+                  height: isShort ? 42 : 48,
+                  onTap: _isConnecting ? () {} : _handleStartCast,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_isConnecting)
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      else
+                        const Icon(Icons.screen_share_rounded, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        _isConnecting ? i18n.screenShareConnecting : i18n.startScreenShare,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: isShort ? 13.5 : 15,
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                );
-              }),
-            ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '捕获指定应用窗口或整机屏幕',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: tc.textTertiary),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          // 6-digit Code Input Field
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: tc.inputBackground,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: tc.glassBorderSubtle.withValues(alpha: 0.8), width: 1),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.tag_rounded, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey('cast-code-input'),
-                    controller: _codeController,
-                    focusNode: _codeFocusNode,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 2,
-                      color: tc.textPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: '点击输入 6 位投屏码',
-                      hintStyle: TextStyle(
-                        fontSize: 13,
+
+          SizedBox(height: isShort ? 12 : 16),
+
+          // 2. Inset Subtle Divider
+          Row(
+            children: [
+              Expanded(child: Divider(color: tc.glassBorder, height: 1)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  '或输入 6 位投屏码观看',
+                  style: TextStyle(fontSize: 11, color: tc.textTertiary),
+                ),
+              ),
+              Expanded(child: Divider(color: tc.glassBorder, height: 1)),
+            ],
+          ),
+
+          SizedBox(height: isShort ? 12 : 16),
+
+          // 3. Join Cast Input & Action
+          isMobile
+              ? Column(
+                  children: [
+                    GlassTextField(
+                      key: const ValueKey('cast-code-input'),
+                      controller: _codeController,
+                      focusNode: _codeFocusNode,
+                      placeholder: '输入 6 位投屏码',
+                      height: isShort ? 38 : 44,
+                      surfaceStyle: GlassSurfaceStyle.solid,
+                      color: tc.inputBackground,
+                      keyboardType: TextInputType.number,
+                      textStyle: TextStyle(
+                        color: tc.textPrimary,
+                        fontSize: isShort ? 13 : 14,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                      placeholderStyle: TextStyle(
+                        color: tc.textTertiary,
+                        fontSize: isShort ? 11.5 : 12,
                         letterSpacing: 0,
                         fontWeight: FontWeight.normal,
-                        color: tc.textSecondary,
                       ),
-                      counterText: '',
-                      border: InputBorder.none,
-                      isDense: true,
+                      onSubmitted: (val) => _isConnecting ? null : _handleJoinCast(val),
                     ),
-                    onSubmitted: (val) => _handleJoinCast(val),
-                  ),
-                ),
-                if (_codeController.text.isNotEmpty)
-                  IconButton(
-                    tooltip: '清除',
-                    icon: const Icon(Icons.clear_rounded, size: 18),
-                    color: tc.textSecondary,
-                    onPressed: () => _codeController.clear(),
-                  ),
-                IconButton(
-                  tooltip: '粘贴',
-                  icon: const Icon(Icons.content_paste_rounded, size: 18),
-                  color: tc.textSecondary,
-                  onPressed: _pasteFromClipboard,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              key: const ValueKey('join-cast-btn'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              icon: _isConnecting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.login_rounded, size: 20),
-              label: Text(
-                _isConnecting ? '正在连接...' : i18n.joinCast,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-              ),
-              onPressed: _isConnecting ? null : () => _handleJoinCast(_codeController.text),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFeatureBadges(BuildContext context, AppI18n i18n, ThemeColors tc, bool isMobile) {
-    final features = [
-      (Icons.speed_rounded, Colors.amber, '60 FPS 极速推流', '画面帧率优先，专为刷抖音短视频优化'),
-      (Icons.volume_up_rounded, Colors.indigoAccent, '系统伴音直传', 'Android 10+ 与 PC 原生内录，伴奏无杂音'),
-      (Icons.window_rounded, Colors.blueAccent, '精准窗口捕获', '桌面端可单选某个应用窗口，隐私不外泄'),
-      (Icons.record_voice_over_rounded, Colors.teal, '实时双向对讲', '看短视频的同时随时开麦边看边聊'),
-    ];
-
-    return GridView.count(
-      crossAxisCount: isMobile ? 1 : 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: isMobile ? 3.6 : 3.2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      children: features.map((f) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: tc.cardBackground.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: tc.glassBorderSubtle.withValues(alpha: 0.5), width: 1),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: f.$2.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(f.$1, color: f.$2, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
+                    SizedBox(height: isShort ? 8 : 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Semantics(
+                            button: true,
+                            label: '一键粘贴',
+                            child: LiquidGlassActionButton(
+                              key: const ValueKey('cast-paste-btn'),
+                              height: isShort ? 38 : 42,
+                              onTap: _isConnecting ? () {} : _pasteFromClipboard,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.content_paste_rounded, size: 16),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '粘贴并观看',
+                                    style: TextStyle(fontSize: isShort ? 12.5 : 14),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Semantics(
+                            button: true,
+                            label: '进入观看',
+                            child: LiquidGlassActionButton(
+                              key: const ValueKey('join-cast-btn'),
+                              isPrimary: true,
+                              height: isShort ? 38 : 42,
+                              onTap: _isConnecting ? () {} : () => _handleJoinCast(),
+                              child: Text(
+                                '进入观看',
+                                style: TextStyle(fontSize: isShort ? 12.5 : 14, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
                   children: [
-                    Text(
-                      f.$3,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: tc.textPrimary,
+                    Expanded(
+                      child: GlassTextField(
+                        key: const ValueKey('cast-code-input'),
+                        controller: _codeController,
+                        focusNode: _codeFocusNode,
+                        placeholder: '输入 6 位投屏码',
+                        height: isShort ? 38 : 44,
+                        surfaceStyle: GlassSurfaceStyle.solid,
+                        color: tc.inputBackground,
+                        keyboardType: TextInputType.number,
+                        textStyle: TextStyle(
+                          color: tc.textPrimary,
+                          fontSize: isShort ? 13 : 14,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 2,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                        placeholderStyle: TextStyle(
+                          color: tc.textTertiary,
+                          fontSize: isShort ? 11.5 : 12,
+                          letterSpacing: 0,
+                          fontWeight: FontWeight.normal,
+                        ),
+                        onSubmitted: (val) => _isConnecting ? null : _handleJoinCast(val),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      f.$4,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: tc.textSecondary,
+                    const SizedBox(width: 8),
+                    LiquidGlassActionButton(
+                      key: const ValueKey('cast-paste-btn'),
+                      width: 100,
+                      height: isShort ? 38 : 44,
+                      onTap: _isConnecting ? () {} : _pasteFromClipboard,
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.content_paste_rounded, size: 15),
+                          SizedBox(width: 4),
+                          Text('粘贴', style: TextStyle(fontSize: 13)),
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(width: 8),
+                    LiquidGlassActionButton(
+                      key: const ValueKey('join-cast-btn'),
+                      isPrimary: true,
+                      width: 108,
+                      height: isShort ? 38 : 44,
+                      onTap: _isConnecting ? () {} : () => _handleJoinCast(),
+                      child: const Text(
+                        '进入观看',
+                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
+        ],
+      ),
     );
   }
 
-  Widget _buildRecentCasts(BuildContext context, AppI18n i18n, ThemeColors tc) {
+  Widget _buildRecentCastsSection(BuildContext context, AppI18n i18n, ThemeColors tc) {
     final recentRooms = RoomHistoryService.recentRoomsNotifier.value;
+    if (recentRooms.isEmpty) return const SizedBox.shrink();
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: tc.cardBackground.withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: tc.glassBorderSubtle.withValues(alpha: 0.6), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Row(
             children: [
-              Icon(Icons.history_rounded, size: 18, color: tc.textSecondary),
-              const SizedBox(width: 8),
+              Icon(Icons.history_rounded, size: 15, color: tc.textSecondary),
+              const SizedBox(width: 6),
               Text(
-                i18n.recentCasts,
+                '最近投屏历史',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w600,
-                  color: tc.textPrimary,
+                  color: tc.textSecondary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          if (recentRooms.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Center(
-                child: Text(
-                  i18n.noRecentCasts,
-                  style: TextStyle(fontSize: 12.5, color: tc.textSecondary),
-                ),
-              ),
-            )
-          else
-            ...recentRooms.take(3).map((r) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: InkWell(
-                  onTap: () {
-                    _codeController.text = r.roomCode;
-                    _handleJoinCast(r.roomCode);
-                  },
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: tc.inputBackground.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.tag_rounded, size: 14, color: Colors.grey),
-                        const SizedBox(width: 6),
-                        Text(
+        ),
+        GlassContainer.card(
+          surfaceStyle: GlassSurfaceStyle.solid,
+          color: tc.cardBackground,
+          shape: const LiquidRoundedSuperellipse(borderRadius: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Column(
+            children: recentRooms.take(3).map((r) {
+              return InkWell(
+                onTap: () {
+                  _codeController.text = r.roomCode;
+                  _handleJoinCast(r.roomCode);
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: tc.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
                           r.roomCode,
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
                             letterSpacing: 1,
-                            color: tc.textPrimary,
+                            color: tc.primary,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            r.title,
-                            style: TextStyle(fontSize: 12, color: tc.textSecondary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          r.title,
+                          style: TextStyle(fontSize: 12.5, color: tc.textPrimary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        Icon(Icons.arrow_forward_ios_rounded, size: 12, color: tc.textSecondary),
-                      ],
-                    ),
+                      ),
+                      Icon(Icons.arrow_forward_ios_rounded, size: 12, color: tc.textTertiary),
+                    ],
                   ),
                 ),
               );
-            }),
-        ],
-      ),
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 }
