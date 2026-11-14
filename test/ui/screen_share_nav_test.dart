@@ -75,8 +75,8 @@ void main() {
       expect(find.byKey(const ValueKey('start-screen-share-btn')), findsOneWidget);
       expect(find.byKey(const ValueKey('cast-code-input')), findsOneWidget);
       expect(find.byKey(const ValueKey('join-cast-btn')), findsOneWidget);
-      expect(find.text('捕获指定应用窗口或整机屏幕'), findsOneWidget);
-      expect(find.text('或输入 6 位投屏码观看'), findsOneWidget);
+      expect(find.text('我要投屏'), findsOneWidget);
+      expect(find.text('观看投屏'), findsOneWidget);
 
       // 2. Switch to 我的 tab
       await tester.tap(find.text('我的').first);

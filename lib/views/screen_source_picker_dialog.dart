@@ -62,77 +62,84 @@ class _MobileScreenSharePickerSheetState extends State<_MobileScreenSharePickerS
   bool _shareAudio = true;
   bool _highFps = true;
   late bool _enableFloatingChat;
+  bool? _hasOverlayPermission;
 
   @override
   void initState() {
     super.initState();
     _enableFloatingChat = AppSettings.instance.enableCastFloatingChat;
+    _checkPermission();
+  }
+
+  Future<void> _checkPermission() async {
+    if (!kIsWeb && WebRTC.platformIsAndroid) {
+      try {
+        final has = await const MethodChannel('com.norns.eir/media_picker')
+            .invokeMethod<bool>('checkOverlayPermission');
+        if (mounted) setState(() => _hasOverlayPermission = has);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _requestPermission(AppI18n i18n, ThemeColors tc) async {
+    if (!kIsWeb && WebRTC.platformIsAndroid) {
+      try {
+        final grant = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF1C1E2A),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Icon(Icons.layers_rounded, color: tc.primary, size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  i18n.overlayPermissionTitle,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              i18n.overlayPermissionDesc,
+              style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(i18n.cancel, style: const TextStyle(color: Colors.white38)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(
+                  i18n.grantPermission,
+                  style: TextStyle(color: tc.primary, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        );
+        if (grant == true) {
+          await const MethodChannel('com.norns.eir/media_picker')
+              .invokeMethod('requestOverlayPermission');
+          await Future.delayed(const Duration(milliseconds: 500));
+          await _checkPermission();
+        }
+      } catch (e) {
+        debugPrint('[MobilePicker] requestOverlayPermission error: $e');
+      }
+    }
   }
 
   Future<void> _onToggleFloatingChat(bool val, AppI18n i18n, ThemeColors tc) async {
-    if (val) {
-      if (!kIsWeb && WebRTC.platformIsAndroid) {
-        try {
-          final hasOverlay = await const MethodChannel('com.norns.eir/media_picker')
-              .invokeMethod<bool>('checkOverlayPermission');
-          if (hasOverlay != true && mounted) {
-            final grant = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                backgroundColor: const Color(0xFF1C1E2A),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                title: Row(
-                  children: [
-                    Icon(Icons.layers_rounded, color: tc.primary, size: 22),
-                    const SizedBox(width: 8),
-                    Text(
-                      i18n.overlayPermissionTitle,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                content: Text(
-                  i18n.overlayPermissionDesc,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: Text(i18n.cancel, style: const TextStyle(color: Colors.white38)),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: Text(
-                      i18n.grantPermission,
-                      style: TextStyle(color: tc.primary, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            );
-            if (grant == true) {
-              await const MethodChannel('com.norns.eir/media_picker')
-                  .invokeMethod('requestOverlayPermission');
-              setState(() => _enableFloatingChat = true);
-              await AppSettings.instance.setEnableCastFloatingChat(true);
-            } else {
-              setState(() => _enableFloatingChat = false);
-            }
-            return;
-          }
-        } catch (e) {
-          debugPrint('[MobilePicker] checkOverlayPermission error: $e');
-        }
-      }
-      setState(() => _enableFloatingChat = true);
-      await AppSettings.instance.setEnableCastFloatingChat(true);
-    } else {
-      setState(() => _enableFloatingChat = false);
-      await AppSettings.instance.setEnableCastFloatingChat(false);
+    setState(() => _enableFloatingChat = val);
+    await AppSettings.instance.setEnableCastFloatingChat(val);
+
+    if (val && _hasOverlayPermission == false) {
+      await _requestPermission(i18n, tc);
     }
   }
 
@@ -363,6 +370,35 @@ class _MobileScreenSharePickerSheetState extends State<_MobileScreenSharePickerS
                                       color: tc.textTertiary,
                                     ),
                                   ),
+                                  if (_enableFloatingChat && _hasOverlayPermission == false) ...[
+                                    const SizedBox(height: 5),
+                                    GestureDetector(
+                                      onTap: () => _requestPermission(i18n, tc),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: Colors.amber.withValues(alpha: 0.35)),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.shield_outlined, size: 12, color: Colors.amber),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              '需开启上层显示权限 · 点击设置',
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.amber,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),

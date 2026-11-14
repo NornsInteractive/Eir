@@ -150,6 +150,7 @@ class ScreenShareService extends ChangeNotifier {
   Duration _duration = Duration.zero;
   Duration get duration => _duration;
   Timer? _durationTimer;
+  Timer? _handshakeWatchdogTimer;
 
   // WebRTC Renderers
   final RTCVideoRenderer localRenderer = RTCVideoRenderer();
@@ -349,6 +350,24 @@ class ScreenShareService extends ChangeNotifier {
         'castCode': castCode,
       });
 
+      // Watchdog: If no video track arrives after 4 seconds, re-request offer
+      _handshakeWatchdogTimer?.cancel();
+      _handshakeWatchdogTimer = Timer(const Duration(seconds: 4), () async {
+        if (_role == ScreenShareRole.viewer &&
+            (remoteRenderer.srcObject == null || _remoteStream == null)) {
+          debugPrint('[ScreenShareService] Handshake watchdog: re-sending viewer_join');
+          try {
+            await sendSignal({
+              'type': 'screen_share_viewer_join',
+              'viewerId': getCurrentDeviceId(),
+              'viewerName': getCurrentDisplayName(),
+              'viewerAvatar': getCurrentAvatar(),
+              'castCode': castCode,
+            });
+          } catch (_) {}
+        }
+      });
+
       return true;
     } catch (e) {
       debugPrint('[ScreenShareService] startViewing error: $e');
@@ -358,6 +377,21 @@ class ScreenShareService extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// Manually retry viewer signaling handshake
+  Future<void> retryViewerHandshake() async {
+    if (_role != ScreenShareRole.viewer || _activeCastCode == null) return;
+    try {
+      debugPrint('[ScreenShareService] Manual retry viewer handshake for $_activeCastCode');
+      await sendSignal({
+        'type': 'screen_share_viewer_join',
+        'viewerId': getCurrentDeviceId(),
+        'viewerName': getCurrentDisplayName(),
+        'viewerAvatar': getCurrentAvatar(),
+        'castCode': _activeCastCode!,
+      });
+    } catch (_) {}
   }
 
   /// Setup WebRTC peer connection
@@ -464,27 +498,80 @@ class ScreenShareService extends ChangeNotifier {
       }
     };
 
+    if (!isBroadcaster) {
+      try {
+        await _pc!.addTransceiver(
+          kind: RTCRtpMediaType.RTCRtpMediaTypeVideo,
+          init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly),
+        );
+        await _pc!.addTransceiver(
+          kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
+          init: RTCRtpTransceiverInit(direction: TransceiverDirection.RecvOnly),
+        );
+      } catch (e) {
+        debugPrint('[ScreenShareService] addTransceiver error: $e');
+      }
+    }
+
     if (isBroadcaster && _localStream != null) {
       for (final track in _localStream!.getTracks()) {
         await _pc!.addTrack(track, _localStream!);
       }
+      await _sendOfferToViewer(restartIce: false);
+    }
+  }
 
-      // Create Offer for viewers
-      final rawOffer = await _pc!.createOffer({
-        'offerToReceiveVideo': 0,
-        'offerToReceiveAudio': 1,
-      });
-      final mungedSdp = _preferCodec(rawOffer.sdp ?? '', 'VP8');
-      final offer = RTCSessionDescription(mungedSdp, rawOffer.type);
-      await _pc!.setLocalDescription(offer);
+  /// Safely generate, munge, set local description, send offer, and forward all cached ICE candidates
+  Future<void> _sendOfferToViewer({bool restartIce = false}) async {
+    if (_pc == null || _role != ScreenShareRole.broadcaster) return;
 
-      await sendSignal({
-        'type': 'screen_share_sdp',
-        'sdp': {'type': offer.type, 'sdp': offer.sdp},
-        'sourceTitle': _sourceTitle,
-        'sourceType': _sourceType,
-        'castCode': _activeCastCode,
-      });
+    try {
+      final state = await _pc!.getSignalingState();
+      RTCSessionDescription? offer;
+
+      if (state == RTCSignalingState.RTCSignalingStateHaveLocalOffer && !restartIce) {
+        // Reuse current valid local offer that hasn't been answered yet
+        offer = await _pc!.getLocalDescription();
+      } else {
+        if (state == RTCSignalingState.RTCSignalingStateHaveLocalOffer) {
+          try {
+            await _pc!.setLocalDescription(RTCSessionDescription('', 'rollback'));
+          } catch (_) {}
+        }
+        final rawOffer = await _pc!.createOffer({
+          'offerToReceiveVideo': 0,
+          'offerToReceiveAudio': 1,
+          if (restartIce) 'iceRestart': true,
+        });
+        final mungedSdp = _preferCodec(rawOffer.sdp ?? '', 'VP8');
+        offer = RTCSessionDescription(mungedSdp, rawOffer.type);
+        await _pc!.setLocalDescription(offer);
+      }
+
+      if (offer != null) {
+        await sendSignal({
+          'type': 'screen_share_sdp',
+          'sdp': {'type': offer.type, 'sdp': offer.sdp},
+          'sourceTitle': _sourceTitle,
+          'sourceType': _sourceType,
+          'castCode': _activeCastCode,
+        });
+
+        // Forward all gathered ICE candidates to the viewer
+        for (final cand in _cachedLocalIce) {
+          await sendSignal({
+            'type': 'screen_share_ice',
+            'candidate': {
+              'candidate': cand.candidate,
+              'sdpMid': cand.sdpMid,
+              'sdpMLineIndex': cand.sdpMLineIndex,
+            },
+            'castCode': _activeCastCode,
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('[ScreenShareService] _sendOfferToViewer error: $e');
     }
   }
 
@@ -542,30 +629,9 @@ class ScreenShareService extends ChangeNotifier {
         _viewerCount = math.max(1, _viewerCount);
         notifyListeners();
 
-        // If we are broadcasting, renegotiate / send offer to newly joined viewer
+        // If we are broadcasting, safely send offer & candidates to newly joined viewer
         if (_role == ScreenShareRole.broadcaster && _pc != null) {
-          try {
-            _cachedLocalIce.clear();
-            final rawOffer = await _pc!.createOffer({
-              'offerToReceiveVideo': 0,
-              'offerToReceiveAudio': 1,
-              'iceRestart': true,
-            });
-            final mungedSdp = _preferCodec(rawOffer.sdp ?? '', 'VP8');
-            final offer = RTCSessionDescription(mungedSdp, rawOffer.type);
-            await _pc!.setLocalDescription(offer);
-            await sendSignal({
-              'type': 'screen_share_sdp',
-              'sdp': {'type': offer.type, 'sdp': offer.sdp},
-              'sourceTitle': _sourceTitle,
-              'sourceType': _sourceType,
-              'castCode': _activeCastCode,
-            });
-          } catch (e) {
-            debugPrint(
-              '[ScreenShareService] Viewer join renegotiation error: $e',
-            );
-          }
+          await _sendOfferToViewer(restartIce: false);
         }
         break;
 
@@ -706,6 +772,7 @@ class ScreenShareService extends ChangeNotifier {
       }
     }
     _durationTimer?.cancel();
+    _handshakeWatchdogTimer?.cancel();
     _duration = Duration.zero;
     _viewerCount = 0;
     _pendingIce.clear();
@@ -763,6 +830,7 @@ class ScreenShareService extends ChangeNotifier {
 
   void _startDurationTimer() {
     _durationTimer?.cancel();
+    _handshakeWatchdogTimer?.cancel();
     _duration = Duration.zero;
     _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       _duration += const Duration(seconds: 1);

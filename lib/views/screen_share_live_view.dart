@@ -43,6 +43,9 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
   final List<_FloatingDanmakuItem> _activeDanmaku = [];
   Offset _cameraPipOffset = const Offset(16, 70);
 
+  int _waitingSeconds = 0;
+  Timer? _waitingTimer;
+
   ScreenShareService get _service => widget.session.screenShareService;
 
   @override
@@ -51,10 +54,19 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
     _service.addListener(_onServiceChanged);
     _reactionSub = _service.onReaction.listen(_onReactionReceived);
     _chatSub = _service.onChatMessage.listen(_onChatMessageReceived);
+    _waitingTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_service.renderersInitialized && _service.remoteRenderer.srcObject != null) {
+        t.cancel();
+      } else {
+        setState(() => _waitingSeconds++);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _waitingTimer?.cancel();
     _reactionSub?.cancel();
     _chatSub?.cancel();
     _service.removeListener(_onServiceChanged);
@@ -153,44 +165,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
             if (!isBroadcasting &&
                 (_service.state == ScreenShareState.connecting ||
                     renderer.srcObject == null))
-              Center(
-                child: GlassContainer.card(
-                  surfaceStyle: GlassSurfaceStyle.solid,
-                  color: Colors.black.withValues(alpha: 0.65),
-                  shape: const LiquidRoundedSuperellipse(borderRadius: 18),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        '正在同步 60 FPS 投屏画面',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '正在与投屏方建立 P2P 加密直连通道...',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              _buildConnectingOverlay(context, tc, isBroadcasting),
 
             // 1.5 Floating Emoji Reactions Layer
             ..._activeReactions.map((item) {
@@ -1150,6 +1125,113 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildConnectingOverlay(BuildContext context, ThemeColors tc, bool isBroadcasting) {
+    final castCode = _service.activeCastCode ?? '';
+    final isStalled = _waitingSeconds >= 8;
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 24),
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: GlassContainer.card(
+          surfaceStyle: GlassSurfaceStyle.solid,
+          color: const Color(0xFF141721).withValues(alpha: 0.88),
+          shape: const LiquidRoundedSuperellipse(borderRadius: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Radar or Progress Spinner
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [tc.primary, tc.primary.withValues(alpha: 0.6)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: tc.primary.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                castCode.isNotEmpty ? '正在连接投屏 [$castCode]' : '正在同步投屏画面',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isStalled ? '直连通道建立耗时较长，请检查投屏方状态' : '正在与投屏方建立 P2P 加密直连通道...',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isStalled ? Colors.amberAccent : Colors.white70,
+                  fontSize: 12.5,
+                  height: 1.35,
+                ),
+              ),
+
+              if (isStalled) ...[
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: LiquidGlassActionButton(
+                        height: 38,
+                        onTap: () => Navigator.of(context).maybePop(),
+                        child: const Text('返回大厅', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: LiquidGlassActionButton(
+                        height: 38,
+                        isPrimary: true,
+                        onTap: () {
+                          setState(() => _waitingSeconds = 0);
+                          _service.retryViewerHandshake();
+                        },
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.refresh_rounded, size: 15),
+                            SizedBox(width: 4),
+                            Text('重新直连', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

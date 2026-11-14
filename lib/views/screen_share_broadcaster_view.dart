@@ -52,27 +52,72 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
   }
 
   Future<void> _handleStopCast() async {
+    final tc = ThemeColors.of(context);
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: ThemeColors.of(context).cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('结束投屏', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('确定要停止当前投屏并断开所有连接吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
+      builder: (ctx) => Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          child: GlassContainer.card(
+            surfaceStyle: GlassSurfaceStyle.solid,
+            color: tc.cardBackground,
+            shape: const LiquidRoundedSuperellipse(borderRadius: 22),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.stop_circle_rounded, color: Colors.redAccent, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '结束投屏',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: tc.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '确定要停止当前投屏并断开所有连接吗？',
+                  style: TextStyle(fontSize: 13, color: tc.textSecondary, height: 1.4),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: LiquidGlassActionButton(
+                        height: 42,
+                        onTap: () => Navigator.of(ctx).pop(false),
+                        child: Text('取消', style: TextStyle(color: tc.textSecondary)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: LiquidGlassActionButton(
+                        height: 42,
+                        isPrimary: true,
+                        onTap: () => Navigator.of(ctx).pop(true),
+                        child: const Text('结束投屏', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('结束投屏'),
           ),
-        ],
+        ),
       ),
     );
 
@@ -86,6 +131,18 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('投屏码已复制到剪贴板'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _copyWebCastLink(String code) {
+    final webUrl = 'https://eir.norns.cc.cd?cast=$code';
+    Clipboard.setData(ClipboardData(text: webUrl));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('网页免装观看直链已复制！对方浏览器打开秒看'),
         duration: Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ),
@@ -278,6 +335,85 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                     '对方在手机或电脑打开 Eir 输入投屏码，即可同步观看你的屏幕',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(fontSize: 12, color: tc.textTertiary),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  // Quick Action Buttons
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: LiquidGlassActionButton(
+                                          height: 38,
+                                          onTap: () => _copyCastCode(castCode),
+                                          child: const Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.copy_rounded, size: 14),
+                                              SizedBox(width: 6),
+                                              Text('复制投屏码', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: LiquidGlassActionButton(
+                                          height: 38,
+                                          isPrimary: true,
+                                          onTap: () => _copyWebCastLink(castCode),
+                                          child: const Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.link_rounded, size: 16),
+                                              SizedBox(width: 6),
+                                              Text('复制网页直链', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 14),
+
+                            // Friendly Guidance Banner
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: tc.primary.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: tc.primary.withValues(alpha: 0.2)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.phone_android_rounded, size: 18, color: tc.primary),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '屏幕正在实时共享中',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: tc.textPrimary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          '你可以切换到任意应用（如抖音、相册、游戏或浏览器），好友即可同步看到你的操作与伴音；观众发来的消息将显示在悬浮气泡中。',
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            color: tc.textSecondary,
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
