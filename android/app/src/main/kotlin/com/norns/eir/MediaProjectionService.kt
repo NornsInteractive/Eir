@@ -102,6 +102,9 @@ class MediaProjectionService : Service() {
                 .build()
 
             manager.notify(CHAT_NOTIFICATION_ID, notification)
+
+            // Update floating overlay capsule
+            FloatingChatManager.onNewMessage(sender, text)
         }
     }
 
@@ -121,10 +124,15 @@ class MediaProjectionService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+
+        // Show floating draggable chat capsule across all apps
+        FloatingChatManager.show(applicationContext)
+
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
+        FloatingChatManager.dismiss()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } else {

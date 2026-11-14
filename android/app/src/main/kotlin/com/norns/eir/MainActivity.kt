@@ -14,6 +14,7 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.PowerManager
 import android.provider.OpenableColumns
+import android.provider.Settings
 import androidx.core.content.FileProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -297,6 +298,29 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 } catch (e: Exception) {
                     result.error("NOTIFICATION_ERROR", e.message, null)
+                }
+            } else if (call.method == "checkOverlayPermission") {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    result.success(Settings.canDrawOverlays(applicationContext))
+                } else {
+                    result.success(true)
+                }
+            } else if (call.method == "requestOverlayPermission") {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    try {
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:$packageName")
+                        ).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("PERMISSION_ERROR", e.message, null)
+                    }
+                } else {
+                    result.success(true)
                 }
             } else {
                 result.notImplemented()

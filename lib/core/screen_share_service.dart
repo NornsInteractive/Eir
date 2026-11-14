@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -93,6 +94,11 @@ class ScreenShareService extends ChangeNotifier {
 
   bool _danmakuEnabled = true;
   bool get danmakuEnabled => _danmakuEnabled;
+
+  // Viewer connection tracking
+  int _viewerCount = 0;
+  int get viewerCount => _viewerCount;
+  bool get hasViewer => _viewerCount > 0;
 
   void markMessagesAsRead() {
     if (_unreadCount > 0) {
@@ -386,6 +392,15 @@ class ScreenShareService extends ChangeNotifier {
       debugPrint('[ScreenShareService] PeerConnection state: $state');
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
         _state = ScreenShareState.active;
+        if (isBroadcaster) {
+          _viewerCount = math.max(1, _viewerCount);
+        }
+        notifyListeners();
+      } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
+          state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+        if (!isBroadcaster) {
+          _state = ScreenShareState.error;
+        }
         notifyListeners();
       }
     };
@@ -395,32 +410,52 @@ class ScreenShareService extends ChangeNotifier {
       if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
         _state = ScreenShareState.active;
+        if (isBroadcaster) {
+          _viewerCount = math.max(1, _viewerCount);
+        }
         notifyListeners();
       }
     };
 
     _pc!.onTrack = (event) async {
-      if (event.streams.isNotEmpty) {
-        final stream = event.streams.first;
-        if (_remoteStream == null) {
-          _remoteStream = stream;
+      debugPrint(
+        '[ScreenShareService] onTrack kind=${event.track.kind}, id=${event.track.id}, streams=${event.streams.length}',
+      );
+      if (event.track.kind == 'video') {
+        // If main remote stream has no video track yet, bind this track as primary screen canvas
+        if (_remoteStream == null || _remoteStream!.getVideoTracks().isEmpty) {
+          if (event.streams.isNotEmpty) {
+            _remoteStream = event.streams.first;
+          } else {
+            _remoteStream = await createLocalMediaStream('remote_screen_stream');
+            _remoteStream!.addTrack(event.track);
+          }
           remoteRenderer.srcObject = _remoteStream;
-        } else if (_remoteStream?.id != stream.id) {
+        } else {
+          // Additional video track -> remote camera PiP
           _isRemoteCameraActive = true;
-          remoteCameraRenderer.srcObject = stream;
+          if (event.streams.isNotEmpty) {
+            remoteCameraRenderer.srcObject = event.streams.first;
+          } else {
+            final camStream = await createLocalMediaStream('remote_camera_stream');
+            camStream.addTrack(event.track);
+            remoteCameraRenderer.srcObject = camStream;
+          }
         }
         notifyListeners();
-      } else if (event.track.kind == 'video') {
-        try {
-          _remoteStream ??= await createLocalMediaStream(
-            'remote_screen_stream',
-          );
-          _remoteStream!.addTrack(event.track);
+      } else if (event.track.kind == 'audio') {
+        if (_remoteStream == null) {
+          if (event.streams.isNotEmpty) {
+            _remoteStream = event.streams.first;
+          } else {
+            _remoteStream = await createLocalMediaStream('remote_screen_stream');
+            _remoteStream!.addTrack(event.track);
+          }
           remoteRenderer.srcObject = _remoteStream;
-          notifyListeners();
-        } catch (e) {
-          debugPrint('[ScreenShareService] onTrack fallback error: $e');
+        } else {
+          _remoteStream!.addTrack(event.track);
         }
+        notifyListeners();
       }
     };
 
@@ -460,46 +495,26 @@ class ScreenShareService extends ChangeNotifier {
         break;
 
       case 'screen_share_viewer_join':
+        _viewerCount = math.max(1, _viewerCount);
+        notifyListeners();
+
         // If we are broadcasting, renegotiate / send offer to newly joined viewer
         if (_role == ScreenShareRole.broadcaster && _pc != null) {
           try {
-            final localDesc = await _pc!.getLocalDescription();
-            if (localDesc != null && localDesc.type == 'offer' && _cachedLocalIce.isNotEmpty) {
-              // Re-send existing offer with matching cached candidates (same ufrag)
-              await sendSignal({
-                'type': 'screen_share_sdp',
-                'sdp': {'type': localDesc.type, 'sdp': localDesc.sdp},
-                'sourceTitle': _sourceTitle,
-                'sourceType': _sourceType,
-                'castCode': _activeCastCode,
-              });
-              for (final cand in _cachedLocalIce) {
-                await sendSignal({
-                  'type': 'screen_share_ice',
-                  'candidate': {
-                    'candidate': cand.candidate,
-                    'sdpMid': cand.sdpMid,
-                    'sdpMLineIndex': cand.sdpMLineIndex,
-                  },
-                  'castCode': _activeCastCode,
-                });
-              }
-            } else {
-              _cachedLocalIce.clear();
-              final offer = await _pc!.createOffer({
-                'offerToReceiveVideo': 0,
-                'offerToReceiveAudio': 1,
-                'iceRestart': true,
-              });
-              await _pc!.setLocalDescription(offer);
-              await sendSignal({
-                'type': 'screen_share_sdp',
-                'sdp': {'type': offer.type, 'sdp': offer.sdp},
-                'sourceTitle': _sourceTitle,
-                'sourceType': _sourceType,
-                'castCode': _activeCastCode,
-              });
-            }
+            _cachedLocalIce.clear();
+            final offer = await _pc!.createOffer({
+              'offerToReceiveVideo': 0,
+              'offerToReceiveAudio': 1,
+              'iceRestart': true,
+            });
+            await _pc!.setLocalDescription(offer);
+            await sendSignal({
+              'type': 'screen_share_sdp',
+              'sdp': {'type': offer.type, 'sdp': offer.sdp},
+              'sourceTitle': _sourceTitle,
+              'sourceType': _sourceType,
+              'castCode': _activeCastCode,
+            });
           } catch (e) {
             debugPrint(
               '[ScreenShareService] Viewer join renegotiation error: $e',
@@ -550,7 +565,7 @@ class ScreenShareService extends ChangeNotifier {
           final candidate = RTCIceCandidate(
             iceMap['candidate'] as String?,
             iceMap['sdpMid'] as String?,
-            iceMap['sdpMLineIndex'] as int?,
+            (iceMap['sdpMLineIndex'] as num?)?.toInt() ?? 0,
           );
           if (_pc != null && _remoteDescSet) {
             try {
@@ -649,6 +664,7 @@ class ScreenShareService extends ChangeNotifier {
     }
     _durationTimer?.cancel();
     _duration = Duration.zero;
+    _viewerCount = 0;
     _pendingIce.clear();
     _cachedLocalIce.clear();
     _remoteDescSet = false;
@@ -918,7 +934,8 @@ class ScreenShareService extends ChangeNotifier {
         const MethodChannel('com.norns.eir/media_picker').setMethodCallHandler((
           call,
         ) async {
-          if (call.method == 'onNotificationReply') {
+          if (call.method == 'onNotificationReply' ||
+              call.method == 'onOverlayChatSend') {
             final text = call.arguments?['text'] as String?;
             if (text != null && text.trim().isNotEmpty) {
               await sendChatMessage(text.trim());

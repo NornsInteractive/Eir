@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import '../app_localization.dart';
 import '../app_settings.dart';
@@ -77,6 +79,47 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
   Future<void> _handleStartCast() async {
     final opts = await ScreenSourcePickerDialog.show(context);
     if (opts == null || !mounted) return;
+
+    // Check & prompt for Android overlay permission for cross-app floating chat bubble
+    if (!kIsWeb && WebRTC.platformIsAndroid) {
+      try {
+        final hasOverlay = await const MethodChannel('com.norns.eir/media_picker')
+            .invokeMethod<bool>('checkOverlayPermission');
+        if (hasOverlay == false && mounted) {
+          final grant = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: const Color(0xFF1C1E2A),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text(
+                '开启全局悬浮聊天窗',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              content: const Text(
+                '开启【在其他应用上层显示】权限后，在切换到其他 App 投屏时，屏幕上仍将显示可拖动的悬浮聊天胶囊，方便随时与观看方互动。',
+                style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('暂不开启', style: TextStyle(color: Colors.white38)),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('去开启', style: TextStyle(color: Color(0xFF0A84FF), fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          );
+          if (grant == true) {
+            await const MethodChannel('com.norns.eir/media_picker')
+                .invokeMethod('requestOverlayPermission');
+          }
+        }
+      } catch (e) {
+        debugPrint('[ScreenShareLobby] overlay permission check error: $e');
+      }
+    }
 
     setState(() {
       _isConnecting = true;

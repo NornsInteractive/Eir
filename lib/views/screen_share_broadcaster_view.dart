@@ -305,7 +305,9 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                     tc,
                                     icon: Icons.people_alt_rounded,
                                     label: '观看状态',
-                                    value: _service.isViewing ? '1 位观众' : '等待加入',
+                                    value: _service.hasViewer
+                                        ? '${_service.viewerCount} 位观众 (已连接)'
+                                        : '等待观众加入',
                                     sub: 'P2P 加密直连',
                                   ),
                                 ),
