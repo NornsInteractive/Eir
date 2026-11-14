@@ -511,6 +511,7 @@ class SignalingServer {
         kind != 'ice' &&
         kind != 'room_msg' &&
         kind != 'call_signal' &&
+        kind != 'screen_share_signal' &&
         kind != 'chat' &&
         kind != 'danmaku' &&
         kind != 'tailcat_addr') {
@@ -556,6 +557,7 @@ class SignalingServer {
       };
     } else if (kind == 'room_msg' ||
         kind == 'call_signal' ||
+        kind == 'screen_share_signal' ||
         kind == 'chat' ||
         kind == 'danmaku') {
       final payload = msg['payload'];

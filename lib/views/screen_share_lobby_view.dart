@@ -121,6 +121,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     });
 
     try {
+      _service.prepareViewing(castCode: code);
       if (widget.session.roomCode != code) {
         await widget.session.joinRoomByCode(code);
       }
@@ -130,6 +131,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
         setState(() => _errorMessage = _service.lastError ?? '无法连接到该投屏');
       }
     } catch (e) {
+      _service.stop(reason: 'join_error');
       if (mounted) setState(() => _errorMessage = e.toString());
     } finally {
       if (mounted) setState(() => _isConnecting = false);

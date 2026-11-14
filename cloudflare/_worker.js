@@ -497,6 +497,7 @@ export class SignalingCoordinator {
       'ice',
       'room_msg',
       'call_signal',
+      'screen_share_signal',
       'chat',
       'danmaku',
       'tailcat_addr',
@@ -530,7 +531,7 @@ export class SignalingCoordinator {
         kind: 'tailcat_addr',
         addr,
       };
-    } else if (kind === 'room_msg' || kind === 'call_signal' || kind === 'chat' || kind === 'danmaku') {
+    } else if (kind === 'room_msg' || kind === 'call_signal' || kind === 'screen_share_signal' || kind === 'chat' || kind === 'danmaku') {
       const payload = msg.payload;
       if (!payload || typeof payload !== 'object') return conn.sendError('invalid_message');
       outbound = {

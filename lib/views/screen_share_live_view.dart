@@ -149,6 +149,49 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                   : const CircularProgressIndicator(color: Colors.white70),
             ),
 
+            // 1.2 Connecting / Stream Waiting Hint
+            if (!isBroadcasting &&
+                (_service.state == ScreenShareState.connecting ||
+                    renderer.srcObject == null))
+              Center(
+                child: GlassContainer.card(
+                  surfaceStyle: GlassSurfaceStyle.solid,
+                  color: Colors.black.withValues(alpha: 0.65),
+                  shape: const LiquidRoundedSuperellipse(borderRadius: 18),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        '正在同步 60 FPS 投屏画面',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '正在与投屏方建立 P2P 加密直连通道...',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
             // 1.5 Floating Emoji Reactions Layer
             ..._activeReactions.map((item) {
               return _FloatingEmojiWidget(

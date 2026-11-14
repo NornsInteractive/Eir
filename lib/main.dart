@@ -209,7 +209,7 @@ class _EirRootPageState extends State<EirRootPage> {
       builder: (context, _) {
         final screenShare = _session.screenShareService;
         final isBroadcasting = screenShare.isBroadcaster && screenShare.isActive;
-        final isViewing = screenShare.isViewer && screenShare.isActive;
+        final isViewing = screenShare.isViewer;
         final isScreenSharing = isBroadcasting || isViewing;
         final isInRoom = _session.roomId != null && !isScreenSharing;
         if (isInRoom != _lastIsInRoom) {

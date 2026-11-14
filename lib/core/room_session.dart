@@ -518,12 +518,16 @@ class RoomSession extends ChangeNotifier {
     }
 
     if (_roomId != null && _signaling.isConnected) {
-      _signaling.send({
-        'type': 'signal',
-        'roomId': _roomId,
-        'kind': 'screen_share_signal',
-        'payload': payload,
-      });
+      try {
+        _signaling.send({
+          'type': 'signal',
+          'roomId': _roomId,
+          'kind': 'screen_share_signal',
+          'payload': payload,
+        });
+      } catch (e) {
+        debugPrint('[RoomSession] _sendScreenShareSignal error: $e');
+      }
     }
   }
 
@@ -1640,6 +1644,7 @@ class RoomSession extends ChangeNotifier {
       avatar: avatar,
     );
     if (role == RoomRole.owner &&
+        !screenShareService.isBroadcasting &&
         (!_peerVerified || _dcStateOpen() != true)) {
       unawaited(_startWebRtc(isOwner: true));
     }

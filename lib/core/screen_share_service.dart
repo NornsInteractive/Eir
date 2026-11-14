@@ -304,6 +304,15 @@ class ScreenShareService extends ChangeNotifier {
     }
   }
 
+  /// Prepare viewing state before joining signaling room
+  void prepareViewing({required String castCode}) {
+    _role = ScreenShareRole.viewer;
+    _state = ScreenShareState.connecting;
+    _activeCastCode = castCode;
+    _lastError = null;
+    notifyListeners();
+  }
+
   /// Start viewing a broadcast by cast code
   Future<bool> startViewing({required String castCode}) async {
     _state = ScreenShareState.connecting;
@@ -373,6 +382,23 @@ class ScreenShareService extends ChangeNotifier {
       });
     };
 
+    _pc!.onConnectionState = (state) {
+      debugPrint('[ScreenShareService] PeerConnection state: $state');
+      if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+        _state = ScreenShareState.active;
+        notifyListeners();
+      }
+    };
+
+    _pc!.onIceConnectionState = (state) {
+      debugPrint('[ScreenShareService] ICE connection state: $state');
+      if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
+          state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
+        _state = ScreenShareState.active;
+        notifyListeners();
+      }
+    };
+
     _pc!.onTrack = (event) async {
       if (event.streams.isNotEmpty) {
         final stream = event.streams.first;
@@ -437,29 +463,40 @@ class ScreenShareService extends ChangeNotifier {
         // If we are broadcasting, renegotiate / send offer to newly joined viewer
         if (_role == ScreenShareRole.broadcaster && _pc != null) {
           try {
-            final offer = await _pc!.createOffer({
-              'offerToReceiveVideo': 0,
-              'offerToReceiveAudio': 1,
-              'iceRestart': true,
-            });
-            await _pc!.setLocalDescription(offer);
-            await sendSignal({
-              'type': 'screen_share_sdp',
-              'sdp': {'type': offer.type, 'sdp': offer.sdp},
-              'sourceTitle': _sourceTitle,
-              'sourceType': _sourceType,
-              'castCode': _activeCastCode,
-            });
-
-            // Re-transmit all gathered ICE candidates to newly joined viewer
-            for (final cand in _cachedLocalIce) {
+            final localDesc = await _pc!.getLocalDescription();
+            if (localDesc != null && localDesc.type == 'offer' && _cachedLocalIce.isNotEmpty) {
+              // Re-send existing offer with matching cached candidates (same ufrag)
               await sendSignal({
-                'type': 'screen_share_ice',
-                'candidate': {
-                  'candidate': cand.candidate,
-                  'sdpMid': cand.sdpMid,
-                  'sdpMLineIndex': cand.sdpMLineIndex,
-                },
+                'type': 'screen_share_sdp',
+                'sdp': {'type': localDesc.type, 'sdp': localDesc.sdp},
+                'sourceTitle': _sourceTitle,
+                'sourceType': _sourceType,
+                'castCode': _activeCastCode,
+              });
+              for (final cand in _cachedLocalIce) {
+                await sendSignal({
+                  'type': 'screen_share_ice',
+                  'candidate': {
+                    'candidate': cand.candidate,
+                    'sdpMid': cand.sdpMid,
+                    'sdpMLineIndex': cand.sdpMLineIndex,
+                  },
+                  'castCode': _activeCastCode,
+                });
+              }
+            } else {
+              _cachedLocalIce.clear();
+              final offer = await _pc!.createOffer({
+                'offerToReceiveVideo': 0,
+                'offerToReceiveAudio': 1,
+                'iceRestart': true,
+              });
+              await _pc!.setLocalDescription(offer);
+              await sendSignal({
+                'type': 'screen_share_sdp',
+                'sdp': {'type': offer.type, 'sdp': offer.sdp},
+                'sourceTitle': _sourceTitle,
+                'sourceType': _sourceType,
                 'castCode': _activeCastCode,
               });
             }
