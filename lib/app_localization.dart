@@ -490,6 +490,15 @@ class AppI18n {
   String get selectSourceDesc => isZh
       ? '可选择特定软件窗口（如抖音、浏览器）或完整桌面'
       : 'Select a specific application window or entire display';
+  String get mobileCastTitle => isZh ? '发起手机投屏' : 'Start Mobile Screen Cast';
+  String get mobileCastSubtitle => isZh ? '实时共享手机屏幕与设备声音' : 'Share mobile screen & internal audio live';
+  String get mobileShareAudioTitle => isZh ? '共享设备伴音' : 'Share Internal Audio';
+  String get mobileShareAudioDesc => isZh ? '支持短视频伴奏、游戏及应用音效无损传输' : 'Transmit video music and app audio losslessly';
+  String get mobileShareFpsTitle => isZh ? '60 FPS 极速推流' : '60 FPS High Framerate';
+  String get mobileShareFpsDesc => isZh ? '动态帧率锁定，刷短视频丝滑流畅不卡顿' : 'Lock high frame rate for smooth video playback';
+  String get mobileCastHint => isZh
+      ? '提示：开启投屏后切至后台打开抖音等 App，对方即可实时同看画面与声音。'
+      : 'Tip: After starting cast, switch to Douyin/TikTok; your companion will see and hear your screen in real time.';
   String get refreshSources => isZh ? '刷新窗口列表' : 'Refresh Windows';
   String get noWindowsFound => isZh ? '未检测到可共享的应用窗口' : 'No sharable windows found';
   String get noScreensFound => isZh ? '未检测到显示器' : 'No displays found';

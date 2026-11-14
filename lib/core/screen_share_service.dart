@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 /// Screen sharing role
@@ -151,8 +152,13 @@ class ScreenShareService extends ChangeNotifier {
     await initRenderers();
 
     try {
-      // Platform-specific capture permission handling
+      // Platform-specific capture permission handling & Android MediaProjection Foreground Service
       if (!kIsWeb && WebRTC.platformIsAndroid) {
+        try {
+          await const MethodChannel('com.norns.eir/media_picker').invokeMethod('startMediaProjectionService');
+        } catch (e) {
+          debugPrint('[ScreenShareService] startMediaProjectionService error: $e');
+        }
         try {
           await Helper.requestCapturePermission();
         } catch (e) {
@@ -457,6 +463,13 @@ class ScreenShareService extends ChangeNotifier {
   }
 
   void _cleanup() {
+    if (!kIsWeb && WebRTC.platformIsAndroid) {
+      try {
+        const MethodChannel('com.norns.eir/media_picker').invokeMethod('stopMediaProjectionService');
+      } catch (e) {
+        debugPrint('[ScreenShareService] stopMediaProjectionService error: $e');
+      }
+    }
     _durationTimer?.cancel();
     _duration = Duration.zero;
     _pendingIce.clear();

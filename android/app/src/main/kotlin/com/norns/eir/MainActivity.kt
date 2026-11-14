@@ -261,6 +261,20 @@ class MainActivity : FlutterActivity() {
             } else if (call.method == "releaseKeepAliveLock") {
                 releaseKeepAlive()
                 result.success(true)
+            } else if (call.method == "startMediaProjectionService") {
+                try {
+                    MediaProjectionService.start(applicationContext)
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("SERVICE_ERROR", e.message, null)
+                }
+            } else if (call.method == "stopMediaProjectionService") {
+                try {
+                    MediaProjectionService.stop(applicationContext)
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("SERVICE_ERROR", e.message, null)
+                }
             } else {
                 result.notImplemented()
             }
