@@ -26,8 +26,10 @@ class MediaProjectionService : Service() {
         const val KEY_TEXT_REPLY = "key_text_reply"
         const val ACTION_REPLY = "com.norns.eir.ACTION_REPLY"
 
-        fun start(context: Context) {
-            val intent = Intent(context, MediaProjectionService::class.java)
+        fun start(context: Context, enableFloatingChat: Boolean = true) {
+            val intent = Intent(context, MediaProjectionService::class.java).apply {
+                putExtra("enableFloatingChat", enableFloatingChat)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
@@ -125,8 +127,13 @@ class MediaProjectionService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        // Show floating draggable chat capsule across all apps
-        FloatingChatManager.show(applicationContext)
+        // Show floating draggable chat capsule across all apps if enabled
+        val enableFloatingChat = intent?.getBooleanExtra("enableFloatingChat", true) ?: true
+        if (enableFloatingChat) {
+            FloatingChatManager.show(applicationContext)
+        } else {
+            FloatingChatManager.dismiss()
+        }
 
         return START_NOT_STICKY
     }

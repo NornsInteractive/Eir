@@ -558,6 +558,17 @@ class AppI18n {
   String get switchBackgroundTip => isZh
       ? '推流已就绪！切至后台打开抖音、游戏或相册，对方将实时同看画面与声音。'
       : 'Live! Switch to Douyin/games; companion hears audio and sees your screen live.';
+
+  // Floating Chat Bubble & Permissions
+  String get mobileFloatingChatTitle => isZh ? '跨应用悬浮聊天球' : 'Floating Chat Bubble';
+  String get mobileFloatingChatDesc => isZh
+      ? '切换至其他应用时保持悬浮气泡，随时与观众交流'
+      : 'Keep floating bubble over other apps for real-time chat';
+  String get overlayPermissionTitle => isZh ? '需要悬浮窗权限' : 'Overlay Permission Required';
+  String get overlayPermissionDesc => isZh
+      ? '使用投屏悬浮聊天球需要开启【在其他应用上层显示】权限。开启后，在切换到其他 App 投屏时，屏幕上仍将显示可拖动的聊天气泡。'
+      : 'Drawing over other apps permission is required for the floating chat bubble. It allows you to chat while streaming other apps.';
+  String get grantPermission => isZh ? '去开启' : 'Grant';
 }
 
 class AppLocalizationsDelegate extends LocalizationsDelegate<AppI18n> {

@@ -139,6 +139,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
         targetFps: opts.fps,
         customTitle: opts.customTitle,
         castCode: castCode,
+        enableFloatingChat: opts.enableFloatingChat,
       );
 
       if (!success && mounted) {

@@ -33,6 +33,7 @@ class AppSettings extends ChangeNotifier {
   static const String _kCustomAppIconPathKey = 'eir_setting_custom_app_icon_path';
   static const String _kServerDomainKey = 'eir_setting_server_domain';
   static const String _kLastConfigSyncTimeKey = 'eir_last_config_sync_time';
+  static const String _kEnableCastFloatingChatKey = 'eir_setting_enable_cast_floating_chat';
 
   static const List<String> _adjectives = [
     'Starlight', 'Velvet', 'Neon', 'Cosmic', 'Solar', 'Lunar', 'Silent',
@@ -155,6 +156,10 @@ class AppSettings extends ChangeNotifier {
 
   String? _customAppIconPath;
   String? get customAppIconPath => _customAppIconPath;
+
+  // Cast Floating Chat Bubble: Enabled by default
+  bool _enableCastFloatingChat = true;
+  bool get enableCastFloatingChat => _enableCastFloatingChat;
 
   /// Effective display name: returns trimmed nickname if non-empty, otherwise empty
   String get effectiveDisplayName => _nickname.trim();
@@ -363,6 +368,14 @@ class AppSettings extends ChangeNotifier {
         _customAppIconPath = null;
         debugPrint('[AppSettings] Reset corrupted custom app icon path setting: $e');
       }
+
+      // 16. Enable Cast Floating Chat (Isolated try-catch)
+      try {
+        _enableCastFloatingChat = prefs.getBool(_kEnableCastFloatingChatKey) ?? true;
+      } catch (e) {
+        _enableCastFloatingChat = true;
+        debugPrint('[AppSettings] Reset corrupted enable cast floating chat setting: $e');
+      }
     }
 
     _isInitialized = true;
@@ -454,6 +467,19 @@ class AppSettings extends ChangeNotifier {
         await prefs.setString(_kTransportEngineKey, valid);
       } catch (e) {
         debugPrint('[AppSettings] Failed to persist transport engine: $e');
+      }
+    }
+  }
+
+  Future<void> setEnableCastFloatingChat(bool enable) async {
+    if (_enableCastFloatingChat != enable) {
+      _enableCastFloatingChat = enable;
+      notifyListeners();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_kEnableCastFloatingChatKey, enable);
+      } catch (e) {
+        debugPrint('[AppSettings] Failed to persist enable cast floating chat: $e');
       }
     }
   }

@@ -199,6 +199,7 @@ class ScreenShareService extends ChangeNotifier {
     int targetFps = 60,
     String? customTitle,
     String? castCode,
+    bool enableFloatingChat = true,
   }) async {
     _state = ScreenShareState.connecting;
     _role = ScreenShareRole.broadcaster;
@@ -219,7 +220,9 @@ class ScreenShareService extends ChangeNotifier {
         try {
           await const MethodChannel(
             'com.norns.eir/media_picker',
-          ).invokeMethod('startMediaProjectionService');
+          ).invokeMethod('startMediaProjectionService', {
+            'enableFloatingChat': enableFloatingChat,
+          });
         } catch (e) {
           debugPrint(
             '[ScreenShareService] startMediaProjectionService error: $e',
@@ -427,7 +430,7 @@ class ScreenShareService extends ChangeNotifier {
           if (event.streams.isNotEmpty) {
             _remoteStream = event.streams.first;
           } else {
-            _remoteStream = await createLocalMediaStream('remote_screen_stream');
+            _remoteStream ??= await createLocalMediaStream('remote_screen_stream');
             _remoteStream!.addTrack(event.track);
           }
           remoteRenderer.srcObject = _remoteStream;
@@ -451,9 +454,11 @@ class ScreenShareService extends ChangeNotifier {
             _remoteStream = await createLocalMediaStream('remote_screen_stream');
             _remoteStream!.addTrack(event.track);
           }
-          remoteRenderer.srcObject = _remoteStream;
         } else {
           _remoteStream!.addTrack(event.track);
+        }
+        if (_remoteStream!.getVideoTracks().isNotEmpty) {
+          remoteRenderer.srcObject = _remoteStream;
         }
         notifyListeners();
       }
@@ -465,10 +470,12 @@ class ScreenShareService extends ChangeNotifier {
       }
 
       // Create Offer for viewers
-      final offer = await _pc!.createOffer({
+      final rawOffer = await _pc!.createOffer({
         'offerToReceiveVideo': 0,
         'offerToReceiveAudio': 1,
       });
+      final mungedSdp = _preferCodec(rawOffer.sdp ?? '', 'VP8');
+      final offer = RTCSessionDescription(mungedSdp, rawOffer.type);
       await _pc!.setLocalDescription(offer);
 
       await sendSignal({
@@ -479,6 +486,43 @@ class ScreenShareService extends ChangeNotifier {
         'castCode': _activeCastCode,
       });
     }
+  }
+
+  /// Prioritize a specific video codec (e.g. VP8) in SDP for universal browser decoding
+  String _preferCodec(String sdp, String codec) {
+    if (sdp.isEmpty) return sdp;
+    final lines = sdp.split('\r\n');
+    final mVideoIndex = lines.indexWhere((l) => l.startsWith('m=video '));
+    if (mVideoIndex == -1) return sdp;
+
+    final codecPtRegex = RegExp(
+      r'^a=rtpmap:(\d+)\s+' + RegExp.escape(codec) + r'/',
+      caseSensitive: false,
+    );
+    final pts = <String>[];
+    for (final line in lines) {
+      final match = codecPtRegex.firstMatch(line);
+      if (match != null) {
+        pts.add(match.group(1)!);
+      }
+    }
+    if (pts.isEmpty) return sdp;
+
+    final parts = lines[mVideoIndex].split(' ');
+    if (parts.length <= 3) return sdp;
+
+    final header = parts.sublist(0, 3);
+    final existingPts = parts.sublist(3);
+
+    final newPts = <String>[...pts];
+    for (final pt in existingPts) {
+      if (!newPts.contains(pt)) {
+        newPts.add(pt);
+      }
+    }
+
+    lines[mVideoIndex] = '${header.join(' ')} ${newPts.join(' ')}';
+    return lines.join('\r\n');
   }
 
   /// Handle incoming screen share signaling message
@@ -502,11 +546,13 @@ class ScreenShareService extends ChangeNotifier {
         if (_role == ScreenShareRole.broadcaster && _pc != null) {
           try {
             _cachedLocalIce.clear();
-            final offer = await _pc!.createOffer({
+            final rawOffer = await _pc!.createOffer({
               'offerToReceiveVideo': 0,
               'offerToReceiveAudio': 1,
               'iceRestart': true,
             });
+            final mungedSdp = _preferCodec(rawOffer.sdp ?? '', 'VP8');
+            final offer = RTCSessionDescription(mungedSdp, rawOffer.type);
             await _pc!.setLocalDescription(offer);
             await sendSignal({
               'type': 'screen_share_sdp',
@@ -543,10 +589,7 @@ class ScreenShareService extends ChangeNotifier {
           await _flushPendingIce();
 
           if (sdpType == 'offer') {
-            final answer = await _pc!.createAnswer({
-              'offerToReceiveVideo': 1,
-              'offerToReceiveAudio': 1,
-            });
+            final answer = await _pc!.createAnswer();
             await _pc!.setLocalDescription(answer);
             await sendSignal({
               'type': 'screen_share_sdp',

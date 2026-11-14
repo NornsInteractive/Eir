@@ -277,7 +277,8 @@ class MainActivity : FlutterActivity() {
                 result.success(true)
             } else if (call.method == "startMediaProjectionService") {
                 try {
-                    MediaProjectionService.start(applicationContext)
+                    val enableFloatingChat = call.argument<Boolean>("enableFloatingChat") ?: true
+                    MediaProjectionService.start(applicationContext, enableFloatingChat)
                     result.success(true)
                 } catch (e: Exception) {
                     result.error("SERVICE_ERROR", e.message, null)

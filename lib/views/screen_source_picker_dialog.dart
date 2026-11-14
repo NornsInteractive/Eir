@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import '../app_localization.dart';
+import '../app_settings.dart';
 import '../apple_glass.dart';
 
 /// Configuration options selected from the dialog
@@ -13,12 +15,14 @@ class ScreenShareOptions {
   final bool shareAudio;
   final int fps;
   final String? customTitle;
+  final bool enableFloatingChat;
 
   const ScreenShareOptions({
     this.source,
     this.shareAudio = true,
     this.fps = 60,
     this.customTitle,
+    this.enableFloatingChat = true,
   });
 }
 
@@ -57,6 +61,80 @@ class _MobileScreenSharePickerSheet extends StatefulWidget {
 class _MobileScreenSharePickerSheetState extends State<_MobileScreenSharePickerSheet> {
   bool _shareAudio = true;
   bool _highFps = true;
+  late bool _enableFloatingChat;
+
+  @override
+  void initState() {
+    super.initState();
+    _enableFloatingChat = AppSettings.instance.enableCastFloatingChat;
+  }
+
+  Future<void> _onToggleFloatingChat(bool val, AppI18n i18n, ThemeColors tc) async {
+    if (val) {
+      if (!kIsWeb && WebRTC.platformIsAndroid) {
+        try {
+          final hasOverlay = await const MethodChannel('com.norns.eir/media_picker')
+              .invokeMethod<bool>('checkOverlayPermission');
+          if (hasOverlay != true && mounted) {
+            final grant = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: const Color(0xFF1C1E2A),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                title: Row(
+                  children: [
+                    Icon(Icons.layers_rounded, color: tc.primary, size: 22),
+                    const SizedBox(width: 8),
+                    Text(
+                      i18n.overlayPermissionTitle,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                content: Text(
+                  i18n.overlayPermissionDesc,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text(i18n.cancel, style: const TextStyle(color: Colors.white38)),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(
+                      i18n.grantPermission,
+                      style: TextStyle(color: tc.primary, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            );
+            if (grant == true) {
+              await const MethodChannel('com.norns.eir/media_picker')
+                  .invokeMethod('requestOverlayPermission');
+              setState(() => _enableFloatingChat = true);
+              await AppSettings.instance.setEnableCastFloatingChat(true);
+            } else {
+              setState(() => _enableFloatingChat = false);
+            }
+            return;
+          }
+        } catch (e) {
+          debugPrint('[MobilePicker] checkOverlayPermission error: $e');
+        }
+      }
+      setState(() => _enableFloatingChat = true);
+      await AppSettings.instance.setEnableCastFloatingChat(true);
+    } else {
+      setState(() => _enableFloatingChat = false);
+      await AppSettings.instance.setEnableCastFloatingChat(false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -250,6 +328,52 @@ class _MobileScreenSharePickerSheetState extends State<_MobileScreenSharePickerS
                           ],
                         ),
                       ),
+                      Divider(color: tc.glassBorderSubtle, height: 1),
+                      // Setting 3: Floating Chat Bubble
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.teal.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.teal, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    i18n.mobileFloatingChatTitle,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: tc.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    i18n.mobileFloatingChatDesc,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: tc.textTertiary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch.adaptive(
+                              value: _enableFloatingChat,
+                              activeColor: tc.primary,
+                              onChanged: (val) => _onToggleFloatingChat(val, i18n, tc),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -293,6 +417,7 @@ class _MobileScreenSharePickerSheetState extends State<_MobileScreenSharePickerS
                       source: null,
                       shareAudio: _shareAudio,
                       fps: _highFps ? 60 : 30,
+                      enableFloatingChat: _enableFloatingChat,
                     ));
                   },
                   child: Row(
