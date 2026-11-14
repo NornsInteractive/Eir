@@ -178,5 +178,94 @@ void main() {
 
       service.dispose();
     });
+
+    test('in-cast messaging sending, receiving, and unread count tracking', () async {
+      final sentSignals = <Map<String, dynamic>>[];
+      final receivedMessages = <dynamic>[];
+
+      final service = ScreenShareService(
+        sendSignal: (sig) async => sentSignals.add(sig),
+        getCurrentDeviceId: () => 'dev-alice',
+        getCurrentDisplayName: () => 'Alice',
+        getCurrentAvatar: () => 'preset:aurora',
+      );
+
+      final sub = service.onChatMessage.listen(receivedMessages.add);
+
+      expect(service.messages, isEmpty);
+      expect(service.unreadCount, 0);
+      expect(service.danmakuEnabled, isTrue);
+
+      // 1. Send chat message
+      await service.sendChatMessage('Hello screen cast!');
+      expect(service.messages.length, 1);
+      expect(service.messages.first.text, 'Hello screen cast!');
+      expect(service.messages.first.isSelf, isTrue);
+      expect(service.messages.first.senderName, 'Alice');
+      expect(sentSignals.length, 1);
+      expect(sentSignals.first['type'], 'screen_share_chat');
+      expect(sentSignals.first['message']['text'], 'Hello screen cast!');
+
+      // 2. Handle incoming chat message from peer
+      await service.handleSignal({
+        'type': 'screen_share_chat',
+        'message': {
+          'id': 'msg-bob-1',
+          'senderDeviceId': 'dev-bob',
+          'senderName': 'Bob',
+          'senderAvatar': null,
+          'text': 'Nice cast, looks so smooth!',
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      });
+
+      expect(service.messages.length, 2);
+      expect(service.messages.last.text, 'Nice cast, looks so smooth!');
+      expect(service.messages.last.isSelf, isFalse);
+      expect(service.unreadCount, 1);
+
+      // 3. Mark messages as read
+      service.markMessagesAsRead();
+      expect(service.unreadCount, 0);
+
+      // 4. Toggle danmaku
+      service.toggleDanmaku();
+      expect(service.danmakuEnabled, isFalse);
+      service.toggleDanmaku();
+      expect(service.danmakuEnabled, isTrue);
+
+      await sub.cancel();
+      service.dispose();
+    });
+
+    test('camera video talkback status signaling and state', () async {
+      final service = ScreenShareService(
+        sendSignal: (_) async {},
+        getCurrentDeviceId: () => 'dev-test',
+        getCurrentDisplayName: () => 'Tester',
+        getCurrentAvatar: () => null,
+      );
+
+      expect(service.isCameraEnabled, isFalse);
+      expect(service.isRemoteCameraActive, isFalse);
+      expect(service.isFrontCamera, isTrue);
+
+      // Receive remote camera status signal
+      await service.handleSignal({
+        'type': 'screen_share_camera_status',
+        'enabled': true,
+      });
+
+      expect(service.isRemoteCameraActive, isTrue);
+
+      await service.handleSignal({
+        'type': 'screen_share_camera_status',
+        'enabled': false,
+      });
+
+      expect(service.isRemoteCameraActive, isFalse);
+
+      service.dispose();
+    });
   });
 }

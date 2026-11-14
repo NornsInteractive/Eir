@@ -537,6 +537,13 @@ class AppI18n {
   String get presetMotion => isZh ? '动态短视频 (60 FPS 优先)' : 'Motion (60 FPS)';
   String get presetCrystal => isZh ? '超清原画 (1080p 高清)' : 'Crystal (1080p)';
   String get presetLowLatency => isZh ? '极低延迟 (协同演示)' : 'Low Latency';
+
+  // Screen Share Live Chat & Video Talkback
+  String get castChat => isZh ? '投屏聊天' : 'Cast Chat';
+  String get sendChatMessageHint => isZh ? '发送即时消息...' : 'Type a message...';
+  String get noMessagesYet => isZh ? '暂无消息，打个招呼吧~' : 'No messages yet. Say hello~';
+  String get quickReply => isZh ? '快捷回复' : 'Quick Reply';
+  String get viewerTalking => isZh ? '对方正在说话' : 'Companion is speaking';
 }
 
 class AppLocalizationsDelegate extends LocalizationsDelegate<AppI18n> {

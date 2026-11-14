@@ -28,8 +28,18 @@ class MainActivity : FlutterActivity() {
     private var pendingResult: MethodChannel.Result? = null
     private val REQUEST_CODE_PICK_VIDEO = 1001
 
+    private var mediaChannel: MethodChannel? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
+
+    companion object {
+        private var instance: MainActivity? = null
+        fun onReplyFromNotification(replyText: String) {
+            instance?.runOnUiThread {
+                instance?.mediaChannel?.invokeMethod("onNotificationReply", mapOf("text" to replyText))
+            }
+        }
+    }
 
     private fun acquireKeepAlive() {
         try {
@@ -61,7 +71,10 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+        instance = this
+        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        mediaChannel = channel
+        channel.setMethodCallHandler { call, result ->
             if (call.method == "pickLocalVideo") {
                 if (pendingResult != null) {
                     result.error("BUSY", "Picker is already open", null)
@@ -275,6 +288,16 @@ class MainActivity : FlutterActivity() {
                 } catch (e: Exception) {
                     result.error("SERVICE_ERROR", e.message, null)
                 }
+            } else if (call.method == "showScreenShareMessageNotification") {
+                try {
+                    val id = call.argument<String>("id") ?: System.currentTimeMillis().toString()
+                    val sender = call.argument<String>("sender") ?: "观众"
+                    val text = call.argument<String>("text") ?: ""
+                    MediaProjectionService.showChatMessageNotification(applicationContext, id, sender, text)
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("NOTIFICATION_ERROR", e.message, null)
+                }
             } else {
                 result.notImplemented()
             }
@@ -367,6 +390,10 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        if (instance == this) {
+            instance = null
+        }
+        mediaChannel = null
         releaseKeepAlive()
         super.onDestroy()
     }

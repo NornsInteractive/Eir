@@ -36,6 +36,9 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
   bool _isFullscreen = false;
   final List<_FloatingEmojiData> _activeReactions = [];
   StreamSubscription<String>? _reactionSub;
+  StreamSubscription<ChatMessage>? _chatSub;
+  final List<_FloatingDanmakuItem> _activeDanmaku = [];
+  Offset _cameraPipOffset = const Offset(16, 70);
 
   ScreenShareService get _service => widget.session.screenShareService;
 
@@ -44,13 +47,34 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
     super.initState();
     _service.addListener(_onServiceChanged);
     _reactionSub = _service.onReaction.listen(_onReactionReceived);
+    _chatSub = _service.onChatMessage.listen(_onChatMessageReceived);
   }
 
   @override
   void dispose() {
     _reactionSub?.cancel();
+    _chatSub?.cancel();
     _service.removeListener(_onServiceChanged);
     super.dispose();
+  }
+
+  void _onChatMessageReceived(ChatMessage msg) {
+    if (!mounted || !_service.danmakuEnabled) return;
+    final item = _FloatingDanmakuItem(
+      id: UniqueKey().toString(),
+      message: msg,
+    );
+    setState(() {
+      _activeDanmaku.add(item);
+      if (_activeDanmaku.length > 3) {
+        _activeDanmaku.removeAt(0);
+      }
+    });
+    Future.delayed(const Duration(milliseconds: 6000), () {
+      if (mounted) {
+        setState(() => _activeDanmaku.removeWhere((e) => e.id == item.id));
+      }
+    });
   }
 
   void _onReactionReceived(String emoji) {
@@ -130,6 +154,54 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                 startX: item.startX,
               );
             }),
+
+            // 1.8 Floating Danmaku Chat Stream (Bottom Left)
+            if (_service.danmakuEnabled && _activeDanmaku.isNotEmpty)
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 200),
+                bottom: _controlsVisible ? 104 : 36,
+                left: 20,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 340),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: _activeDanmaku.map((item) {
+                      return _FloatingDanmakuBubble(
+                        key: ValueKey(item.id),
+                        message: item.message,
+                        onTap: () {
+                          _service.markMessagesAsRead();
+                          _showChatSheet(context, i18n, tc);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+
+            // 1.9 Draggable Floating Camera PiP Capsule
+            if (_service.isCameraEnabled || _service.isRemoteCameraActive)
+              Positioned(
+                left: _cameraPipOffset.dx,
+                top: _cameraPipOffset.dy,
+                child: GestureDetector(
+                  onPanUpdate: (details) {
+                    final size = MediaQuery.of(context).size;
+                    setState(() {
+                      _cameraPipOffset = Offset(
+                        (_cameraPipOffset.dx + details.delta.dx).clamp(10.0, size.width - 145.0),
+                        (_cameraPipOffset.dy + details.delta.dy).clamp(30.0, size.height - 190.0),
+                      );
+                    });
+                  },
+                  child: _FloatingCameraPiPCapsule(
+                    service: _service,
+                    onToggleCamera: () => _service.toggleCamera(),
+                    onSwitchCamera: () => _service.switchCamera(),
+                  ),
+                ),
+              ),
 
             // 2. Top HUD Bar
             AnimatedPositioned(
@@ -319,14 +391,72 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                         ),
 
                         // Talkback Mic
+                        Container(
+                          decoration: _service.isMicEnabled
+                              ? BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.greenAccent.withValues(alpha: 0.45),
+                                      blurRadius: 10,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                )
+                              : null,
+                          child: IconButton(
+                            tooltip: _service.isMicEnabled ? '关闭对讲' : '开启对讲',
+                            icon: Icon(
+                              _service.isMicEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
+                              color: _service.isMicEnabled ? Colors.greenAccent : Colors.white70,
+                              size: 22,
+                            ),
+                            onPressed: () => _service.toggleMic(),
+                          ),
+                        ),
+
+                        // Camera PiP Video Talkback
                         IconButton(
-                          tooltip: _service.isMicEnabled ? '关闭对讲' : '开启对讲',
+                          tooltip: _service.isCameraEnabled ? '关闭摄像头' : i18n.cameraToggle,
                           icon: Icon(
-                            _service.isMicEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
-                            color: _service.isMicEnabled ? Colors.greenAccent : Colors.white70,
+                            _service.isCameraEnabled ? Icons.videocam_rounded : Icons.videocam_off_rounded,
+                            color: _service.isCameraEnabled ? Colors.greenAccent : Colors.white70,
                             size: 22,
                           ),
-                          onPressed: () => _service.toggleMic(),
+                          onPressed: () => _service.toggleCamera(),
+                        ),
+
+                        // Chat Button with unread counter badge
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            IconButton(
+                              tooltip: i18n.castChat,
+                              icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 21),
+                              onPressed: () {
+                                _service.markMessagesAsRead();
+                                _showChatSheet(context, i18n, tc);
+                              },
+                            ),
+                            if (_service.unreadCount > 0)
+                              Positioned(
+                                top: 6,
+                                right: 6,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                  child: Text(
+                                    _service.unreadCount > 99 ? '99+' : '${_service.unreadCount}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
 
                         // Aspect Ratio Toggle (Cover vs Contain)
@@ -411,6 +541,285 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
       return '${d.inHours}:$minutes:$seconds';
     }
     return '$minutes:$seconds';
+  }
+
+  void _showChatSheet(BuildContext context, AppI18n i18n, ThemeColors tc) {
+    final textController = TextEditingController();
+    final scrollController = ScrollController();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final mediaQuery = MediaQuery.of(context);
+          final keyboardHeight = mediaQuery.viewInsets.bottom;
+          final messages = _service.messages;
+
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Container(
+                margin: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: keyboardHeight + 16,
+                  top: 40,
+                ),
+                child: GlassContainer.card(
+                  surfaceStyle: GlassSurfaceStyle.solid,
+                  color: tc.cardBackground,
+                  shape: const LiquidRoundedSuperellipse(borderRadius: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          Icon(Icons.chat_bubble_rounded, size: 20, color: tc.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            i18n.castChat,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: tc.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: tc.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${messages.length}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: tc.primary,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          // Danmaku switch
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                i18n.danmakuToggle,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: tc.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Transform.scale(
+                                scale: 0.75,
+                                child: Switch.adaptive(
+                                  value: _service.danmakuEnabled,
+                                  activeColor: tc.primary,
+                                  onChanged: (val) {
+                                    setSheetState(() => _service.toggleDanmaku());
+                                    setState(() {});
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close_rounded, size: 20, color: tc.textSecondary),
+                            onPressed: () => Navigator.of(ctx).pop(),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 14),
+
+                      // Messages List
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 280, minHeight: 140),
+                        child: messages.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.chat_outlined, size: 36, color: tc.textTertiary),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      i18n.noMessagesYet,
+                                      style: TextStyle(color: tc.textTertiary, fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                controller: scrollController,
+                                reverse: true,
+                                itemCount: messages.length,
+                                itemBuilder: (context, index) {
+                                  final msg = messages[messages.length - 1 - index];
+                                  final isSelf = msg.isSelf;
+
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 4),
+                                    child: Row(
+                                      mainAxisAlignment: isSelf ? MainAxisAlignment.end : MainAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        if (!isSelf) ...[
+                                          CircleAvatar(
+                                            radius: 14,
+                                            backgroundColor: tc.primary.withValues(alpha: 0.2),
+                                            child: Text(
+                                              msg.senderName.isNotEmpty ? msg.senderName.characters.first : 'U',
+                                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: tc.primary),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                        ],
+                                        Flexible(
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: isSelf
+                                                  ? tc.primary.withValues(alpha: 0.85)
+                                                  : tc.glassSurfaceSubtle,
+                                              borderRadius: BorderRadius.only(
+                                                topLeft: const Radius.circular(14),
+                                                topRight: const Radius.circular(14),
+                                                bottomLeft: Radius.circular(isSelf ? 14 : 2),
+                                                bottomRight: Radius.circular(isSelf ? 2 : 14),
+                                              ),
+                                              border: Border.all(
+                                                color: isSelf ? Colors.transparent : tc.glassBorderSubtle,
+                                                width: 0.6,
+                                              ),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment: isSelf ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                              children: [
+                                                if (!isSelf)
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(bottom: 2),
+                                                    child: Text(
+                                                      msg.senderName,
+                                                      style: TextStyle(
+                                                        fontSize: 10.5,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: tc.textSecondary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                Text(
+                                                  msg.text,
+                                                  style: TextStyle(
+                                                    color: isSelf ? Colors.white : tc.textPrimary,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        if (isSelf) const SizedBox(width: 4),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+
+                      // Quick phrases chips
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: ['收到！', '好的', '看这里', '太赞了', '👍', '❤️', '666'].map((phrase) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: InkWell(
+                                onTap: () {
+                                  _service.sendChatMessage(phrase);
+                                  setSheetState(() {});
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: tc.glassSurfaceSubtle,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: tc.glassBorderSubtle, width: 0.6),
+                                  ),
+                                  child: Text(
+                                    phrase,
+                                    style: TextStyle(fontSize: 11.5, color: tc.textSecondary),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+
+                      // Input bar
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: tc.glassSurfaceSubtle,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: tc.glassBorderSubtle, width: 0.8),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: TextField(
+                                controller: textController,
+                                style: TextStyle(color: tc.textPrimary, fontSize: 13.5),
+                                decoration: InputDecoration(
+                                  hintText: i18n.sendChatMessageHint,
+                                  hintStyle: TextStyle(color: tc.textTertiary, fontSize: 12.5),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                                onSubmitted: (val) {
+                                  if (val.trim().isNotEmpty) {
+                                    _service.sendChatMessage(val);
+                                    textController.clear();
+                                    setSheetState(() {});
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: Icon(Icons.send_rounded, color: tc.primary, size: 22),
+                            onPressed: () {
+                              final text = textController.text.trim();
+                              if (text.isNotEmpty) {
+                                _service.sendChatMessage(text);
+                                textController.clear();
+                                setSheetState(() {});
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _showAudioMixerSheet(BuildContext context, AppI18n i18n, ThemeColors tc) {
@@ -754,6 +1163,205 @@ class _FloatingEmojiWidgetState extends State<_FloatingEmojiWidget> with SingleT
           ),
         );
       },
+    );
+  }
+}
+
+class _FloatingDanmakuItem {
+  final String id;
+  final ChatMessage message;
+
+  _FloatingDanmakuItem({
+    required this.id,
+    required this.message,
+  });
+}
+
+class _FloatingDanmakuBubble extends StatelessWidget {
+  final ChatMessage message;
+  final VoidCallback onTap;
+
+  const _FloatingDanmakuBubble({
+    super.key,
+    required this.message,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white24, width: 0.8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: Colors.blueAccent.withValues(alpha: 0.3),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  message.senderName.isNotEmpty ? message.senderName.characters.first : 'U',
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: RichText(
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '${message.senderName}: ',
+                        style: const TextStyle(
+                          color: Colors.amberAccent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      TextSpan(
+                        text: message.text,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FloatingCameraPiPCapsule extends StatelessWidget {
+  final ScreenShareService service;
+  final VoidCallback onToggleCamera;
+  final VoidCallback onSwitchCamera;
+
+  const _FloatingCameraPiPCapsule({
+    required this.service,
+    required this.onToggleCamera,
+    required this.onSwitchCamera,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isLocal = service.isCameraEnabled;
+    final renderer = isLocal ? service.localCameraRenderer : service.remoteCameraRenderer;
+
+    return Container(
+      width: 124,
+      height: 165,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.greenAccent.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (service.cameraRenderersInitialized && renderer.srcObject != null)
+            RTCVideoView(
+              renderer,
+              mirror: isLocal && service.isFrontCamera,
+              objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+            )
+          else
+            const Center(
+              child: Icon(Icons.videocam_rounded, color: Colors.white54, size: 36),
+            ),
+
+          // Header Bar
+          Positioned(
+            top: 4,
+            left: 6,
+            right: 4,
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Colors.greenAccent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isLocal ? '本机' : '连麦',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                if (isLocal)
+                  GestureDetector(
+                    onTap: onSwitchCamera,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                      child: const Icon(Icons.flip_camera_ios_rounded, color: Colors.white, size: 14),
+                    ),
+                  ),
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: onToggleCamera,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
+                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:uuid/uuid.dart';
+import 'call_session.dart' show ChatMessage;
 
 /// Screen sharing role
 enum ScreenShareRole {
@@ -33,7 +35,9 @@ class ScreenShareService extends ChangeNotifier {
     required this.getCurrentDisplayName,
     required this.getCurrentAvatar,
     this.getIceServers,
-  });
+  }) {
+    _setupNativeMethodCallHandler();
+  }
 
   ScreenShareRole _role = ScreenShareRole.none;
   ScreenShareRole get role => _role;
@@ -83,6 +87,49 @@ class ScreenShareService extends ChangeNotifier {
   final StreamController<String> _reactionController = StreamController<String>.broadcast();
   Stream<String> get onReaction => _reactionController.stream;
 
+  // In-cast Real-time Messaging
+  final List<ChatMessage> _messages = [];
+  List<ChatMessage> get messages => List.unmodifiable(_messages);
+
+  final StreamController<ChatMessage> _chatController = StreamController<ChatMessage>.broadcast();
+  Stream<ChatMessage> get onChatMessage => _chatController.stream;
+
+  int _unreadCount = 0;
+  int get unreadCount => _unreadCount;
+
+  bool _danmakuEnabled = true;
+  bool get danmakuEnabled => _danmakuEnabled;
+
+  void markMessagesAsRead() {
+    if (_unreadCount > 0) {
+      _unreadCount = 0;
+      notifyListeners();
+    }
+  }
+
+  void toggleDanmaku() {
+    _danmakuEnabled = !_danmakuEnabled;
+    notifyListeners();
+  }
+
+  // Camera Video Talkback (Picture-in-Picture)
+  bool _isCameraEnabled = false;
+  bool get isCameraEnabled => _isCameraEnabled;
+
+  bool _isRemoteCameraActive = false;
+  bool get isRemoteCameraActive => _isRemoteCameraActive;
+
+  bool _isFrontCamera = true;
+  bool get isFrontCamera => _isFrontCamera;
+
+  final RTCVideoRenderer localCameraRenderer = RTCVideoRenderer();
+  final RTCVideoRenderer remoteCameraRenderer = RTCVideoRenderer();
+  bool _cameraRenderersInitialized = false;
+  bool get cameraRenderersInitialized => _cameraRenderersInitialized;
+
+  MediaStream? _cameraStream;
+  RTCRtpSender? _cameraSender;
+
   // Stream health statistics
   int _rttMs = 0;
   int get rttMs => _rttMs;
@@ -128,6 +175,19 @@ class ScreenShareService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('[ScreenShareService] initRenderers error: $e');
+    }
+  }
+
+  /// Initialize camera video renderers
+  Future<void> initCameraRenderers() async {
+    if (_cameraRenderersInitialized) return;
+    try {
+      await localCameraRenderer.initialize();
+      await remoteCameraRenderer.initialize();
+      _cameraRenderersInitialized = true;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[ScreenShareService] initCameraRenderers error: $e');
     }
   }
 
@@ -305,8 +365,14 @@ class ScreenShareService extends ChangeNotifier {
 
     _pc!.onTrack = (event) {
       if (event.streams.isNotEmpty) {
-        _remoteStream = event.streams.first;
-        remoteRenderer.srcObject = _remoteStream;
+        final stream = event.streams.first;
+        if (_remoteStream == null) {
+          _remoteStream = stream;
+          remoteRenderer.srcObject = _remoteStream;
+        } else if (_remoteStream?.id != stream.id) {
+          _isRemoteCameraActive = true;
+          remoteCameraRenderer.srcObject = stream;
+        }
         notifyListeners();
       }
     };
@@ -427,6 +493,38 @@ class ScreenShareService extends ChangeNotifier {
         }
         break;
 
+      case 'screen_share_chat':
+        final msgData = data['message'] as Map<String, dynamic>?;
+        if (msgData != null) {
+          final msg = ChatMessage.fromJson(msgData, currentDeviceId: getCurrentDeviceId());
+          if (!_messages.any((m) => m.id == msg.id)) {
+            _messages.add(msg);
+            _chatController.add(msg);
+            _unreadCount++;
+            notifyListeners();
+            if (!kIsWeb && WebRTC.platformIsAndroid && isBroadcasting) {
+              try {
+                const MethodChannel('com.norns.eir/media_picker').invokeMethod(
+                  'showScreenShareMessageNotification',
+                  {
+                    'id': msg.id,
+                    'sender': msg.senderName,
+                    'text': msg.text,
+                  },
+                );
+              } catch (e) {
+                debugPrint('[ScreenShareService] showScreenShareMessageNotification error: $e');
+              }
+            }
+          }
+        }
+        break;
+
+      case 'screen_share_camera_status':
+        _isRemoteCameraActive = data['enabled'] as bool? ?? false;
+        notifyListeners();
+        break;
+
       case 'screen_share_stop':
         stop(reason: data['reason'] as String? ?? 'remote_stopped');
         break;
@@ -503,6 +601,22 @@ class ScreenShareService extends ChangeNotifier {
     });
     _remoteStream?.dispose();
     _remoteStream = null;
+
+    _cameraStream?.getTracks().forEach((track) {
+      try {
+        track.stop();
+      } catch (_) {}
+    });
+    _cameraStream?.dispose();
+    _cameraStream = null;
+    _cameraSender = null;
+    _isCameraEnabled = false;
+    _isRemoteCameraActive = false;
+
+    if (_cameraRenderersInitialized) {
+      localCameraRenderer.srcObject = null;
+      remoteCameraRenderer.srcObject = null;
+    }
 
     _pc?.close();
     _pc = null;
@@ -604,13 +718,140 @@ class ScreenShareService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Send chat message in screen share
+  Future<void> sendChatMessage(String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+
+    final msg = ChatMessage(
+      id: const Uuid().v4(),
+      senderDeviceId: getCurrentDeviceId(),
+      senderName: getCurrentDisplayName(),
+      senderAvatar: getCurrentAvatar(),
+      text: trimmed,
+      timestamp: DateTime.now(),
+      isSelf: true,
+    );
+
+    _messages.add(msg);
+    _chatController.add(msg);
+    notifyListeners();
+
+    try {
+      await sendSignal({
+        'type': 'screen_share_chat',
+        'message': msg.toJson(),
+        'castCode': _activeCastCode,
+      });
+    } catch (e) {
+      debugPrint('[ScreenShareService] sendChatMessage error: $e');
+    }
+  }
+
+  /// Toggle camera for video talkback (Picture-in-Picture)
+  Future<void> toggleCamera() async {
+    if (_isCameraEnabled) {
+      _isCameraEnabled = false;
+      if (_cameraSender != null && _pc != null) {
+        try {
+          await _pc!.removeTrack(_cameraSender!);
+        } catch (_) {}
+        _cameraSender = null;
+      }
+      _cameraStream?.getTracks().forEach((track) {
+        try {
+          track.stop();
+        } catch (_) {}
+      });
+      _cameraStream?.dispose();
+      _cameraStream = null;
+      localCameraRenderer.srcObject = null;
+      await sendSignal({
+        'type': 'screen_share_camera_status',
+        'enabled': false,
+        'castCode': _activeCastCode,
+      });
+      notifyListeners();
+    } else {
+      await initCameraRenderers();
+      try {
+        final constraints = <String, dynamic>{
+          'audio': false,
+          'video': {
+            'facingMode': _isFrontCamera ? 'user' : 'environment',
+            'width': {'ideal': 640},
+            'height': {'ideal': 480},
+            'frameRate': {'ideal': 30},
+          },
+        };
+        _cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        localCameraRenderer.srcObject = _cameraStream;
+        _isCameraEnabled = true;
+
+        if (_pc != null && _cameraStream != null) {
+          for (final track in _cameraStream!.getVideoTracks()) {
+            _cameraSender = await _pc!.addTrack(track, _cameraStream!);
+          }
+        }
+
+        await sendSignal({
+          'type': 'screen_share_camera_status',
+          'enabled': true,
+          'castCode': _activeCastCode,
+        });
+        notifyListeners();
+      } catch (e) {
+        debugPrint('[ScreenShareService] toggleCamera error: $e');
+        _isCameraEnabled = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Switch between front and rear cameras
+  Future<void> switchCamera() async {
+    if (!_isCameraEnabled || _cameraStream == null) return;
+    _isFrontCamera = !_isFrontCamera;
+    try {
+      final videoTrack = _cameraStream!.getVideoTracks().firstOrNull;
+      if (videoTrack != null) {
+        await Helper.switchCamera(videoTrack);
+      }
+    } catch (e) {
+      debugPrint('[ScreenShareService] switchCamera error: $e');
+    }
+    notifyListeners();
+  }
+
+  void _setupNativeMethodCallHandler() {
+    if (!kIsWeb && WebRTC.platformIsAndroid) {
+      try {
+        const MethodChannel('com.norns.eir/media_picker').setMethodCallHandler((call) async {
+          if (call.method == 'onNotificationReply') {
+            final text = call.arguments?['text'] as String?;
+            if (text != null && text.trim().isNotEmpty) {
+              await sendChatMessage(text.trim());
+            }
+          }
+        });
+      } catch (e) {
+        debugPrint('[ScreenShareService] _setupNativeMethodCallHandler error: $e');
+      }
+    }
+  }
+
   @override
   void dispose() {
     _cleanup();
     _reactionController.close();
+    _chatController.close();
     if (_renderersInitialized) {
       localRenderer.dispose();
       remoteRenderer.dispose();
+    }
+    if (_cameraRenderersInitialized) {
+      localCameraRenderer.dispose();
+      remoteCameraRenderer.dispose();
     }
     super.dispose();
   }
