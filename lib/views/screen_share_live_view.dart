@@ -9,14 +9,17 @@ import '../apple_glass.dart';
 import '../core/room_session.dart';
 import '../core/screen_share_service.dart';
 import 'screen_source_picker_dialog.dart';
+import 'draggable_cast_chat_capsule.dart';
 
 /// Fullscreen live canvas for 60 FPS screen and window sharing
 class ScreenShareLiveView extends StatefulWidget {
   final RoomSession session;
+  final VoidCallback? onExit;
 
   const ScreenShareLiveView({
     super.key,
     required this.session,
+    this.onExit,
   });
 
   static Future<void> launch(BuildContext context, {required RoomSession session}) {
@@ -227,7 +230,15 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                       // Back Button
                       IconButton(
                         icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                        onPressed: () => Navigator.of(context).maybePop(),
+                        onPressed: () async {
+                          await _service.stop(reason: 'user_exit');
+                          await widget.session.leaveRoom();
+                          if (widget.onExit != null) {
+                            widget.onExit!();
+                          } else if (mounted) {
+                            Navigator.of(context).maybePop();
+                          }
+                        },
                       ),
                       const SizedBox(width: 8),
 
@@ -519,7 +530,12 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                           ),
                           onPressed: () async {
                             await _service.stop(reason: 'user_exit');
-                            if (mounted) Navigator.of(context).maybePop();
+                            await widget.session.leaveRoom();
+                            if (widget.onExit != null) {
+                              widget.onExit!();
+                            } else if (mounted) {
+                              Navigator.of(context).maybePop();
+                            }
                           },
                         ),
                       ],
@@ -528,6 +544,9 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                 ),
               ),
             ),
+
+            // 3. Draggable Floating Chat Capsule (Requirement 5)
+            DraggableCastChatCapsule(session: widget.session),
           ],
         ),
       ),

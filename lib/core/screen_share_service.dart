@@ -6,20 +6,10 @@ import 'package:uuid/uuid.dart';
 import 'call_session.dart' show ChatMessage;
 
 /// Screen sharing role
-enum ScreenShareRole {
-  none,
-  broadcaster,
-  viewer,
-}
+enum ScreenShareRole { none, broadcaster, viewer }
 
 /// Screen sharing state machine
-enum ScreenShareState {
-  idle,
-  selectingSource,
-  connecting,
-  active,
-  error,
-}
+enum ScreenShareState { idle, selectingSource, connecting, active, error }
 
 /// High-FPS Screen & Application Window Sharing Service
 class ScreenShareService extends ChangeNotifier {
@@ -45,9 +35,11 @@ class ScreenShareService extends ChangeNotifier {
   ScreenShareState _state = ScreenShareState.idle;
   ScreenShareState get state => _state;
 
-  bool get isBroadcasting => _role == ScreenShareRole.broadcaster && _state == ScreenShareState.active;
+  bool get isBroadcasting =>
+      _role == ScreenShareRole.broadcaster && _state == ScreenShareState.active;
   bool get isBroadcaster => _role == ScreenShareRole.broadcaster;
-  bool get isViewing => _role == ScreenShareRole.viewer && _state == ScreenShareState.active;
+  bool get isViewing =>
+      _role == ScreenShareRole.viewer && _state == ScreenShareState.active;
   bool get isViewer => _role == ScreenShareRole.viewer;
   bool get isActive => _state == ScreenShareState.active;
 
@@ -84,14 +76,16 @@ class ScreenShareService extends ChangeNotifier {
   bool _isCoverMode = false;
   bool get isCoverMode => _isCoverMode;
 
-  final StreamController<String> _reactionController = StreamController<String>.broadcast();
+  final StreamController<String> _reactionController =
+      StreamController<String>.broadcast();
   Stream<String> get onReaction => _reactionController.stream;
 
   // In-cast Real-time Messaging
   final List<ChatMessage> _messages = [];
   List<ChatMessage> get messages => List.unmodifiable(_messages);
 
-  final StreamController<ChatMessage> _chatController = StreamController<ChatMessage>.broadcast();
+  final StreamController<ChatMessage> _chatController =
+      StreamController<ChatMessage>.broadcast();
   Stream<ChatMessage> get onChatMessage => _chatController.stream;
 
   int _unreadCount = 0;
@@ -163,6 +157,7 @@ class ScreenShareService extends ChangeNotifier {
   MediaStream? _micStream;
 
   final List<RTCIceCandidate> _pendingIce = [];
+  final List<RTCIceCandidate> _cachedLocalIce = [];
   bool _remoteDescSet = false;
 
   /// Initialize video renderers for local preview and remote playback
@@ -204,7 +199,8 @@ class ScreenShareService extends ChangeNotifier {
     _activeCastCode = castCode;
     _targetFps = targetFps;
     _isAudioEnabled = shareAudio;
-    _sourceTitle = customTitle ?? source?.name ?? (source == null ? '全屏幕' : '应用窗口');
+    _sourceTitle =
+        customTitle ?? source?.name ?? (source == null ? '全屏幕' : '应用窗口');
     _sourceType = source?.type == SourceType.Window ? 'window' : 'screen';
     _lastError = null;
     notifyListeners();
@@ -215,40 +211,50 @@ class ScreenShareService extends ChangeNotifier {
       // Platform-specific capture permission handling & Android MediaProjection Foreground Service
       if (!kIsWeb && WebRTC.platformIsAndroid) {
         try {
-          await const MethodChannel('com.norns.eir/media_picker').invokeMethod('startMediaProjectionService');
+          await const MethodChannel(
+            'com.norns.eir/media_picker',
+          ).invokeMethod('startMediaProjectionService');
         } catch (e) {
-          debugPrint('[ScreenShareService] startMediaProjectionService error: $e');
+          debugPrint(
+            '[ScreenShareService] startMediaProjectionService error: $e',
+          );
         }
         try {
           await Helper.requestCapturePermission();
         } catch (e) {
-          debugPrint('[ScreenShareService] Android capture permission error: $e');
+          debugPrint(
+            '[ScreenShareService] Android capture permission error: $e',
+          );
         }
       }
 
-      // Constraints enforcing 60 FPS and audio loopback
-      final mediaConstraints = <String, dynamic>{
-        'audio': shareAudio,
-        'video': source == null
-            ? {
-                'mandatory': {
-                  'minFrameRate': '30',
-                  'idealFrameRate': '$targetFps',
-                  'maxFrameRate': '$targetFps',
-                }
-              }
-            : {
-                'deviceId': {'exact': source.id},
-                'mandatory': {
-                  'minFrameRate': '30',
-                  'idealFrameRate': '$targetFps',
-                  'maxFrameRate': '$targetFps',
-                }
-              },
-      };
+      // Platform-tailored constraints avoiding Android MediaProjection black screen
+      final mediaConstraints = (!kIsWeb && WebRTC.platformIsAndroid)
+          ? <String, dynamic>{'audio': shareAudio, 'video': true}
+          : <String, dynamic>{
+              'audio': shareAudio,
+              'video': source == null
+                  ? {
+                      'mandatory': {
+                        'minFrameRate': '30',
+                        'idealFrameRate': '$targetFps',
+                        'maxFrameRate': '$targetFps',
+                      },
+                    }
+                  : {
+                      'deviceId': {'exact': source.id},
+                      'mandatory': {
+                        'minFrameRate': '30',
+                        'idealFrameRate': '$targetFps',
+                        'maxFrameRate': '$targetFps',
+                      },
+                    },
+            };
 
       try {
-        _localStream = await navigator.mediaDevices.getDisplayMedia(mediaConstraints);
+        _localStream = await navigator.mediaDevices.getDisplayMedia(
+          mediaConstraints,
+        );
       } catch (e) {
         // Fallback for environments where getDisplayMedia with constraints fails
         _localStream = await navigator.mediaDevices.getDisplayMedia({
@@ -338,9 +344,11 @@ class ScreenShareService extends ChangeNotifier {
 
   /// Setup WebRTC peer connection
   Future<void> _setupPeerConnection({required bool isBroadcaster}) async {
-    final iceServers = getIceServers?.call() ?? [
-      {'urls': 'stun:stun.l.google.com:19302'},
-    ];
+    final iceServers =
+        getIceServers?.call() ??
+        [
+          {'urls': 'stun:stun.l.google.com:19302'},
+        ];
 
     final rtcConfig = <String, dynamic>{
       'iceServers': iceServers,
@@ -352,6 +360,8 @@ class ScreenShareService extends ChangeNotifier {
     _pc = await createPeerConnection(rtcConfig);
 
     _pc!.onIceCandidate = (candidate) {
+      if (candidate.candidate == null || candidate.candidate!.isEmpty) return;
+      _cachedLocalIce.add(candidate);
       sendSignal({
         'type': 'screen_share_ice',
         'candidate': {
@@ -363,7 +373,7 @@ class ScreenShareService extends ChangeNotifier {
       });
     };
 
-    _pc!.onTrack = (event) {
+    _pc!.onTrack = (event) async {
       if (event.streams.isNotEmpty) {
         final stream = event.streams.first;
         if (_remoteStream == null) {
@@ -374,6 +384,17 @@ class ScreenShareService extends ChangeNotifier {
           remoteCameraRenderer.srcObject = stream;
         }
         notifyListeners();
+      } else if (event.track.kind == 'video') {
+        try {
+          _remoteStream ??= await createLocalMediaStream(
+            'remote_screen_stream',
+          );
+          _remoteStream!.addTrack(event.track);
+          remoteRenderer.srcObject = _remoteStream;
+          notifyListeners();
+        } catch (e) {
+          debugPrint('[ScreenShareService] onTrack fallback error: $e');
+        }
       }
     };
 
@@ -419,6 +440,7 @@ class ScreenShareService extends ChangeNotifier {
             final offer = await _pc!.createOffer({
               'offerToReceiveVideo': 0,
               'offerToReceiveAudio': 1,
+              'iceRestart': true,
             });
             await _pc!.setLocalDescription(offer);
             await sendSignal({
@@ -428,8 +450,23 @@ class ScreenShareService extends ChangeNotifier {
               'sourceType': _sourceType,
               'castCode': _activeCastCode,
             });
+
+            // Re-transmit all gathered ICE candidates to newly joined viewer
+            for (final cand in _cachedLocalIce) {
+              await sendSignal({
+                'type': 'screen_share_ice',
+                'candidate': {
+                  'candidate': cand.candidate,
+                  'sdpMid': cand.sdpMid,
+                  'sdpMLineIndex': cand.sdpMLineIndex,
+                },
+                'castCode': _activeCastCode,
+              });
+            }
           } catch (e) {
-            debugPrint('[ScreenShareService] Viewer join renegotiation error: $e');
+            debugPrint(
+              '[ScreenShareService] Viewer join renegotiation error: $e',
+            );
           }
         }
         break;
@@ -443,7 +480,9 @@ class ScreenShareService extends ChangeNotifier {
 
         final desc = RTCSessionDescription(sdpDesc, sdpType);
         if (_pc == null) {
-          await _setupPeerConnection(isBroadcaster: _role == ScreenShareRole.broadcaster);
+          await _setupPeerConnection(
+            isBroadcaster: _role == ScreenShareRole.broadcaster,
+          );
         }
 
         try {
@@ -496,7 +535,10 @@ class ScreenShareService extends ChangeNotifier {
       case 'screen_share_chat':
         final msgData = data['message'] as Map<String, dynamic>?;
         if (msgData != null) {
-          final msg = ChatMessage.fromJson(msgData, currentDeviceId: getCurrentDeviceId());
+          final msg = ChatMessage.fromJson(
+            msgData,
+            currentDeviceId: getCurrentDeviceId(),
+          );
           if (!_messages.any((m) => m.id == msg.id)) {
             _messages.add(msg);
             _chatController.add(msg);
@@ -506,14 +548,12 @@ class ScreenShareService extends ChangeNotifier {
               try {
                 const MethodChannel('com.norns.eir/media_picker').invokeMethod(
                   'showScreenShareMessageNotification',
-                  {
-                    'id': msg.id,
-                    'sender': msg.senderName,
-                    'text': msg.text,
-                  },
+                  {'id': msg.id, 'sender': msg.senderName, 'text': msg.text},
                 );
               } catch (e) {
-                debugPrint('[ScreenShareService] showScreenShareMessageNotification error: $e');
+                debugPrint(
+                  '[ScreenShareService] showScreenShareMessageNotification error: $e',
+                );
               }
             }
           }
@@ -563,7 +603,9 @@ class ScreenShareService extends ChangeNotifier {
   void _cleanup() {
     if (!kIsWeb && WebRTC.platformIsAndroid) {
       try {
-        const MethodChannel('com.norns.eir/media_picker').invokeMethod('stopMediaProjectionService');
+        const MethodChannel(
+          'com.norns.eir/media_picker',
+        ).invokeMethod('stopMediaProjectionService');
       } catch (e) {
         debugPrint('[ScreenShareService] stopMediaProjectionService error: $e');
       }
@@ -571,6 +613,7 @@ class ScreenShareService extends ChangeNotifier {
     _durationTimer?.cancel();
     _duration = Duration.zero;
     _pendingIce.clear();
+    _cachedLocalIce.clear();
     _remoteDescSet = false;
 
     if (_renderersInitialized) {
@@ -680,6 +723,15 @@ class ScreenShareService extends ChangeNotifier {
   /// Toggle mute state
   void toggleMute() {
     _isMuted = !_isMuted;
+    notifyListeners();
+  }
+
+  /// Toggle system audio sharing during screen cast
+  void toggleAudio() {
+    _isAudioEnabled = !_isAudioEnabled;
+    for (final track in _localStream?.getAudioTracks() ?? const []) {
+      track.enabled = _isAudioEnabled;
+    }
     notifyListeners();
   }
 
@@ -826,7 +878,9 @@ class ScreenShareService extends ChangeNotifier {
   void _setupNativeMethodCallHandler() {
     if (!kIsWeb && WebRTC.platformIsAndroid) {
       try {
-        const MethodChannel('com.norns.eir/media_picker').setMethodCallHandler((call) async {
+        const MethodChannel('com.norns.eir/media_picker').setMethodCallHandler((
+          call,
+        ) async {
           if (call.method == 'onNotificationReply') {
             final text = call.arguments?['text'] as String?;
             if (text != null && text.trim().isNotEmpty) {
@@ -835,7 +889,9 @@ class ScreenShareService extends ChangeNotifier {
           }
         });
       } catch (e) {
-        debugPrint('[ScreenShareService] _setupNativeMethodCallHandler error: $e');
+        debugPrint(
+          '[ScreenShareService] _setupNativeMethodCallHandler error: $e',
+        );
       }
     }
   }

@@ -122,9 +122,9 @@ class _LobbyViewState extends State<LobbyView> {
     final isConnectionError =
         code == 'signaling_unavailable' || code == 'connection_failed';
     final mediaQuery = MediaQuery.of(context);
-    final isMobile = mediaQuery.size.width < 768;
+    final isDesktopNav = mediaQuery.size.width >= 1024;
     final isShort = mediaQuery.size.height < 500;
-    final showBottomBar = isMobile && !isShort;
+    final showBottomBar = !isDesktopNav && !isShort;
 
     showLiquidGlassSnackBar(
       context,
@@ -150,9 +150,9 @@ class _LobbyViewState extends State<LobbyView> {
     if (!mounted) return;
     final i18n = AppI18n.of(context);
     final mediaQuery = MediaQuery.of(context);
-    final isMobile = mediaQuery.size.width < 768;
+    final isDesktopNav = mediaQuery.size.width >= 1024;
     final isShort = mediaQuery.size.height < 500;
-    final showBottomBar = isMobile && !isShort;
+    final showBottomBar = !isDesktopNav && !isShort;
 
     showLiquidGlassSnackBar(
       context,
@@ -272,8 +272,9 @@ class _LobbyViewState extends State<LobbyView> {
         final screenWidth = mediaQuery.size.width;
         final screenHeight = mediaQuery.size.height;
         final isMobile = screenWidth < 768;
+        final isDesktopNav = screenWidth >= 1024;
         final isShortWindow = screenHeight < 500;
-        final showBottomBar = !isShortWindow;
+        final showBottomBar = !isDesktopNav && !isShortWindow;
         final session = widget.session;
         final isConnecting =
             session.connectionState == RoomConnectionState.connecting ||
@@ -289,67 +290,130 @@ class _LobbyViewState extends State<LobbyView> {
             appBar: GlassAppBar(
               centerTitle: false,
               backgroundColor: Colors.transparent,
-              title: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: tc.primary,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: tc.primary.withValues(alpha: 0.35),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: AppLogo(
-                        size: 20,
-                        color: Colors.white,
-                        useGradient: false,
-                        hasGlow: false,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Eir',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.6,
-                      color: tc.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2.5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tc.primary.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      i18n.sync,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
+              title: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
                         color: tc.primary,
-                        letterSpacing: 0.5,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: tc.primary.withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: AppLogo(
+                          size: 20,
+                          color: Colors.white,
+                          useGradient: false,
+                          hasGlow: false,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 10),
+                    Text(
+                      'Eir',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.6,
+                        color: tc.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tc.primary.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        i18n.sync,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: tc.primary,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+
+                    // Desktop / Large Screen Adaptive Navigation Tabs (Requirement 1)
+                    if (isDesktopNav) ...[
+                      const SizedBox(width: 24),
+                      SizedBox(
+                        width: 230,
+                        child: GlassSegmentedControl(
+                          selectedIndex: _mobileNavIndex == 1 ? 1 : 0,
+                          onSegmentSelected: (index) {
+                            setState(() => _mobileNavIndex = index);
+                          },
+                          segments: [
+                            GlassSegment(label: i18n.desktopNavLobby),
+                            GlassSegment(label: i18n.desktopNavScreenShare),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               actions: [
-                // Client Device ID pill with bounded formatting
-                if (session.identity.deviceId.isNotEmpty)
+                // Top WebRTC / Tailcat Engine Switcher (Requirement 3)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: !kIsWeb
+                      ? SizedBox(
+                          width: screenWidth < 500 ? 140 : 170,
+                          child: GlassSegmentedControl(
+                            selectedIndex: AppSettings.instance.isTailcatEngine
+                                ? 1
+                                : 0,
+                            onSegmentSelected: (index) {
+                              AppSettings.instance.setTransportEngine(
+                                index == 1 ? 'tailcat' : 'webrtc',
+                              );
+                            },
+                            segments: const [
+                              GlassSegment(label: '⚡ WebRTC'),
+                              GlassSegment(label: '🚀 Tailcat'),
+                            ],
+                          ),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: tc.inputBackground,
+                            border: Border.all(color: tc.glassBorder),
+                          ),
+                          child: const Text(
+                            '⚡ WebRTC',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                ),
+
+                // Client Device ID pill - hidden if screen width < 560 (Requirement 4)
+                if (screenWidth >= 560 && session.identity.deviceId.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: Tooltip(
@@ -382,36 +446,38 @@ class _LobbyViewState extends State<LobbyView> {
                     ),
                   ),
 
-                // Profile Button (Avatar)
-                Semantics(
-                  button: true,
-                  enabled: true,
-                  label: i18n.profileTitle,
-                  child: Tooltip(
-                    message: i18n.profileTitle,
-                    child: GestureDetector(
-                      onTap: () {
-                        if (showBottomBar) {
-                          setState(() => _mobileNavIndex = 2);
-                        } else {
-                          ProfileView.show(context, session: session);
-                        }
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: Badge(
-                          isLabelVisible: AppSettings.instance.hasPendingUpdate,
-                          backgroundColor: Colors.redAccent,
-                          smallSize: 8,
-                          child: UserAvatar(
-                            avatarKey: AppSettings.instance.avatar,
-                            size: 28,
+                // Profile Button (Avatar) - hidden if screen width < 420 (Requirement 4)
+                if (screenWidth >= 420)
+                  Semantics(
+                    button: true,
+                    enabled: true,
+                    label: i18n.profileTitle,
+                    child: Tooltip(
+                      message: i18n.profileTitle,
+                      child: GestureDetector(
+                        onTap: () {
+                          if (showBottomBar) {
+                            setState(() => _mobileNavIndex = 2);
+                          } else {
+                            ProfileView.show(context, session: session);
+                          }
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Badge(
+                            isLabelVisible:
+                                AppSettings.instance.hasPendingUpdate,
+                            backgroundColor: Colors.redAccent,
+                            smallSize: 8,
+                            child: UserAvatar(
+                              avatarKey: AppSettings.instance.avatar,
+                              size: 28,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
 
                 // Settings Button
                 Semantics(
@@ -432,7 +498,7 @@ class _LobbyViewState extends State<LobbyView> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
               ],
             ),
             bottomBar: showBottomBar
@@ -476,15 +542,15 @@ class _LobbyViewState extends State<LobbyView> {
                     child: ScreenShareLobbyView(session: session),
                   )
                 : _mobileNavIndex == 2
-                    ? SafeArea(
-                        top: false,
-                        bottom: !showBottomBar,
-                        child: ProfileView(session: session),
-                      )
-                    : SafeArea(
-                        top: false,
-                        bottom: !showBottomBar,
-                        child: SingleChildScrollView(
+                ? SafeArea(
+                    top: false,
+                    bottom: !showBottomBar,
+                    child: ProfileView(session: session),
+                  )
+                : SafeArea(
+                    top: false,
+                    bottom: !showBottomBar,
+                    child: SingleChildScrollView(
                       padding: EdgeInsets.symmetric(
                         horizontal: isMobile ? 18 : 36,
                         vertical: isShortWindow ? 10 : (isMobile ? 16 : 28),
@@ -841,74 +907,6 @@ class _LobbyViewState extends State<LobbyView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Transport Mode Selector
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    children: [
-                      Text(
-                        i18n.transportEngine,
-                        style: TextStyle(
-                          fontSize: isShort ? 11 : 12,
-                          fontWeight: FontWeight.w600,
-                          color: tc.textSecondary,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (!kIsWeb)
-                        SizedBox(
-                          width: isShort ? 160 : 190,
-                          child: GlassSegmentedControl(
-                            selectedIndex: AppSettings.instance.isTailcatEngine
-                                ? 1
-                                : 0,
-                            onSegmentSelected: (index) {
-                              AppSettings.instance.setTransportEngine(
-                                index == 1 ? 'tailcat' : 'webrtc',
-                              );
-                            },
-                            segments: const [
-                              GlassSegment(label: '⚡ WebRTC'),
-                              GlassSegment(label: '🚀 Tailcat'),
-                            ],
-                          ),
-                        )
-                      else
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            color: tc.inputBackground,
-                            border: Border.all(color: tc.glassBorder),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text(
-                                '⚡ WebRTC',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                '(${i18n.tailcatClientOnly})',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  color: tc.textTertiary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-
                 // Create Room Button & Subtitle
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,

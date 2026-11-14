@@ -9,6 +9,8 @@ import 'core/room_session.dart';
 import 'core/update_service.dart';
 import 'views/lobby_view.dart';
 import 'views/cinema_view.dart';
+import 'views/screen_share_live_view.dart';
+import 'views/screen_share_broadcaster_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -199,12 +201,57 @@ class _EirRootPageState extends State<EirRootPage> {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([_session, AppSettings.instance]),
+      animation: Listenable.merge([
+        _session,
+        _session.screenShareService,
+        AppSettings.instance,
+      ]),
       builder: (context, _) {
-        final isInRoom = _session.roomId != null;
+        final screenShare = _session.screenShareService;
+        final isBroadcasting = screenShare.isBroadcaster && screenShare.isActive;
+        final isViewing = screenShare.isViewer && screenShare.isActive;
+        final isScreenSharing = isBroadcasting || isViewing;
+        final isInRoom = _session.roomId != null && !isScreenSharing;
         if (isInRoom != _lastIsInRoom) {
           _lastIsInRoom = isInRoom;
           hideLiquidGlassSnackBar();
+        }
+
+        Widget page;
+        if (isBroadcasting) {
+          page = ScreenShareBroadcasterView(
+            key: const ValueKey('screen-share-broadcaster-view'),
+            session: _session,
+            onStopCast: () async {
+              await screenShare.stop(reason: 'user_stopped');
+              await _session.leaveRoom();
+            },
+          );
+        } else if (isViewing) {
+          page = ScreenShareLiveView(
+            key: const ValueKey('screen-share-live-view'),
+            session: _session,
+            onExit: () async {
+              await screenShare.stop(reason: 'user_exit');
+              await _session.leaveRoom();
+            },
+          );
+        } else if (isInRoom) {
+          page = CinemaView(
+            key: ValueKey('cinema-view-${_session.roomId}'),
+            session: _session,
+            onLeaveRoom: () {
+              setState(() {});
+            },
+          );
+        } else {
+          page = LobbyView(
+            key: const ValueKey('lobby-view'),
+            session: _session,
+            isInitialized: _isInitialized,
+            initError: _initError,
+            onRetryInit: _initializeSession,
+          );
         }
 
         return Scaffold(
@@ -223,21 +270,7 @@ class _EirRootPageState extends State<EirRootPage> {
                 ),
               );
             },
-            child: !isInRoom
-                ? LobbyView(
-                    key: const ValueKey('lobby-view'),
-                    session: _session,
-                    isInitialized: _isInitialized,
-                    initError: _initError,
-                    onRetryInit: _initializeSession,
-                  )
-                : CinemaView(
-                    key: ValueKey('cinema-view-${_session.roomId}'),
-                    session: _session,
-                    onLeaveRoom: () {
-                      setState(() {});
-                    },
-                  ),
+            child: page,
           ),
         );
       },

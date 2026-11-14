@@ -544,6 +544,20 @@ class AppI18n {
   String get noMessagesYet => isZh ? '暂无消息，打个招呼吧~' : 'No messages yet. Say hello~';
   String get quickReply => isZh ? '快捷回复' : 'Quick Reply';
   String get viewerTalking => isZh ? '对方正在说话' : 'Companion is speaking';
+
+  // Desktop Adaptive Navigation & Screen Share Dashboard
+  String get desktopNavLobby => isZh ? '🎬 同步放映厅' : '🎬 Cinema';
+  String get desktopNavScreenShare => isZh ? '📱 实时投屏' : '📱 Screen Cast';
+  String get activeCastTitle => isZh ? '正在实时投屏推流' : 'Live Screen Casting';
+  String get activeCastSubtitle => isZh
+      ? '正在将屏幕画面与声音实时共享给对方'
+      : 'Streaming screen and internal audio live to peer';
+  String get dragChatCapsuleHint => isZh ? '可拖拽悬浮球 · 点击即刻聊天' : 'Draggable · Tap to Chat';
+  String get joinCastTitle => isZh ? '观看他人投屏' : 'Join Screen Cast';
+  String get castDashboard => isZh ? '投屏控制台' : 'Cast Dashboard';
+  String get switchBackgroundTip => isZh
+      ? '推流已就绪！切至后台打开抖音、游戏或相册，对方将实时同看画面与声音。'
+      : 'Live! Switch to Douyin/games; companion hears audio and sees your screen live.';
 }
 
 class AppLocalizationsDelegate extends LocalizationsDelegate<AppI18n> {

@@ -98,9 +98,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
         castCode: castCode,
       );
 
-      if (success && mounted) {
-        await ScreenShareLiveView.launch(context, session: widget.session);
-      } else if (mounted) {
+      if (!success && mounted) {
         setState(() => _errorMessage = _service.lastError ?? '投屏发起失败');
       }
     } catch (e) {
@@ -128,9 +126,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
       }
 
       final success = await _service.startViewing(castCode: code);
-      if (success && mounted) {
-        await ScreenShareLiveView.launch(context, session: widget.session);
-      } else if (mounted) {
+      if (!success && mounted) {
         setState(() => _errorMessage = _service.lastError ?? '无法连接到该投屏');
       }
     } catch (e) {
