@@ -118,11 +118,20 @@ class MediaProjectionService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = buildNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-            )
+            try {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                )
+            } catch (e: SecurityException) {
+                // In Android 14+ (API 34+), starting with FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                // before the user accepts the system screen capture prompt throws a SecurityException.
+                // Fall back to a standard foreground service to prevent app crash.
+                startForeground(NOTIFICATION_ID, notification)
+            } catch (e: Exception) {
+                startForeground(NOTIFICATION_ID, notification)
+            }
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }

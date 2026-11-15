@@ -40,6 +40,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     super.initState();
     _service.addListener(_onServiceUpdate);
     _codeController.addListener(_onCodeChanged);
+    widget.session.setSignalingUrl(AppSettings.instance.signalingUrl);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkUrlCastParam();
       _checkClipboard();
@@ -56,6 +57,11 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
           if (digits.length == 6) {
             _codeController.text = digits;
             if (mounted) setState(() {});
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && !_isConnecting && !_service.isActive) {
+                _handleJoinCast(digits);
+              }
+            });
           }
         }
       } catch (_) {}
@@ -103,11 +109,15 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     });
 
     try {
+      await widget.session.setSignalingUrl(AppSettings.instance.signalingUrl);
       if (widget.session.roomCode == null || widget.session.roomCode!.isEmpty) {
         await widget.session.createRoom();
       }
 
-      final castCode = widget.session.roomCode ?? (100000 + (DateTime.now().millisecondsSinceEpoch % 900000)).toString();
+      final castCode = widget.session.roomCode;
+      if (castCode == null || castCode.isEmpty) {
+        throw StateError(widget.session.lastErrorCode ?? '信令服务无法创建投屏房间，请检查网络连接');
+      }
 
       final success = await _service.startBroadcasting(
         source: opts.source,
@@ -141,9 +151,13 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     });
 
     try {
+      await widget.session.setSignalingUrl(AppSettings.instance.signalingUrl);
       _service.prepareViewing(castCode: code);
       if (widget.session.roomCode != code) {
         await widget.session.joinRoomByCode(code);
+      }
+      if (widget.session.roomCode != code && widget.session.lastErrorCode != null) {
+        throw StateError('加入投屏房间失败: ${widget.session.lastErrorCode}');
       }
 
       final success = await _service.startViewing(castCode: code);

@@ -218,6 +218,26 @@ class ScreenShareService extends ChangeNotifier {
     try {
       // Platform-specific capture permission handling & Android MediaProjection Foreground Service
       if (!kIsWeb && WebRTC.platformIsAndroid) {
+        // In Android 14+ (API 34+), the system screen capture prompt must be granted
+        // BEFORE starting the MediaProjection foreground service to avoid SecurityException.
+        bool granted = false;
+        try {
+          granted = await Helper.requestCapturePermission();
+        } catch (e) {
+          debugPrint(
+            '[ScreenShareService] Android capture permission error: $e',
+          );
+        }
+        if (!granted) {
+          debugPrint('[ScreenShareService] Screen capture permission denied by user.');
+          _state = ScreenShareState.idle;
+          _role = ScreenShareRole.none;
+          _lastError = '用户取消或未授予屏幕录制权限';
+          _cleanup();
+          notifyListeners();
+          return false;
+        }
+
         try {
           await const MethodChannel(
             'com.norns.eir/media_picker',
@@ -227,13 +247,6 @@ class ScreenShareService extends ChangeNotifier {
         } catch (e) {
           debugPrint(
             '[ScreenShareService] startMediaProjectionService error: $e',
-          );
-        }
-        try {
-          await Helper.requestCapturePermission();
-        } catch (e) {
-          debugPrint(
-            '[ScreenShareService] Android capture permission error: $e',
           );
         }
       }

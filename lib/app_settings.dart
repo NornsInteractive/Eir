@@ -60,7 +60,7 @@ class AppSettings extends ChangeNotifier {
   // Defaults
   static const Color defaultLightColor = Color(0xFF007AFF); // Apple Blue Light
   static const Color defaultDarkColor = Color(0xFF0A84FF);  // Apple Blue Dark
-  static const String defaultSignalingUrl = 'ws://127.0.0.1:8080/ws';
+  static const String defaultSignalingUrl = 'wss://eir.norns.cc.cd/ws';
   static const String defaultAvatar = 'preset:aurora';
   static const String defaultNickname = '';
   static const String defaultServerDomain = 'https://eir.norns.cc.cd';
@@ -70,7 +70,7 @@ class AppSettings extends ChangeNotifier {
 
   /// Dynamically resolved default signaling URL:
   /// On Web, automatically matches current origin (wss:// for HTTPS, ws:// for HTTP) and appends /ws.
-  /// On Native, defaults to defaultSignalingUrl ('ws://127.0.0.1:8080/ws').
+  /// On Native, defaults to global high-availability signaling URL ('wss://eir.norns.cc.cd/ws').
   static String get effectiveDefaultSignalingUrl {
     if (kIsWeb) {
       try {
@@ -235,11 +235,15 @@ class AppSettings extends ChangeNotifier {
         final sigUrl = prefs.getString(_kSignalingUrlKey);
         if (sigUrl != null && sigUrl.trim().isNotEmpty) {
           final trimmed = sigUrl.trim();
-          // Auto-migrate legacy standalone 8765 port to unified 8080 or dynamic web origin
+          // Auto-migrate legacy standalone 8765 / local 8080 to global high-availability signaling URL
           if (trimmed == 'ws://127.0.0.1:8765' ||
               trimmed == 'ws://localhost:8765' ||
               trimmed == 'ws://127.0.0.1:8765/' ||
-              trimmed == 'ws://localhost:8765/') {
+              trimmed == 'ws://localhost:8765/' ||
+              trimmed == 'ws://127.0.0.1:8080/ws' ||
+              trimmed == 'ws://localhost:8080/ws' ||
+              trimmed == 'ws://127.0.0.1:8080' ||
+              trimmed == 'ws://localhost:8080') {
             _signalingUrl = effectiveDefaultSignalingUrl;
             _saveString(_kSignalingUrlKey, _signalingUrl).catchError((_) => null);
           } else {

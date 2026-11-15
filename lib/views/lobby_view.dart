@@ -45,6 +45,15 @@ class _LobbyViewState extends State<LobbyView> {
     _lastReportedInitError = widget.initError;
     _lastReportedSessionError = widget.session.lastErrorCode;
     RoomHistoryService.getRecentRooms();
+    if (kIsWeb) {
+      try {
+        final uri = Uri.base;
+        final castParam = uri.queryParameters['cast'] ?? uri.queryParameters['code'];
+        if (castParam != null && castParam.replaceAll(RegExp(r'\D'), '').length == 6) {
+          _mobileNavIndex = 1;
+        }
+      } catch (_) {}
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkClipboard();
       if (mounted && widget.initError != null && widget.initError!.isNotEmpty) {

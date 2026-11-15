@@ -895,7 +895,7 @@ class RoomSession extends ChangeNotifier {
   // ------------------------------------------------------------- rooms
 
   Future<void> createRoom() async {
-    _signalingUrl = _configuredSignalingUrl ?? _signalingUrl;
+    _signalingUrl = _configuredSignalingUrl ?? _signalingUrl ?? AppSettings.instance.signalingUrl;
     if (_keyPair == null || _signalingUrl == null) {
       _lastErrorCode = 'signaling_unavailable';
       notifyListeners();
@@ -1327,7 +1327,9 @@ class RoomSession extends ChangeNotifier {
     if (full) {
       _chatMessages.clear();
       unawaited(callSession.hangupCall(reason: 'room_reset'));
-      unawaited(screenShareService.stop(reason: 'room_reset'));
+      if (screenShareService.role == ScreenShareRole.none) {
+        unawaited(screenShareService.stop(reason: 'room_reset'));
+      }
       _knownLocalMediaIds.clear();
       _knownLocalMediaSources.clear();
       _localMediaPaths.clear();
