@@ -209,7 +209,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
       ),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
+          constraints: BoxConstraints(maxWidth: isMobile ? 680 : 860),
           child: Column(
             children: [
               // 1. Hero Header
@@ -445,6 +445,16 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     );
   }
 
+  String _formatRelativeTime(int ms) {
+    if (ms <= 0) return '';
+    final diff = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ms));
+    if (diff.inMinutes < 1) return '刚刚';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
+    if (diff.inHours < 24) return '${diff.inHours}小时前';
+    if (diff.inDays < 7) return '${diff.inDays}天前';
+    return '${diff.inDays ~/ 7}周前';
+  }
+
   Widget _buildActionBox(
     BuildContext context,
     AppI18n i18n,
@@ -452,15 +462,47 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     bool isMobile,
     bool isShort,
   ) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final useDualColumns = screenWidth >= 720;
+
+    if (useDualColumns) {
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: _buildShareCard(context, i18n, tc, isShort)),
+            const SizedBox(width: 16),
+            Expanded(child: _buildWatchCard(context, i18n, tc, isShort)),
+          ],
+        ),
+      );
+    }
+
     return Column(
       children: [
-        // Card 1: 📱 发起投屏 (Host / Share)
-        GlassContainer.card(
-          surfaceStyle: GlassSurfaceStyle.solid,
-          color: tc.cardBackground,
-          shape: const LiquidRoundedSuperellipse(borderRadius: 22),
-          padding: EdgeInsets.all(isShort ? 14 : 20),
-          child: Column(
+        _buildShareCard(context, i18n, tc, isShort),
+        const SizedBox(height: 16),
+        _buildWatchCard(context, i18n, tc, isShort),
+      ],
+    );
+  }
+
+  Widget _buildShareCard(
+    BuildContext context,
+    AppI18n i18n,
+    ThemeColors tc,
+    bool isShort,
+  ) {
+    return GlassContainer.card(
+      surfaceStyle: GlassSurfaceStyle.solid,
+      color: tc.cardBackground,
+      shape: const LiquidRoundedSuperellipse(borderRadius: 22),
+      padding: EdgeInsets.all(isShort ? 14 : 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
@@ -515,52 +557,62 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                   _buildTagBadge(tc, Icons.chat_bubble_outline_rounded, '悬浮互动聊天'),
                 ],
               ),
-              const SizedBox(height: 16),
-              Semantics(
-                button: true,
-                label: i18n.startScreenShare,
-                child: LiquidGlassActionButton(
-                  key: const ValueKey('start-screen-share-btn'),
-                  isPrimary: true,
-                  height: isShort ? 42 : 48,
-                  onTap: _isConnecting ? () {} : _handleStartCast,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (_isConnecting)
-                        const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      else ...[
-                        const Icon(Icons.play_arrow_rounded, size: 22),
-                        const SizedBox(width: 6),
-                      ],
-                      Text(
-                        _isConnecting ? i18n.screenShareConnecting : '立即开启投屏',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: isShort ? 14 : 15.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
-        ),
+          const SizedBox(height: 16),
+          Semantics(
+            button: true,
+            label: i18n.startScreenShare,
+            child: LiquidGlassActionButton(
+              key: const ValueKey('start-screen-share-btn'),
+              isPrimary: true,
+              height: isShort ? 42 : 48,
+              onTap: _isConnecting ? () {} : _handleStartCast,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_isConnecting)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  else ...[
+                    const Icon(Icons.play_arrow_rounded, size: 22),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(
+                    _isConnecting ? i18n.screenShareConnecting : '立即开启投屏',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: isShort ? 14 : 15.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-        const SizedBox(height: 16),
-
-        // Card 2: 📺 观看投屏 (Watch / Join)
-        GlassContainer.card(
-          surfaceStyle: GlassSurfaceStyle.solid,
-          color: tc.cardBackground,
-          shape: const LiquidRoundedSuperellipse(borderRadius: 22),
-          padding: EdgeInsets.all(isShort ? 14 : 20),
-          child: Column(
+  Widget _buildWatchCard(
+    BuildContext context,
+    AppI18n i18n,
+    ThemeColors tc,
+    bool isShort,
+  ) {
+    return GlassContainer.card(
+      surfaceStyle: GlassSurfaceStyle.solid,
+      color: tc.cardBackground,
+      shape: const LiquidRoundedSuperellipse(borderRadius: 22),
+      padding: EdgeInsets.all(isShort ? 14 : 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
@@ -605,33 +657,50 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                 ],
               ),
               const SizedBox(height: 16),
-              // Input field with built-in paste button
+              // Compound Input field with built-in clear & paste action buttons
               Row(
                 children: [
                   Expanded(
-                    child: GlassTextField(
-                      key: const ValueKey('cast-code-input'),
-                      controller: _codeController,
-                      focusNode: _codeFocusNode,
-                      placeholder: '输入 6 位投屏码',
-                      height: 46,
-                      surfaceStyle: GlassSurfaceStyle.solid,
-                      color: tc.inputBackground,
-                      keyboardType: TextInputType.number,
-                      textStyle: TextStyle(
-                        color: tc.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 4,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                      placeholderStyle: TextStyle(
-                        color: tc.textTertiary,
-                        fontSize: 12.5,
-                        letterSpacing: 0,
-                        fontWeight: FontWeight.normal,
-                      ),
-                      onSubmitted: (val) => _isConnecting ? null : _handleJoinCast(val),
+                    child: Stack(
+                      alignment: Alignment.centerRight,
+                      children: [
+                        GlassTextField(
+                          key: const ValueKey('cast-code-input'),
+                          controller: _codeController,
+                          focusNode: _codeFocusNode,
+                          placeholder: '输入 6 位投屏码',
+                          height: 46,
+                          surfaceStyle: GlassSurfaceStyle.solid,
+                          color: tc.inputBackground,
+                          keyboardType: TextInputType.number,
+                          textStyle: TextStyle(
+                            color: tc.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 4,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                          placeholderStyle: TextStyle(
+                            color: tc.textTertiary,
+                            fontSize: 12.5,
+                            letterSpacing: 0,
+                            fontWeight: FontWeight.normal,
+                          ),
+                          onSubmitted: (val) => _isConnecting ? null : _handleJoinCast(val),
+                        ),
+                        if (_codeController.text.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: IconButton(
+                              icon: Icon(Icons.cancel_rounded, size: 18, color: tc.textTertiary),
+                              onPressed: () {
+                                _codeController.clear();
+                                setState(() {});
+                              },
+                              splashRadius: 16,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -651,28 +720,28 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              LiquidGlassActionButton(
-                key: const ValueKey('join-cast-btn'),
-                isPrimary: true,
-                height: 46,
-                onTap: _isConnecting ? () {} : () => _handleJoinCast(),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.arrow_forward_rounded, size: 18),
-                    SizedBox(width: 6),
-                    Text(
-                      '进入观看',
-                      style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          LiquidGlassActionButton(
+            key: const ValueKey('join-cast-btn'),
+            isPrimary: true,
+            height: 46,
+            onTap: _isConnecting ? () {} : () => _handleJoinCast(),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.arrow_forward_rounded, size: 18),
+                SizedBox(width: 6),
+                Text(
+                  '进入观看',
+                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -699,80 +768,120 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
   }
 
   Widget _buildRecentCastsSection(BuildContext context, AppI18n i18n, ThemeColors tc) {
-    final recentRooms = RoomHistoryService.recentRoomsNotifier.value;
-    if (recentRooms.isEmpty) return const SizedBox.shrink();
+    return ValueListenableBuilder<List<RecentRoom>>(
+      valueListenable: RoomHistoryService.recentRoomsNotifier,
+      builder: (context, recentRooms, _) {
+        if (recentRooms.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Row(
-            children: [
-              Icon(Icons.history_rounded, size: 15, color: tc.textSecondary),
-              const SizedBox(width: 6),
-              Text(
-                '最近投屏历史',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: tc.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        GlassContainer.card(
-          surfaceStyle: GlassSurfaceStyle.solid,
-          color: tc.cardBackground,
-          shape: const LiquidRoundedSuperellipse(borderRadius: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Column(
-            children: recentRooms.take(3).map((r) {
-              return InkWell(
-                onTap: () {
-                  _codeController.text = r.roomCode;
-                  _handleJoinCast(r.roomCode);
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: tc.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          r.roomCode,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1,
-                            color: tc.primary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          r.title,
-                          style: TextStyle(fontSize: 12.5, color: tc.textPrimary),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Icon(Icons.arrow_forward_ios_rounded, size: 12, color: tc.textTertiary),
-                    ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 8, right: 4),
+              child: Row(
+                children: [
+                  Icon(Icons.history_rounded, size: 15, color: tc.textSecondary),
+                  const SizedBox(width: 6),
+                  Text(
+                    '最近投屏历史',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: tc.textSecondary,
+                    ),
                   ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
+                  const Spacer(),
+                  InkWell(
+                    onTap: () async {
+                      await RoomHistoryService.clearHistory();
+                      if (mounted) setState(() {});
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      child: Text(
+                        '清空',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: tc.textTertiary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            GlassContainer.card(
+              surfaceStyle: GlassSurfaceStyle.solid,
+              color: tc.cardBackground,
+              shape: const LiquidRoundedSuperellipse(borderRadius: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Column(
+                children: recentRooms.take(4).map((r) {
+                  final relTime = _formatRelativeTime(r.lastVisitedMs);
+                  return InkWell(
+                    onTap: () {
+                      _codeController.text = r.roomCode;
+                      _handleJoinCast(r.roomCode);
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: tc.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              r.roomCode,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1,
+                                color: tc.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              r.title,
+                              style: TextStyle(fontSize: 12.5, color: tc.textPrimary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (relTime.isNotEmpty) ...[
+                            Text(
+                              relTime,
+                              style: TextStyle(fontSize: 11, color: tc.textTertiary),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          IconButton(
+                            icon: Icon(Icons.close_rounded, size: 14, color: tc.textTertiary),
+                            splashRadius: 14,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                            onPressed: () async {
+                              await RoomHistoryService.removeRoom(r.roomId);
+                              if (mounted) setState(() {});
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

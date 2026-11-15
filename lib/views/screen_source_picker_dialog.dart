@@ -86,40 +86,74 @@ class _MobileScreenSharePickerSheetState extends State<_MobileScreenSharePickerS
       try {
         final grant = await showDialog<bool>(
           context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: const Color(0xFF1C1E2A),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(
-              children: [
-                Icon(Icons.layers_rounded, color: tc.primary, size: 22),
-                const SizedBox(width: 8),
-                Text(
-                  i18n.overlayPermissionTitle,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+          builder: (ctx) => Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              child: GlassContainer.card(
+                surfaceStyle: GlassSurfaceStyle.solid,
+                color: tc.cardBackground,
+                shape: const LiquidRoundedSuperellipse(borderRadius: 24),
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: tc.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.layers_rounded, color: tc.primary, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            i18n.overlayPermissionTitle,
+                            style: TextStyle(
+                              color: tc.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      i18n.overlayPermissionDesc,
+                      style: TextStyle(color: tc.textSecondary, fontSize: 13, height: 1.45),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        LiquidGlassActionButton(
+                          height: 38,
+                          onTap: () => Navigator.pop(ctx, false),
+                          child: Text(
+                            i18n.cancel,
+                            style: TextStyle(color: tc.textSecondary, fontSize: 13),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        LiquidGlassActionButton(
+                          height: 38,
+                          isPrimary: true,
+                          onTap: () => Navigator.pop(ctx, true),
+                          child: Text(
+                            i18n.grantPermission,
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            content: Text(
-              i18n.overlayPermissionDesc,
-              style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(i18n.cancel, style: const TextStyle(color: Colors.white38)),
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(
-                  i18n.grantPermission,
-                  style: TextStyle(color: tc.primary, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
+            ),
           ),
         );
         if (grant == true) {
@@ -910,9 +944,33 @@ class _DesktopScreenSourcePickerDialogState extends State<_DesktopScreenSourcePi
           children: [
             // Thumbnail preview
             Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: _ThumbnailView(source: s),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: _ThumbnailView(source: s),
+                  ),
+                  if (isSelected)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: tc.primary,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.check_rounded, size: 12, color: Colors.white),
+                      ),
+                    ),
+                ],
               ),
             ),
             // Title bar

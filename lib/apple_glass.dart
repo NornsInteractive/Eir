@@ -85,6 +85,11 @@ class ThemeColors {
   Color get success => const Color(0xFF34C759);
   Color get warning => const Color(0xFFFF9500);
   Color get error => const Color(0xFFFF3B30);
+
+  Color get destructiveGlassBackground => error.withValues(alpha: isDark ? 0.18 : 0.12);
+  Color get destructiveGlassBorder => error.withValues(alpha: isDark ? 0.38 : 0.28);
+  Color get successGlassBackground => success.withValues(alpha: isDark ? 0.18 : 0.12);
+  Color get warningGlassBackground => warning.withValues(alpha: isDark ? 0.18 : 0.12);
 }
 
 /// Compact glass tag/badge for statuses, labels, and metadata
@@ -142,6 +147,8 @@ class LiquidGlassActionButton extends StatelessWidget {
   final double height;
   final double borderRadius;
   final Color? customColor;
+  final Color? color;
+  final Color? borderColor;
 
   const LiquidGlassActionButton({
     super.key,
@@ -152,6 +159,8 @@ class LiquidGlassActionButton extends StatelessWidget {
     this.height = 44.0,
     this.borderRadius = 14.0,
     this.customColor,
+    this.color,
+    this.borderColor,
   });
 
   @override
@@ -170,10 +179,13 @@ class LiquidGlassActionButton extends StatelessWidget {
       glowRadius: isPrimary ? 1.4 : null,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: isPrimary
+        decoration: (isPrimary || color != null || borderColor != null)
             ? BoxDecoration(
-                color: accent.withValues(alpha: 0.88),
+                color: isPrimary ? accent.withValues(alpha: 0.88) : color,
                 borderRadius: BorderRadius.circular(borderRadius),
+                border: borderColor == null
+                    ? null
+                    : Border.all(color: borderColor!, width: 0.8),
               )
             : null,
         child: Center(

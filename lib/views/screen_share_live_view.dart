@@ -355,18 +355,16 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
               ),
             ),
 
-            // 2.8 Floating Emoji Quick Dock
+            // 2.8 Floating Emoji Quick Dock (Liquid Glass Platter)
             AnimatedPositioned(
               duration: const Duration(milliseconds: 200),
               bottom: _controlsVisible ? 94 : -60,
               right: 24,
-              child: Container(
+              child: GlassContainer.card(
+                surfaceStyle: GlassSurfaceStyle.solid,
+                color: Colors.black.withValues(alpha: 0.65),
+                shape: const LiquidRoundedSuperellipse(borderRadius: 20),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white24, width: 0.8),
-                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: ['❤️', '😂', '🔥', '👏', '666'].map((emoji) {
@@ -374,8 +372,8 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                       onTap: () => _service.sendReaction(emoji),
                       borderRadius: BorderRadius.circular(16),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                        child: Text(emoji, style: const TextStyle(fontSize: 18)),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                        child: Text(emoji, style: const TextStyle(fontSize: 19)),
                       ),
                     );
                   }).toList(),
@@ -383,7 +381,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
               ),
             ),
 
-            // 3. Bottom HUD Controls Platter
+            // 3. Bottom HUD Controls Platter (Apple Liquid Glass)
             AnimatedPositioned(
               duration: const Duration(milliseconds: 200),
               bottom: _controlsVisible ? 24 : -110,
@@ -392,20 +390,11 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 580),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white24, width: 0.8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.4),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
+                  child: GlassContainer.card(
+                    surfaceStyle: GlassSurfaceStyle.solid,
+                    color: Colors.black.withValues(alpha: 0.72),
+                    shape: const LiquidRoundedSuperellipse(borderRadius: 26),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [

@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../core/room_session.dart';
@@ -31,6 +32,11 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
   Timer? _ticker;
   final List<FloatingEmojiData> _activeReactions = [];
   StreamSubscription<String>? _reactionSub;
+  bool _copiedCode = false;
+  bool _copiedLink = false;
+  bool _showQrCode = false;
+  Timer? _copiedCodeTimer;
+  Timer? _copiedLinkTimer;
 
   ScreenShareService get _service => widget.session.screenShareService;
 
@@ -48,6 +54,8 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
   void dispose() {
     _ticker?.cancel();
     _reactionSub?.cancel();
+    _copiedCodeTimer?.cancel();
+    _copiedLinkTimer?.cancel();
     _service.removeListener(_onServiceUpdate);
     super.dispose();
   }
@@ -148,25 +156,21 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
 
   void _copyCastCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('投屏码已复制到剪贴板'),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    _copiedCodeTimer?.cancel();
+    setState(() => _copiedCode = true);
+    _copiedCodeTimer = Timer(const Duration(milliseconds: 2200), () {
+      if (mounted) setState(() => _copiedCode = false);
+    });
   }
 
   void _copyWebCastLink(String code) {
     final webUrl = 'https://eir.norns.cc.cd?cast=$code';
     Clipboard.setData(ClipboardData(text: webUrl));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('网页免装观看直链已复制！对方浏览器打开秒看'),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    _copiedLinkTimer?.cancel();
+    setState(() => _copiedLink = true);
+    _copiedLinkTimer = Timer(const Duration(milliseconds: 2200), () {
+      if (mounted) setState(() => _copiedLink = false);
+    });
   }
 
   String _formatDuration(Duration d) {
@@ -271,18 +275,27 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                         ),
                       ),
 
-                      // Stop Cast Button
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent.withValues(alpha: 0.88),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      // Stop Cast Button (Destructive Liquid Glass)
+                      LiquidGlassActionButton(
+                        height: 38,
+                        onTap: _handleStopCast,
+                        color: Colors.redAccent.withValues(alpha: 0.16),
+                        borderColor: Colors.redAccent.withValues(alpha: 0.35),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.stop_circle_rounded, size: 18, color: Colors.redAccent),
+                            SizedBox(width: 6),
+                            Text(
+                              '结束投屏',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                          ],
                         ),
-                        icon: const Icon(Icons.stop_circle_rounded, size: 18),
-                        label: const Text('结束投屏', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                        onPressed: _handleStopCast,
                       ),
                     ],
                   ),
@@ -327,7 +340,12 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                       decoration: BoxDecoration(
                                         color: tc.primary.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(color: tc.primary.withValues(alpha: 0.3)),
+                                        border: Border.all(
+                                          color: _copiedCode
+                                              ? Colors.greenAccent
+                                              : tc.primary.withValues(alpha: 0.3),
+                                          width: _copiedCode ? 1.5 : 1,
+                                        ),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -341,11 +359,17 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                               fontWeight: FontWeight.w900,
                                               letterSpacing: 4,
                                               fontFeatures: const [FontFeature.tabularFigures()],
-                                              color: tc.primary,
+                                              color: _copiedCode ? Colors.greenAccent : tc.primary,
                                             ),
                                           ),
                                           const SizedBox(width: 14),
-                                          Icon(Icons.copy_rounded, size: 20, color: tc.primary),
+                                          Icon(
+                                            _copiedCode
+                                                ? Icons.check_circle_rounded
+                                                : Icons.copy_rounded,
+                                            size: 20,
+                                            color: _copiedCode ? Colors.greenAccent : tc.primary,
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -364,12 +388,25 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                         child: LiquidGlassActionButton(
                                           height: 38,
                                           onTap: () => _copyCastCode(castCode),
-                                          child: const Row(
+                                          child: Row(
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
-                                              Icon(Icons.copy_rounded, size: 14),
-                                              SizedBox(width: 6),
-                                              Text('复制投屏码', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                                              Icon(
+                                                _copiedCode
+                                                    ? Icons.check_circle_rounded
+                                                    : Icons.copy_rounded,
+                                                size: 14,
+                                                color: _copiedCode ? Colors.greenAccent : null,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                _copiedCode ? '已复制！' : '复制投屏码',
+                                                style: TextStyle(
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _copiedCode ? Colors.greenAccent : null,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -380,18 +417,94 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                           height: 38,
                                           isPrimary: true,
                                           onTap: () => _copyWebCastLink(castCode),
-                                          child: const Row(
+                                          child: Row(
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
-                                              Icon(Icons.link_rounded, size: 16),
-                                              SizedBox(width: 6),
-                                              Text('复制网页直链', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                                              Icon(
+                                                _copiedLink
+                                                    ? Icons.check_circle_rounded
+                                                    : Icons.link_rounded,
+                                                size: 16,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                _copiedLink ? '直链已复制！' : '复制网页直链',
+                                                style: const TextStyle(
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
+
+                                  // QR Code Toggle
+                                  const SizedBox(height: 14),
+                                  InkWell(
+                                    onTap: () => setState(() => _showQrCode = !_showQrCode),
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            _showQrCode ? Icons.qr_code_2_rounded : Icons.qr_code_rounded,
+                                            size: 16,
+                                            color: tc.primary,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            _showQrCode ? '收起网页直连二维码' : '扫码免装观看直连',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: tc.primary,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            _showQrCode
+                                                ? Icons.keyboard_arrow_up_rounded
+                                                : Icons.keyboard_arrow_down_rounded,
+                                            size: 16,
+                                            color: tc.primary,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  if (_showQrCode) ...[
+                                    const SizedBox(height: 14),
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.12),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      child: QrImageView(
+                                        data: 'https://eir.norns.cc.cd?cast=$castCode',
+                                        version: QrVersions.auto,
+                                        size: 160.0,
+                                        backgroundColor: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '微信或手机浏览器扫码直接秒开',
+                                      style: TextStyle(fontSize: 11, color: tc.textTertiary),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -650,6 +763,22 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
               Text(
                 label,
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: tc.textSecondary),
+              ),
+              const Spacer(),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Colors.greenAccent,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.greenAccent.withValues(alpha: 0.5),
+                      blurRadius: 5,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

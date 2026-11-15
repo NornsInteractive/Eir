@@ -19,17 +19,67 @@ class DraggableCastChatCapsule extends StatefulWidget {
       _DraggableCastChatCapsuleState();
 }
 
-class _DraggableCastChatCapsuleState extends State<DraggableCastChatCapsule> {
+class _DraggableCastChatCapsuleState extends State<DraggableCastChatCapsule>
+    with SingleTickerProviderStateMixin {
   Offset _offset = const Offset(16, 120);
   bool _initializedOffset = false;
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocusNode = FocusNode();
 
+  late final AnimationController _snapController;
+  Animation<Offset>? _snapAnimation;
+  bool _isTucked = false;
+  Timer? _tuckTimer;
+
   ScreenShareService get _service => widget.session.screenShareService;
 
   @override
+  void initState() {
+    super.initState();
+    _snapController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _snapController.addListener(() {
+      if (_snapAnimation != null) {
+        setState(() => _offset = _snapAnimation!.value);
+      }
+    });
+    _resetTuckTimer();
+  }
+
+  void _resetTuckTimer() {
+    _tuckTimer?.cancel();
+    if (_isTucked) {
+      setState(() => _isTucked = false);
+    }
+    _tuckTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted && _service.unreadCount == 0) {
+        setState(() => _isTucked = true);
+      }
+    });
+  }
+
+  void _snapToNearestEdge(Size screenSize) {
+    _resetTuckTimer();
+    final isLeft = (_offset.dx + 44) < screenSize.width / 2;
+    final targetX = isLeft ? 12.0 : (screenSize.width - 96.0);
+    final targetY = _offset.dy.clamp(60.0, screenSize.height - 120.0);
+    final target = Offset(targetX, targetY);
+
+    _snapAnimation = Tween<Offset>(
+      begin: _offset,
+      end: target,
+    ).animate(CurvedAnimation(parent: _snapController, curve: Curves.easeOutCubic));
+
+    _snapController.forward(from: 0.0);
+  }
+
+  @override
   void dispose() {
+    _tuckTimer?.cancel();
+    _snapController.dispose();
     _textController.dispose();
     _scrollController.dispose();
     _inputFocusNode.dispose();
@@ -399,7 +449,7 @@ class _DraggableCastChatCapsuleState extends State<DraggableCastChatCapsule> {
 
     if (!_initializedOffset) {
       _initializedOffset = true;
-      _offset = Offset(screenSize.width - 120, screenSize.height - 180);
+      _offset = Offset(screenSize.width - 96, screenSize.height - 180);
     }
 
     return AnimatedBuilder(
@@ -411,49 +461,33 @@ class _DraggableCastChatCapsuleState extends State<DraggableCastChatCapsule> {
           left: _offset.dx,
           top: _offset.dy,
           child: GestureDetector(
+            onPanStart: (_) {
+              _snapController.stop();
+              _resetTuckTimer();
+            },
             onPanUpdate: (details) {
               setState(() {
                 _offset = Offset(
-                  (_offset.dx + details.delta.dx).clamp(
-                    10.0,
-                    screenSize.width - 120.0,
-                  ),
-                  (_offset.dy + details.delta.dy).clamp(
-                    50.0,
-                    screenSize.height - 100.0,
-                  ),
+                  (_offset.dx + details.delta.dx).clamp(4.0, screenSize.width - 90.0),
+                  (_offset.dy + details.delta.dy).clamp(50.0, screenSize.height - 90.0),
                 );
               });
             },
-            onTap: () => _openChatSheet(context),
-            child: Material(
-              color: Colors.transparent,
-              elevation: 8,
-              borderRadius: BorderRadius.circular(24),
-              child: Container(
+            onPanEnd: (_) => _snapToNearestEdge(screenSize),
+            onTap: () {
+              _resetTuckTimer();
+              _openChatSheet(context);
+            },
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 250),
+              opacity: _isTucked ? 0.65 : 1.0,
+              child: GlassContainer.card(
+                surfaceStyle: GlassSurfaceStyle.solid,
+                color: tc.primary.withValues(alpha: 0.88),
+                shape: const LiquidRoundedSuperellipse(borderRadius: 24),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      tc.primary.withValues(alpha: 0.92),
-                      tc.primary.withValues(alpha: 0.78),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: tc.primary.withValues(alpha: 0.35),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    width: 1.2,
-                  ),
+                  vertical: 9,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
