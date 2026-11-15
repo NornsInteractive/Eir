@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../app_localization.dart';
 import '../app_settings.dart';
 import '../core/room_history_service.dart';
@@ -241,14 +241,39 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
               SizedBox(height: isShort ? 24 : 48),
 
               // Footer
-              Text(
-                '端到端低延迟传输 · 智能声画分离与回声消除',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: tc.textTertiary,
-                  letterSpacing: -0.2,
-                ),
+              Column(
+                children: [
+                  Text(
+                    '端到端低延迟传输 · 智能声画分离与回声消除',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: tc.textTertiary,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: () async {
+                      final uri = Uri.parse(i18n.officialWebsiteUrl);
+                      try {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } catch (_) {
+                        await launchUrl(uri, mode: LaunchMode.platformDefault);
+                      }
+                    },
+                    child: Text(
+                      '${i18n.poweredByNorns} · norns.cc.cd',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: tc.primary.withValues(alpha: 0.8),
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: isShort ? 12 : 24),
             ],

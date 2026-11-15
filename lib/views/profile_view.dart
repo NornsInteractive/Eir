@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app_localization.dart';
 import '../apple_glass.dart';
@@ -838,50 +839,128 @@ class _ProfileViewState extends State<ProfileView> {
                   // About Card
                   GlassContainer.card(
                     surfaceStyle: GlassSurfaceStyle.solid,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
                             Container(
-                              width: 24,
-                              height: 24,
+                              width: 28,
+                              height: 28,
                               decoration: BoxDecoration(
                                 color: tc.primary,
-                                borderRadius: BorderRadius.circular(6),
+                                borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Center(
-                                child: AppLogo(size: 16, color: Colors.white, useGradient: false, hasGlow: false),
+                                child: AppLogo(size: 18, color: Colors.white, useGradient: false, hasGlow: false),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Eir · P2P Cinema',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: tc.textPrimary,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Eir',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: tc.textPrimary,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  Text(
+                                    i18n.footerText,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: tc.textSecondary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const Spacer(),
-                            Text(
-                              'v1.0.0+1',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: tc.textTertiary,
-                                fontFeatures: const [FontFeature.tabularFigures()],
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: tc.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'v${UpdateService.currentVersionName}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: tc.primary,
+                                  fontFeatures: const [FontFeature.tabularFigures()],
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          i18n.heroSubtitle,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            height: 1.45,
-                            color: tc.textSecondary,
+                        const SizedBox(height: 14),
+                        Divider(height: 1, color: tc.glassBorderSubtle),
+                        const SizedBox(height: 12),
+                        // Organization Row
+                        Row(
+                          children: [
+                            Text(
+                              i18n.organizationTitle,
+                              style: TextStyle(fontSize: 12, color: tc.textTertiary),
+                            ),
+                            const Spacer(),
+                            Text(
+                              i18n.organizationName,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: tc.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        // Official Website Row
+                        GestureDetector(
+                          onTap: () async {
+                            final uri = Uri.parse(i18n.officialWebsiteUrl);
+                            try {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            } catch (_) {
+                              await launchUrl(uri, mode: LaunchMode.platformDefault);
+                            }
+                          },
+                          onLongPress: () {
+                            Clipboard.setData(ClipboardData(text: i18n.officialWebsiteUrl));
+                            _showFeedback(i18n.copiedToClipboard);
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: Row(
+                            children: [
+                              Text(
+                                i18n.officialWebsiteTitle,
+                                style: TextStyle(fontSize: 12, color: tc.textTertiary),
+                              ),
+                              const Spacer(),
+                              Text(
+                                'norns.cc.cd',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: tc.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.open_in_new_rounded, size: 13, color: tc.primary),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        // Copyright
+                        Center(
+                          child: Text(
+                            i18n.copyrightText,
+                            style: TextStyle(fontSize: 10.5, color: tc.textTertiary),
                           ),
                         ),
                       ],

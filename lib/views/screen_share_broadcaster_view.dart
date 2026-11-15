@@ -1,16 +1,11 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../core/room_session.dart';
-import '../core/screen_share_service.dart';
 import 'draggable_cast_chat_capsule.dart';
 import 'floating_emoji_reactions.dart';
-import 'screen_source_picker_dialog.dart';
 
 /// Dedicated Cast Control Dashboard for Screen Share Broadcaster
 /// Clean, hardware-inspired, and distinctly separate from the Cinema Room.
@@ -182,7 +177,6 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
 
   @override
   Widget build(BuildContext context) {
-    final i18n = AppI18n.of(context);
     final tc = ThemeColors.of(context);
     final mediaQuery = MediaQuery.of(context);
     final screenWidth = mediaQuery.size.width;

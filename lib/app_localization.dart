@@ -78,7 +78,7 @@ class AppI18n {
   String get pasteJoin => isZh ? '快捷加入' : 'Quick Join';
   String get joinRoom => isZh ? '加入放映室' : 'Join Cinema';
   String get signalingUrl => isZh ? '信令服务器地址' : 'Signaling Server URL';
-  String get signalingUrlHint => isZh ? '默认 ws://127.0.0.1:8080/ws' : 'Default ws://127.0.0.1:8080/ws';
+  String get signalingUrlHint => isZh ? '默认 wss://eir.norns.cc.cd/ws' : 'Default wss://eir.norns.cc.cd/ws';
   String get configuringSignaling => isZh ? '信令配置' : 'Signaling Config';
   String get save => isZh ? '保存' : 'Save';
   String get saving => isZh ? '保存中...' : 'Saving...';
@@ -392,8 +392,32 @@ class AppI18n {
   String get diagProtocolVersion => isZh ? '协议版本' : 'Protocol Version';
 
   String get footerText => isZh
-      ? 'Eir · P2P 画面同步影厅 · 纯正 Apple Liquid Glass HIG 规范'
-      : 'Eir · P2P Synchronized Cinema · Pure Apple Liquid Glass HIG';
+      ? 'Eir · 异地同屏观影与实时投屏'
+      : 'Eir · Synchronized Cinema & Live Screen Share';
+
+  String get organizationTitle => isZh ? '开发组织' : 'Organization';
+  String get organizationName => isZh ? 'Norns Interactive (诺恩交互)' : 'Norns Interactive';
+  String get organizationDesc => isZh
+      ? '专注于极客美学与高性能跨平台互联产品'
+      : 'Crafting aesthetic, high-performance cross-platform software';
+  String get officialWebsiteTitle => isZh ? '官方网站' : 'Official Website';
+  String get officialWebsiteUrl => 'https://norns.cc.cd';
+  String get officialWebsiteDesc => isZh
+      ? '访问 Norns 官方网站，浏览更多生态产品与资讯'
+      : 'Visit Norns official website for ecosystem products and updates';
+  String get visitWebsite => isZh ? '访问官网' : 'Visit Website';
+  String get productWebsiteTitle => isZh ? 'Eir 网页版' : 'Eir Web App';
+  String get productWebsiteUrl => 'https://eir.norns.cc.cd';
+  String get githubRepoTitle => isZh ? 'GitHub 开源主页' : 'GitHub Repository';
+  String get githubRepoUrl => 'https://github.com/NornsInteractive/Eir';
+  String get copyrightText => '© 2026 Norns Interactive. All rights reserved.';
+  String get poweredByNorns => isZh ? '由 Norns Interactive 倾心打造' : 'Crafted by Norns Interactive';
+  String get advancedTurnSection => isZh ? '高级穿透配置 (STUN / TURN)' : 'Advanced NAT Traversal (STUN / TURN)';
+  String get advancedTurnDesc => isZh
+      ? '系统默认已接入全球边缘穿透集群，日常使用无需修改'
+      : 'Connected to global relay cluster by default. Manual modification unnecessary.';
+  String get advancedTurnToggleShow => isZh ? '展开高级穿透配置' : 'Show Advanced NAT Traversal';
+  String get advancedTurnToggleHide => isZh ? '收起高级穿透配置' : 'Hide Advanced NAT Traversal';
 
   String get danmakuToggle => isZh ? '弹幕' : 'Danmaku';
   String get danmakuEnabled => isZh ? '弹幕已开启' : 'Danmaku enabled';

@@ -1,11 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
-import '../app_localization.dart';
 import '../apple_glass.dart';
-import '../core/call_session.dart' show ChatMessage;
 import '../core/room_session.dart';
-import '../core/screen_share_service.dart';
 
 /// Draggable Floating Chat Capsule for Screen Sharing (Broadcaster & Viewer)
 /// Allows user to move a chat bubble anywhere on screen and tap to chat.

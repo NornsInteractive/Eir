@@ -1,13 +1,10 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../core/room_session.dart';
-import '../core/screen_share_service.dart';
 import 'screen_source_picker_dialog.dart';
 import 'draggable_cast_chat_capsule.dart';
 import 'floating_emoji_reactions.dart';
@@ -133,8 +130,6 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
   @override
   Widget build(BuildContext context) {
     final i18n = AppI18n.of(context);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final tc = ThemeColors.of(context);
 
     final isBroadcasting = _service.isBroadcasting;

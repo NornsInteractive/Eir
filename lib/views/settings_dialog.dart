@@ -2,12 +2,16 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../models.dart';
 import '../core/app_icon_manager.dart';
 import '../core/remote_config_service.dart';
 import '../core/turn_diagnostic_service.dart';
+import '../core/update_service.dart';
+import '../widgets/app_logo.dart';
 import 'color_picker_dialog.dart';
 
 class SettingsDialog extends StatefulWidget {
@@ -28,7 +32,8 @@ class SettingsDialog extends StatefulWidget {
 }
 
 class _SettingsDialogState extends State<SettingsDialog> {
-  int _selectedCategory = 0; // 0: All, 1: Personalization, 2: Network, 3: System
+  int _selectedCategory = 0; // 0: All, 1: Personalization, 2: Network, 3: System, 4: About
+  bool _showAdvancedTurn = false;
   late final TextEditingController _serverDomainController;
   late final TextEditingController _signalingController;
   late final TextEditingController _turnServerController;
@@ -419,12 +424,12 @@ class _SettingsDialogState extends State<SettingsDialog> {
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxWidth: 580,
+                  maxWidth: isMobile ? screenWidth - 16 : 640,
                   maxHeight: maxDialogHeight,
                 ),
                 child: Container(
                   margin: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 12 : 24,
+                    horizontal: isMobile ? 8 : 20,
                     vertical: verticalMargin,
                   ),
                   child: GlassContainer.card(
@@ -494,6 +499,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                             GlassSegment(label: i18n.tabPersonalization),
                             GlassSegment(label: i18n.tabNetwork),
                             GlassSegment(label: i18n.tabSystem),
+                            GlassSegment(label: i18n.aboutEir),
                           ],
                         ),
                         const SizedBox(height: 14),
@@ -516,6 +522,10 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                 ],
                                 if (_selectedCategory == 0 || _selectedCategory == 3) ...[
                                   _buildSystemSection(context, i18n, tc, settings),
+                                  if (_selectedCategory == 0) const SizedBox(height: 20),
+                                ],
+                                if (_selectedCategory == 0 || _selectedCategory == 4) ...[
+                                  _buildAboutSection(context, i18n, tc, settings),
                                 ],
                               ],
                             ),
@@ -553,49 +563,35 @@ class _SettingsDialogState extends State<SettingsDialog> {
     );
   }
 
-  Widget _buildSectionHeader(BuildContext context, {required IconData icon, required String title}) {
+  Widget _buildSectionHeader(BuildContext context, {IconData? icon, required String title}) {
     final tc = ThemeColors.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: tc.primary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: tc.primary),
-          const SizedBox(width: 6),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: tc.primary,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(left: 2, bottom: 8, top: 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w700,
+          color: tc.primary,
+          letterSpacing: -0.2,
+        ),
       ),
     );
   }
 
-  Widget _buildSubSectionTitle(BuildContext context, {required String title, required IconData icon}) {
+  Widget _buildSubSectionTitle(BuildContext context, {required String title, IconData? icon}) {
     final tc = ThemeColors.of(context);
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: tc.textSecondary),
-        const SizedBox(width: 6),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: tc.textSecondary,
-            letterSpacing: -0.1,
-          ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: tc.textPrimary,
+          letterSpacing: -0.1,
         ),
-      ],
+      ),
     );
   }
 
@@ -913,153 +909,201 @@ class _SettingsDialogState extends State<SettingsDialog> {
                 ),
               const SizedBox(height: 14),
               Divider(height: 1, color: tc.glassBorder),
-              const SizedBox(height: 12),
-              Text(
-                i18n.turnServer,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: tc.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              GlassTextField(
-                controller: _turnServerController,
-                placeholder: "ip.norns.cc.cd:3478",
-                height: 38,
-                surfaceStyle: GlassSurfaceStyle.solid,
-                color: Colors.transparent,
-                textStyle: TextStyle(color: tc.textPrimary, fontSize: 12),
-                placeholderStyle:
-                    TextStyle(color: tc.textTertiary, fontSize: 12),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: GlassTextField(
-                      controller: _turnUsernameController,
-                      placeholder: "norns",
-                      height: 38,
-                      surfaceStyle: GlassSurfaceStyle.solid,
-                      color: Colors.transparent,
-                      textStyle: TextStyle(color: tc.textPrimary, fontSize: 12),
-                      placeholderStyle:
-                          TextStyle(color: tc.textTertiary, fontSize: 12),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: GlassTextField(
-                      controller: _turnCredentialController,
-                      placeholder: "norns",
-                      obscureText: true,
-                      height: 38,
-                      surfaceStyle: GlassSurfaceStyle.solid,
-                      color: Colors.transparent,
-                      textStyle: TextStyle(color: tc.textPrimary, fontSize: 12),
-                      placeholderStyle:
-                          TextStyle(color: tc.textTertiary, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  LiquidGlassActionButton(
-                    height: 32,
-                    onTap: _isTestingTurn ? () {} : _handleTestTurnConfig,
-                    child: _isTestingTurn
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                width: 12,
-                                height: 12,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 1.5,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    tc.textPrimary,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                i18n.testingTurnConnection,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ],
-                          )
-                        : Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.network_check_rounded,
-                                size: 14,
+              InkWell(
+                onTap: () => setState(() => _showAdvancedTurn = !_showAdvancedTurn),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              i18n.advancedTurnSection,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
                                 color: tc.textPrimary,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                i18n.testTurnConnection,
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ],
-                          ),
-                  ),
-                  const SizedBox(width: 8),
-                  LiquidGlassActionButton(
-                    height: 32,
-                    onTap: _isSavingTurn ? () {} : _handleSaveTurnConfig,
-                    child: _isSavingTurn
-                        ? SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                tc.textPrimary,
-                              ),
                             ),
-                          )
-                        : Text(
-                            i18n.save,
-                            style: const TextStyle(fontSize: 12),
-                          ),
+                            const SizedBox(height: 2),
+                            Text(
+                              i18n.advancedTurnDesc,
+                              style: TextStyle(fontSize: 11, color: tc.textTertiary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        _showAdvancedTurn ? i18n.advancedTurnToggleHide : i18n.advancedTurnToggleShow,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: tc.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        _showAdvancedTurn ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                        size: 16,
+                        color: tc.primary,
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-              if (_turnTestFeedback != null) ...[
+              if (_showAdvancedTurn) ...[
+                const SizedBox(height: 10),
+                Text(
+                  i18n.turnServer,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: tc.textSecondary,
+                  ),
+                ),
                 const SizedBox(height: 6),
+                GlassTextField(
+                  controller: _turnServerController,
+                  placeholder: "ip.norns.cc.cd:3478",
+                  height: 38,
+                  surfaceStyle: GlassSurfaceStyle.solid,
+                  color: Colors.transparent,
+                  textStyle: TextStyle(color: tc.textPrimary, fontSize: 12),
+                  placeholderStyle:
+                      TextStyle(color: tc.textTertiary, fontSize: 12),
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(
-                      _turnTestIsError
-                          ? Icons.error_outline_rounded
-                          : Icons.check_circle_outline_rounded,
-                      size: 13,
-                      color: _turnTestIsError ? tc.warning : tc.success,
-                    ),
-                    const SizedBox(width: 4),
                     Expanded(
-                      child: Text(
-                        _turnTestFeedback!,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _turnTestIsError ? tc.warning : tc.success,
-                        ),
+                      child: GlassTextField(
+                        controller: _turnUsernameController,
+                        placeholder: "norns",
+                        height: 38,
+                        surfaceStyle: GlassSurfaceStyle.solid,
+                        color: Colors.transparent,
+                        textStyle: TextStyle(color: tc.textPrimary, fontSize: 12),
+                        placeholderStyle:
+                            TextStyle(color: tc.textTertiary, fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: GlassTextField(
+                        controller: _turnCredentialController,
+                        placeholder: "norns",
+                        obscureText: true,
+                        height: 38,
+                        surfaceStyle: GlassSurfaceStyle.solid,
+                        color: Colors.transparent,
+                        textStyle: TextStyle(color: tc.textPrimary, fontSize: 12),
+                        placeholderStyle:
+                            TextStyle(color: tc.textTertiary, fontSize: 12),
                       ),
                     ),
                   ],
                 ),
-              ],
-              if (_turnFeedback != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  _turnFeedback!,
-                  style: TextStyle(fontSize: 11, color: tc.success),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    LiquidGlassActionButton(
+                      height: 32,
+                      onTap: _isTestingTurn ? () {} : _handleTestTurnConfig,
+                      child: _isTestingTurn
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      tc.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  i18n.testingTurnConnection,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            )
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.network_check_rounded,
+                                  size: 14,
+                                  color: tc.textPrimary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  i18n.testTurnConnection,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            ),
+                    ),
+                    const SizedBox(width: 8),
+                    LiquidGlassActionButton(
+                      height: 32,
+                      onTap: _isSavingTurn ? () {} : _handleSaveTurnConfig,
+                      child: _isSavingTurn
+                          ? SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  tc.textPrimary,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              i18n.save,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                    ),
+                  ],
                 ),
+                if (_turnTestFeedback != null) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        _turnTestIsError
+                            ? Icons.error_outline_rounded
+                            : Icons.check_circle_outline_rounded,
+                        size: 13,
+                        color: _turnTestIsError ? tc.warning : tc.success,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          _turnTestFeedback!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _turnTestIsError ? tc.warning : tc.success,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (_turnFeedback != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    _turnFeedback!,
+                    style: TextStyle(fontSize: 11, color: tc.success),
+                  ),
+                ],
               ],
             ],
           ),
@@ -1856,6 +1900,217 @@ class _SettingsDialogState extends State<SettingsDialog> {
               color: tc.textPrimary,
               fontWeight: FontWeight.w500,
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAboutSection(
+      BuildContext context, AppI18n i18n, ThemeColors tc, AppSettings settings) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader(
+          context,
+          title: i18n.aboutEir,
+        ),
+        const SizedBox(height: 6),
+        GlassContainer.card(
+          surfaceStyle: GlassSurfaceStyle.solid,
+          color: tc.inputBackground,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Logo + App Name + Version Tag
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: tc.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Center(
+                      child: AppLogo(size: 20, color: Colors.white, useGradient: false, hasGlow: false),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Eir',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.4,
+                            color: tc.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          i18n.footerText,
+                          style: TextStyle(fontSize: 11.5, color: tc.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: tc.primary.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'v${UpdateService.currentVersionName}',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: tc.primary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Divider(height: 1, color: tc.glassBorder),
+              const SizedBox(height: 12),
+
+              // Organization Row
+              Row(
+                children: [
+                  Text(
+                    i18n.organizationTitle,
+                    style: TextStyle(fontSize: 12.5, color: tc.textSecondary),
+                  ),
+                  const Spacer(),
+                  Text(
+                    i18n.organizationName,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: tc.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Official Website Row (Tap to open browser, long press to copy)
+              GestureDetector(
+                onTap: () async {
+                  final uri = Uri.parse(i18n.officialWebsiteUrl);
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (_) {
+                    await launchUrl(uri, mode: LaunchMode.platformDefault);
+                  }
+                },
+                onLongPress: () {
+                  Clipboard.setData(ClipboardData(text: i18n.officialWebsiteUrl));
+                  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                    SnackBar(content: Text(i18n.copiedToClipboard), duration: const Duration(seconds: 1)),
+                  );
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  children: [
+                    Text(
+                      i18n.officialWebsiteTitle,
+                      style: TextStyle(fontSize: 12.5, color: tc.textSecondary),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'norns.cc.cd',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: tc.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.open_in_new_rounded, size: 14, color: tc.primary),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Web App Row
+              GestureDetector(
+                onTap: () async {
+                  final uri = Uri.parse(i18n.productWebsiteUrl);
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (_) {
+                    await launchUrl(uri, mode: LaunchMode.platformDefault);
+                  }
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  children: [
+                    Text(
+                      i18n.productWebsiteTitle,
+                      style: TextStyle(fontSize: 12.5, color: tc.textSecondary),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'eir.norns.cc.cd',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: tc.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.open_in_new_rounded, size: 14, color: tc.primary),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // GitHub Repo Row
+              GestureDetector(
+                onTap: () async {
+                  final uri = Uri.parse(i18n.githubRepoUrl);
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (_) {
+                    await launchUrl(uri, mode: LaunchMode.platformDefault);
+                  }
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  children: [
+                    Text(
+                      i18n.githubRepoTitle,
+                      style: TextStyle(fontSize: 12.5, color: tc.textSecondary),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'NornsInteractive/Eir',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: tc.textSecondary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.open_in_new_rounded, size: 13, color: tc.textTertiary),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: Text(
+                  i18n.copyrightText,
+                  style: TextStyle(fontSize: 11, color: tc.textTertiary),
+                ),
+              ),
+            ],
           ),
         ),
       ],

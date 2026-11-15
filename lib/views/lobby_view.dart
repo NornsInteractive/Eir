@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../models.dart';
@@ -396,8 +397,8 @@ class _LobbyViewState extends State<LobbyView> {
                               );
                             },
                             segments: const [
-                              GlassSegment(label: '⚡ WebRTC'),
-                              GlassSegment(label: '🚀 Tailcat'),
+                              GlassSegment(label: 'WebRTC'),
+                              GlassSegment(label: 'Tailcat'),
                             ],
                           ),
                         )
@@ -412,7 +413,7 @@ class _LobbyViewState extends State<LobbyView> {
                             border: Border.all(color: tc.glassBorder),
                           ),
                           child: const Text(
-                            '⚡ WebRTC',
+                            'WebRTC',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -615,14 +616,39 @@ class _LobbyViewState extends State<LobbyView> {
                               SizedBox(height: isShortWindow ? 24 : 48),
 
                               // Footer
-                              Text(
-                                i18n.footerText,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: tc.textTertiary,
-                                  letterSpacing: -0.2,
-                                ),
+                              Column(
+                                children: [
+                                  Text(
+                                    i18n.footerText,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: tc.textTertiary,
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  GestureDetector(
+                                    onTap: () async {
+                                      final uri = Uri.parse(i18n.officialWebsiteUrl);
+                                      try {
+                                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                      } catch (_) {
+                                        await launchUrl(uri, mode: LaunchMode.platformDefault);
+                                      }
+                                    },
+                                    child: Text(
+                                      '${i18n.poweredByNorns} · norns.cc.cd',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: tc.primary.withValues(alpha: 0.8),
+                                        letterSpacing: -0.1,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                               SizedBox(height: isShortWindow ? 12 : 24),
                             ],
@@ -869,9 +895,17 @@ class _LobbyViewState extends State<LobbyView> {
         _buildClipboardInviteBanner(context),
 
         // System Tag
-        GlassChip(
-          icon: const Icon(Icons.hub_rounded, size: 14),
-          label: i18n.heroBadge,
+        LiquidGlassTag(
+          color: tc.primary.withValues(alpha: 0.12),
+          child: Text(
+            i18n.heroBadge,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: tc.primary,
+              letterSpacing: 0.2,
+            ),
+          ),
         ),
         SizedBox(height: isShort ? 6 : 14),
 
