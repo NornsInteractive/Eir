@@ -105,8 +105,8 @@ class MediaProjectionService : Service() {
 
             manager.notify(CHAT_NOTIFICATION_ID, notification)
 
-            // Update floating overlay capsule
-            FloatingChatManager.onNewMessage(sender, text)
+            // Update floating overlay capsule with message ID for deduplication and persistence
+            FloatingChatManager.onNewMessage(sender, text, id)
         }
     }
 

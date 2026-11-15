@@ -300,6 +300,25 @@ class MainActivity : FlutterActivity() {
                 } catch (e: Exception) {
                     result.error("NOTIFICATION_ERROR", e.message, null)
                 }
+            } else if (call.method == "showScreenShareReaction") {
+                try {
+                    val emoji = call.argument<String>("emoji") ?: "❤️"
+                    FloatingChatManager.onReaction(emoji)
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("REACTION_ERROR", e.message, null)
+                }
+            } else if (call.method == "addChatMessageToOverlay") {
+                try {
+                    val id = call.argument<String>("id") ?: System.currentTimeMillis().toString()
+                    val sender = call.argument<String>("sender") ?: "我"
+                    val text = call.argument<String>("text") ?: ""
+                    val isMe = call.argument<Boolean>("isMe") ?: false
+                    FloatingChatManager.addMessage(id, sender, text, isMe)
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("CHAT_OVERLAY_ERROR", e.message, null)
+                }
             } else if (call.method == "checkOverlayPermission") {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     result.success(Settings.canDrawOverlays(applicationContext))

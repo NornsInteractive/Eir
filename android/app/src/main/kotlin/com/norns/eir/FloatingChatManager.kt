@@ -26,6 +26,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import java.util.Collections
+import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -50,9 +52,18 @@ object FloatingChatManager {
     private var bubbleParams: WindowManager.LayoutParams? = null
     private var dialogParams: WindowManager.LayoutParams? = null
 
+    data class ChatMessageItem(
+        val id: String,
+        val sender: String,
+        val text: String,
+        val isMe: Boolean,
+        val timestamp: Long
+    )
+
     private var isDialogShowing = false
     private var unreadCount = 0
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val chatHistory = Collections.synchronizedList(mutableListOf<ChatMessageItem>())
 
     private fun dpToPx(context: Context, dp: Float): Int {
         return TypedValue.applyDimension(
@@ -84,21 +95,41 @@ object FloatingChatManager {
     }
 
     /**
-     * Hide and remove the floating bubble and dialog.
+     * Hide and remove the floating bubble and dialog, and clear chat history.
      */
     fun dismiss() {
         mainHandler.post {
             try {
-                if (chatDialogView != null && windowManager != null) {
-                    windowManager?.removeViewImmediate(chatDialogView)
-                    chatDialogView = null
-                    isDialogShowing = false
-                }
+                closeChatDialog()
                 if (bubbleView != null && windowManager != null) {
                     windowManager?.removeViewImmediate(bubbleView)
                     bubbleView = null
                 }
                 unreadCount = 0
+                chatHistory.clear()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * Add and persist chat message into history, updating UI if open or incrementing unread badge.
+     */
+    fun addMessage(id: String, sender: String, text: String, isMe: Boolean) {
+        synchronized(chatHistory) {
+            if (chatHistory.any { it.id == id }) return
+            chatHistory.add(ChatMessageItem(id, sender, text, isMe, System.currentTimeMillis()))
+        }
+        mainHandler.post {
+            try {
+                if (!isMe && !isDialogShowing) {
+                    unreadCount++
+                    updateBadge()
+                }
+                if (isDialogShowing && messagesContainer != null) {
+                    appendMessageBubble(sender, text, isMe)
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -108,14 +139,66 @@ object FloatingChatManager {
     /**
      * Notify floating overlay of a new incoming message from viewer.
      */
-    fun onNewMessage(sender: String, text: String) {
+    fun onNewMessage(sender: String, text: String, id: String = UUID.randomUUID().toString()) {
+        addMessage(id, sender, text, isMe = false)
+    }
+
+    /**
+     * Show floating animated reaction emoji next to floating bubble over all apps.
+     */
+    fun onReaction(emoji: String) {
         mainHandler.post {
             try {
-                if (!isDialogShowing) {
-                    unreadCount++
-                    updateBadge()
+                val wm = windowManager ?: return@post
+                val context = appContext ?: return@post
+                val bubbleP = bubbleParams
+
+                val posX = bubbleP?.x ?: dpToPx(context, 20f)
+                val posY = bubbleP?.y ?: dpToPx(context, 120f)
+
+                val emojiView = TextView(context).apply {
+                    this.text = emoji
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 32f)
+                    gravity = Gravity.CENTER
                 }
-                appendMessage(sender, text, isMe = false)
+
+                val layoutType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    @Suppress("DEPRECATION")
+                    WindowManager.LayoutParams.TYPE_PHONE
+                }
+
+                val sizePx = dpToPx(context, 54f)
+                val params = WindowManager.LayoutParams(
+                    sizePx,
+                    sizePx,
+                    layoutType,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                    PixelFormat.TRANSLUCENT
+                ).apply {
+                    gravity = Gravity.TOP or Gravity.START
+                    x = posX + dpToPx(context, 4f)
+                    y = max(0, posY - dpToPx(context, 16f))
+                }
+
+                wm.addView(emojiView, params)
+
+                // Animate floating upwards, scale and fade out
+                emojiView.animate()
+                    .translationY(-dpToPx(context, 96f).toFloat())
+                    .alpha(0f)
+                    .scaleX(1.35f)
+                    .scaleY(1.35f)
+                    .setDuration(1600L)
+                    .withEndAction {
+                        try {
+                            wm.removeViewImmediate(emojiView)
+                        } catch (_: Exception) {}
+                    }
+                    .start()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -492,6 +575,20 @@ object FloatingChatManager {
 
         chatDialogView = root
         isDialogShowing = true
+        unreadCount = 0
+        updateBadge()
+
+        // Replay and populate all preserved chat history
+        messagesContainer?.removeAllViews()
+        synchronized(chatHistory) {
+            for (item in chatHistory) {
+                appendMessageBubble(item.sender, item.text, item.isMe)
+            }
+        }
+        messagesScrollView?.post {
+            messagesScrollView?.fullScroll(View.FOCUS_DOWN)
+        }
+
         wm.addView(root, params)
     }
 
@@ -501,13 +598,14 @@ object FloatingChatManager {
         if (text.isEmpty()) return
 
         et.setText("")
-        appendMessage("我", text, isMe = true)
+        val msgId = UUID.randomUUID().toString()
+        addMessage(msgId, "我", text, isMe = true)
 
         // Route message back to Flutter
         MainActivity.onReplyFromNotification(text)
     }
 
-    private fun appendMessage(sender: String, text: String, isMe: Boolean) {
+    private fun appendMessageBubble(sender: String, text: String, isMe: Boolean) {
         val container = messagesContainer ?: return
         val context = container.context ?: return
 

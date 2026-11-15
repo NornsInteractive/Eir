@@ -8,6 +8,7 @@ import '../apple_glass.dart';
 import '../core/room_session.dart';
 import '../core/screen_share_service.dart';
 import 'draggable_cast_chat_capsule.dart';
+import 'floating_emoji_reactions.dart';
 import 'screen_source_picker_dialog.dart';
 
 /// Dedicated Cast Control Dashboard for Screen Share Broadcaster
@@ -28,6 +29,8 @@ class ScreenShareBroadcasterView extends StatefulWidget {
 
 class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView> {
   Timer? _ticker;
+  final List<FloatingEmojiData> _activeReactions = [];
+  StreamSubscription<String>? _reactionSub;
 
   ScreenShareService get _service => widget.session.screenShareService;
 
@@ -35,6 +38,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
   void initState() {
     super.initState();
     _service.addListener(_onServiceUpdate);
+    _reactionSub = _service.onReaction.listen(_onReactionReceived);
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -43,8 +47,24 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
   @override
   void dispose() {
     _ticker?.cancel();
+    _reactionSub?.cancel();
     _service.removeListener(_onServiceUpdate);
     super.dispose();
+  }
+
+  void _onReactionReceived(String emoji) {
+    if (!mounted) return;
+    final item = FloatingEmojiData(
+      id: UniqueKey().toString(),
+      emoji: emoji,
+      startX: 0.75 + (DateTime.now().millisecond % 20) / 100.0,
+    );
+    setState(() => _activeReactions.add(item));
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      if (mounted) {
+        setState(() => _activeReactions.removeWhere((e) => e.id == item.id));
+      }
+    });
   }
 
   void _onServiceUpdate() {
@@ -590,6 +610,15 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
               ],
             ),
           ),
+
+          // 2.5 Floating Emoji Reactions Layer (Broadcaster Visibility)
+          ..._activeReactions.map((item) {
+            return FloatingEmojiWidget(
+              key: ValueKey(item.id),
+              emoji: item.emoji,
+              startX: item.startX,
+            );
+          }),
 
           // 3. Draggable Floating Chat Capsule (Requirement 5)
           DraggableCastChatCapsule(session: widget.session),

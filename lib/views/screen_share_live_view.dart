@@ -10,6 +10,7 @@ import '../core/room_session.dart';
 import '../core/screen_share_service.dart';
 import 'screen_source_picker_dialog.dart';
 import 'draggable_cast_chat_capsule.dart';
+import 'floating_emoji_reactions.dart';
 
 /// Fullscreen live canvas for 60 FPS screen and window sharing
 class ScreenShareLiveView extends StatefulWidget {
@@ -37,7 +38,7 @@ class ScreenShareLiveView extends StatefulWidget {
 class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
   bool _controlsVisible = true;
   bool _isFullscreen = false;
-  final List<_FloatingEmojiData> _activeReactions = [];
+  final List<FloatingEmojiData> _activeReactions = [];
   StreamSubscription<String>? _reactionSub;
   StreamSubscription<ChatMessage>? _chatSub;
   final List<_FloatingDanmakuItem> _activeDanmaku = [];
@@ -94,7 +95,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
 
   void _onReactionReceived(String emoji) {
     if (!mounted) return;
-    final item = _FloatingEmojiData(
+    final item = FloatingEmojiData(
       id: UniqueKey().toString(),
       emoji: emoji,
       startX: 0.7 + (DateTime.now().millisecond % 25) / 100.0,
@@ -169,7 +170,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
 
             // 1.5 Floating Emoji Reactions Layer
             ..._activeReactions.map((item) {
-              return _FloatingEmojiWidget(
+              return FloatingEmojiWidget(
                 key: ValueKey(item.id),
                 emoji: item.emoji,
                 startX: item.startX,
@@ -1232,81 +1233,6 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _FloatingEmojiData {
-  final String id;
-  final String emoji;
-  final double startX;
-
-  _FloatingEmojiData({
-    required this.id,
-    required this.emoji,
-    required this.startX,
-  });
-}
-
-class _FloatingEmojiWidget extends StatefulWidget {
-  final String emoji;
-  final double startX;
-
-  const _FloatingEmojiWidget({
-    super.key,
-    required this.emoji,
-    required this.startX,
-  });
-
-  @override
-  State<_FloatingEmojiWidget> createState() => _FloatingEmojiWidgetState();
-}
-
-class _FloatingEmojiWidgetState extends State<_FloatingEmojiWidget> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _progress;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..forward();
-    _progress = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final val = _progress.value;
-        final opacity = (1.0 - val).clamp(0.0, 1.0);
-        final bottomOffset = 100.0 + val * 380.0;
-        final xWobble = math.sin(val * math.pi * 3) * 16.0;
-
-        return Positioned(
-          bottom: bottomOffset,
-          right: (MediaQuery.of(context).size.width * (1.0 - widget.startX)) + xWobble,
-          child: Opacity(
-            opacity: opacity,
-            child: Transform.scale(
-              scale: 0.8 + val * 0.5,
-              child: Text(
-                widget.emoji,
-                style: const TextStyle(fontSize: 32),
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

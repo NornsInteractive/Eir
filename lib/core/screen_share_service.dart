@@ -703,6 +703,18 @@ class ScreenShareService extends ChangeNotifier {
         final emoji = data['emoji'] as String?;
         if (emoji != null && emoji.isNotEmpty) {
           _reactionController.add(emoji);
+          if (!kIsWeb && WebRTC.platformIsAndroid && isBroadcasting) {
+            try {
+              const MethodChannel('com.norns.eir/media_picker').invokeMethod(
+                'showScreenShareReaction',
+                {'emoji': emoji},
+              );
+            } catch (e) {
+              debugPrint(
+                '[ScreenShareService] showScreenShareReaction error: $e',
+              );
+            }
+          }
         }
         break;
 
@@ -965,6 +977,24 @@ class ScreenShareService extends ChangeNotifier {
     _messages.add(msg);
     _chatController.add(msg);
     notifyListeners();
+
+    if (!kIsWeb && WebRTC.platformIsAndroid && isBroadcasting) {
+      try {
+        const MethodChannel('com.norns.eir/media_picker').invokeMethod(
+          'addChatMessageToOverlay',
+          {
+            'id': msg.id,
+            'sender': msg.senderName,
+            'text': msg.text,
+            'isMe': true,
+          },
+        );
+      } catch (e) {
+        debugPrint(
+          '[ScreenShareService] addChatMessageToOverlay error: $e',
+        );
+      }
+    }
 
     try {
       await sendSignal({
