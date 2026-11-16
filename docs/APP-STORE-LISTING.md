@@ -298,3 +298,39 @@ Eir 是一款去中心化、免账户体系的跨平台同步观影与屏幕共�
 5. ⚙️ Diagnostic and NAT traversal upgrades with real-time multi-language STUN/TURN probing.
 6. 🛡️ Updated privacy policies and hardened end-to-end P2P encryption standards.
 ```
+
+---
+
+## 10. 微软应用商店 (Microsoft Store / Partner Center) 上架专区
+
+本节专门针对将 Eir 发布至 **微软合作伙伴中心 (Microsoft Partner Center)** 的提报流程与参数指引。
+
+### 10.1 产品标识配置 (Product Identity)
+在 Partner Center -> 应用概览 -> **产品标识 (Product Identity)** 中可找到您账号分配的参数。默认打包标识已固化在 [tool/windows_store_identity.json](file:///workspace/projects/Eir/tool/windows_store_identity.json)：
+
+```json
+{
+  "Name": "NornsInteractive.Eir",
+  "Publisher": "CN=257586C2-E7B0-47F3-BAED-A744A66748A1",
+  "PublisherDisplayName": "Norns",
+  "DisplayName": "Eir"
+}
+```
+> [!NOTE]
+> 如果您在微软合作伙伴中心后台预留的应用名称（Package Name）或发布者 CN 与上述值有差异，只需在 `tool/windows_store_identity.json` 中修改对应字段，重新运行打包即可生成完全匹配的 MSIX 安装包。
+
+### 10.2 程序包上传 (Packages)
+- **上传格式**：MSIX 程序包 (`eir-1.0.40.0-windows-x64-store.msix`)
+- **适用架构**：x64 (Windows 10 19041+ / Windows 11 全版本)
+- **签名说明**：微软应用商店采用**后台自动代签机制**。开发者上传未签名或自签名的 MSIX 后，微软商店引入管道会在审核发布时自动使用微软官方受信任证书对程序包执行二次签名，因此用户从商店安装时无需导入根证书即可无缝安装。
+
+### 10.3 关键申报选项 (Store Submission Declarations)
+1. **产品属性 (Properties)**:
+   - 类别 (Category): **Entertainment**（娱乐）或 **Photo & video**（照片与视频）
+   - 隐私政策 URL: `https://github.com/NornsInteractive/Eir/blob/main/PRIVACY.md`
+   - 技术支持联系邮箱: `support@norns.cc.cd`
+2. **受限功能申明 (Restricted Capabilities)**:
+   - 本应用声明包含 `runFullTrust`（标准 Flutter/Win32 桌面完整运行权限）。在审核提交时若提示需要填写声明理由，填入：  
+     `Eir is a Flutter desktop application that requires standard Win32 execution to access local video playback and native networking for real-time WebRTC co-watching and screen casting.`
+3. **内容分级 (Age Ratings)**:
+   - 选择通过 IARC 问卷评级，选择无暴力、无色情，仅含实时网络文字与音视频互动，即可获得全球全年龄 / 12+ 评级。

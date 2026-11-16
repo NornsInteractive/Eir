@@ -1,0 +1,97 @@
+name: Windows Build & Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v[0-9]*']
+    paths:
+      - 'lib/**'
+      - 'windows/**'
+      - 'assets/**'
+      - 'tool/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/windows-build.yml'
+
+permissions:
+  contents: write
+
+env:
+  EIR_PUBLISHER: 'Norns Interactive'
+
+jobs:
+  build-windows:
+    name: Windows x64 release & MSIX
+    runs-on: windows-2022
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.1'
+          channel: stable
+          architecture: x64
+          cache: true
+
+      - name: Get Dependencies
+        run: flutter pub get
+
+      - name: Build Windows Release
+        run: flutter build windows --release
+
+      - name: Stage VC++ Redistributable Runtime DLLs
+        run: |
+          $bundle = 'build\windows\x64\runner\Release'
+          $redistDirs = @(
+            (Get-ChildItem -Path "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC\*\x64\Microsoft.VC143.CRT" -ErrorAction SilentlyContinue | Select-Object -First 1),
+            (Get-ChildItem -Path "C:\Program Files (x86)\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC\*\x64\Microsoft.VC143.CRT" -ErrorAction SilentlyContinue | Select-Object -First 1)
+          )
+          $redist = ($redistDirs | Where-Object { $_ } | Select-Object -First 1).FullName
+          if ($redist) {
+            Write-Host "Staging VC++ redist DLLs from $redist"
+            foreach ($dll in @('vcruntime140.dll', 'msvcp140.dll', 'vcruntime140_1.dll')) {
+              $src = Join-Path $redist $dll
+              if (Test-Path $src) {
+                Copy-Item $src (Join-Path $bundle $dll) -Force
+              }
+            }
+          }
+          foreach ($dll in @('vcruntime140.dll', 'msvcp140.dll', 'vcruntime140_1.dll')) {
+            $dest = Join-Path $bundle $dll
+            if (-not (Test-Path $dest)) {
+              if (Test-Path "C:\Windows\System32\$dll") {
+                Copy-Item "C:\Windows\System32\$dll" $dest -Force
+                Write-Host "Copied $dll from System32"
+              }
+            }
+          }
+
+      - name: Package Windows Store MSIX
+        run: |
+          & tool\package_windows_msix.ps1 -Project .
+
+      - name: Package Portable ZIP
+        run: |
+          $bundle = 'build\windows\x64\runner\Release'
+          $output = 'build\windows-artifacts'
+          New-Item -ItemType Directory -Path $output -Force | Out-Null
+          $zip = Join-Path $output "eir-windows-x64-release.zip"
+          Compress-Archive -Path "$bundle\*" -DestinationPath $zip -CompressionLevel Optimal
+          $digest = Get-FileHash $zip -Algorithm SHA256
+          "$($digest.Hash.ToLower())  $([IO.Path]::GetFileName($zip))" | Set-Content "$zip.sha256" -Encoding ascii
+          Write-Host "Portable ZIP created: $zip"
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: eir-windows-artifacts
+          path: build/windows-artifacts/
+          if-no-files-found: error
+          retention-days: 14

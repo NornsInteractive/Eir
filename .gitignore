@@ -58,6 +58,8 @@ build/
 **/android/.cxx/
 *.apk
 *.aab
+*.msix
+*.zip
 *.ap_
 
 # Keystores, certificates and private keys
