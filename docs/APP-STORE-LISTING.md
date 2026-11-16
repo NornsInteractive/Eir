@@ -310,10 +310,10 @@ Eir 是一款去中心化、免账户体系的跨平台同步观影与屏幕共�
 
 ```json
 {
-  "Name": "NornsInteractive.Eir",
+  "Name": "Norns.Eir-SynchronizedWatchParty",
   "Publisher": "CN=257586C2-E7B0-47F3-BAED-A744A66748A1",
   "PublisherDisplayName": "Norns",
-  "DisplayName": "Eir"
+  "DisplayName": "Eir-SynchronizedWatchParty"
 }
 ```
 > [!NOTE]
