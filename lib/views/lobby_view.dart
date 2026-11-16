@@ -263,9 +263,7 @@ class _LobbyViewState extends State<LobbyView> {
       showLiquidGlassSnackBar(
         context,
         owner: this,
-        message: i18n.isZh
-            ? '无法读取剪贴板，请直接在输入框中粘贴邀请内容'
-            : 'Clipboard access unavailable, please paste directly into the input',
+        message: i18n.clipboardReadFailed,
         icon: Icons.info_outline_rounded,
         duration: const Duration(seconds: 3),
       );
@@ -496,7 +494,7 @@ class _LobbyViewState extends State<LobbyView> {
                                 ),
                                 const SizedBox(width: 5),
                                 Text(
-                                  i18n.isZh ? '下载 App' : 'Download App',
+                                  i18n.downloadApp,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -768,17 +766,15 @@ class _LobbyViewState extends State<LobbyView> {
   String _formatRelativeTime(int timestampMs, AppI18n i18n) {
     if (timestampMs <= 0) return '';
     final diff = DateTime.now().millisecondsSinceEpoch - timestampMs;
-    if (diff < 60000) return i18n.isZh ? '刚刚' : 'Just now';
-    if (diff < 3600000)
-      return i18n.isZh
-          ? '${(diff / 60000).floor()} 分钟前'
-          : '${(diff / 60000).floor()}m ago';
-    if (diff < 86400000)
-      return i18n.isZh
-          ? '${(diff / 3600000).floor()} 小时前'
-          : '${(diff / 3600000).floor()}h ago';
+    if (diff < 60000) return i18n.timeJustNow;
+    if (diff < 3600000) {
+      return i18n.timeMinutesAgo((diff / 60000).floor());
+    }
+    if (diff < 86400000) {
+      return i18n.timeHoursAgo((diff / 3600000).floor());
+    }
     final days = (diff / 86400000).floor();
-    return i18n.isZh ? '$days 天前' : '${days}d ago';
+    return i18n.timeDaysAgo(days);
   }
 
   Widget _buildWelcomeHeader(
@@ -1285,7 +1281,7 @@ class _LobbyViewState extends State<LobbyView> {
                                 children: [
                                   Flexible(
                                     child: Text(
-                                      room.displayTitle,
+                                      room.getLocalizedDisplayTitle(i18n),
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
@@ -1311,8 +1307,8 @@ class _LobbyViewState extends State<LobbyView> {
                                     ),
                                     child: Text(
                                       room.isOwner
-                                          ? (i18n.isZh ? '房主' : 'Host')
-                                          : (i18n.isZh ? '访客' : 'Guest'),
+                                          ? i18n.roleHostShort
+                                          : i18n.roleGuestShort,
                                       style: TextStyle(
                                         fontSize: 9.5,
                                         fontWeight: FontWeight.w600,
@@ -1326,7 +1322,7 @@ class _LobbyViewState extends State<LobbyView> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '${i18n.isZh ? '最后访问: ' : 'Visited: '}$relativeTime',
+                                i18n.lastVisited(relativeTime),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: tc.textTertiary,

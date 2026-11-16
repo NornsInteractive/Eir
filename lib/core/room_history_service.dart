@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../app_localization.dart';
 
 /// Represents a recently visited cinema room.
 class RecentRoom {
@@ -42,7 +43,11 @@ class RecentRoom {
 
   String get displayTitle => roomName.isNotEmpty
       ? roomName
-      : '放映室 #${roomCode.length > 8 ? roomCode.substring(0, 8) : roomCode}';
+      : 'Cinema #${roomCode.length > 8 ? roomCode.substring(0, 8) : roomCode}';
+
+  String getLocalizedDisplayTitle(AppI18n i18n) => roomName.isNotEmpty
+      ? roomName
+      : i18n.fallbackRoomName(roomCode.length > 8 ? roomCode.substring(0, 8) : roomCode);
 
   bool get isOwner => role == 'owner';
 }
@@ -110,9 +115,7 @@ class RoomHistoryService {
           .toList();
 
       // Add to front
-      final effectiveTitle = (roomName ?? title)?.trim().isNotEmpty == true
-          ? (roomName ?? title)!.trim()
-          : '放映室 #${effectiveCode.length > 8 ? effectiveCode.substring(0, 8) : effectiveCode}';
+      final effectiveTitle = (roomName ?? title)?.trim() ?? '';
 
       updated.insert(
         0,

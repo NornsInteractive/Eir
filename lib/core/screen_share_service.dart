@@ -131,11 +131,11 @@ class ScreenShareService extends ChangeNotifier {
   RTCRtpSender? _cameraSender;
 
   // Stream health statistics
-  int _rttMs = 0;
+  final int _rttMs = 0;
   int get rttMs => _rttMs;
-  double _bitrateMbps = 0.0;
+  final double _bitrateMbps = 0.0;
   double get bitrateMbps => _bitrateMbps;
-  double _packetLoss = 0.0;
+  final double _packetLoss = 0.0;
   double get packetLoss => _packetLoss;
 
   bool _isMuted = false;
@@ -208,7 +208,7 @@ class ScreenShareService extends ChangeNotifier {
     _targetFps = targetFps;
     _isAudioEnabled = shareAudio;
     _sourceTitle =
-        customTitle ?? source?.name ?? (source == null ? '全屏幕' : '应用窗口');
+        customTitle ?? source?.name ?? (source == null ? 'Entire Screen' : 'App Window');
     _sourceType = source?.type == SourceType.Window ? 'window' : 'screen';
     _lastError = null;
     notifyListeners();
@@ -232,7 +232,7 @@ class ScreenShareService extends ChangeNotifier {
           debugPrint('[ScreenShareService] Screen capture permission denied by user.');
           _state = ScreenShareState.idle;
           _role = ScreenShareRole.none;
-          _lastError = '用户取消或未授予屏幕录制权限';
+          _lastError = 'Screen capture permission denied or cancelled by user';
           _cleanup();
           notifyListeners();
           return false;

@@ -245,12 +245,13 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                       IconButton(
                         icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                         onPressed: () async {
+                          final nav = Navigator.of(context);
                           await _service.stop(reason: 'user_exit');
                           await widget.session.leaveRoom();
                           if (widget.onExit != null) {
                             widget.onExit!();
                           } else if (mounted) {
-                            Navigator.of(context).maybePop();
+                            nav.maybePop();
                           }
                         },
                       ),
@@ -282,7 +283,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                                 const Icon(Icons.tag_rounded, color: Colors.white70, size: 14),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '投屏码: $code',
+                                  i18n.castCodeWithVal(code),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 12.5,
@@ -419,7 +420,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                                 )
                               : null,
                           child: IconButton(
-                            tooltip: _service.isMicEnabled ? '关闭对讲' : '开启对讲',
+                            tooltip: _service.isMicEnabled ? i18n.disableTalkbackTooltip : i18n.enableTalkbackTooltip,
                             icon: Icon(
                               _service.isMicEnabled ? Icons.mic_rounded : Icons.mic_off_rounded,
                               color: _service.isMicEnabled ? Colors.greenAccent : Colors.white70,
@@ -431,7 +432,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
 
                         // Camera PiP Video Talkback
                         IconButton(
-                          tooltip: _service.isCameraEnabled ? '关闭摄像头' : i18n.cameraToggle,
+                          tooltip: _service.isCameraEnabled ? i18n.disableCameraTooltip : i18n.cameraToggle,
                           icon: Icon(
                             _service.isCameraEnabled ? Icons.videocam_rounded : Icons.videocam_off_rounded,
                             color: _service.isCameraEnabled ? Colors.greenAccent : Colors.white70,
@@ -506,7 +507,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
 
                         // Fullscreen Toggle
                         IconButton(
-                          tooltip: _isFullscreen ? '退出全屏' : '全屏',
+                          tooltip: _isFullscreen ? i18n.exitFullscreen : i18n.fullscreen,
                           icon: Icon(
                             _isFullscreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
                             color: Colors.white,
@@ -528,16 +529,17 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                           ),
                           icon: const Icon(Icons.stop_rounded, size: 18),
                           label: Text(
-                            isBroadcasting ? i18n.stopScreenShare : '退出观看',
+                            isBroadcasting ? i18n.stopScreenShare : i18n.exitWatchingCast,
                             style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
                           ),
                           onPressed: () async {
+                            final nav = Navigator.of(context);
                             await _service.stop(reason: 'user_exit');
                             await widget.session.leaveRoom();
                             if (widget.onExit != null) {
                               widget.onExit!();
                             } else if (mounted) {
-                              Navigator.of(context).maybePop();
+                              nav.maybePop();
                             }
                           },
                         ),
@@ -760,7 +762,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
-                          children: ['收到！', '好的', '看这里', '太赞了', '👍', '❤️', '666'].map((phrase) {
+                          children: i18n.quickReactionPhrases.map((phrase) {
                             return Padding(
                               padding: const EdgeInsets.only(right: 6),
                               child: InkWell(
@@ -983,7 +985,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '连麦说话时自动压低画面伴音40%',
+                                    i18n.audioDuckingShortDesc,
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: tc.textTertiary,
@@ -1078,7 +1080,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                   const Divider(height: 16),
                   _buildMetricRow(i18n.packetLossMetric, '${(_service.packetLoss * 100).toStringAsFixed(1)}%', tc.success, tc),
                   const Divider(height: 16),
-                  _buildMetricRow('画面比例模式', _service.isCoverMode ? i18n.aspectRatioCover : i18n.aspectRatioContain, tc.textSecondary, tc),
+                  _buildMetricRow(i18n.aspectRatioMode, _service.isCoverMode ? i18n.aspectRatioCover : i18n.aspectRatioContain, tc.textSecondary, tc),
                 ],
               ),
             ),
@@ -1114,6 +1116,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
   }
 
   Widget _buildConnectingOverlay(BuildContext context, ThemeColors tc, bool isBroadcasting) {
+    final i18n = AppI18n.of(context);
     final castCode = _service.activeCastCode ?? '';
     final isStalled = _waitingSeconds >= 8;
 
@@ -1161,7 +1164,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
               ),
               const SizedBox(height: 18),
               Text(
-                castCode.isNotEmpty ? '正在连接投屏 [$castCode]' : '正在同步投屏画面',
+                castCode.isNotEmpty ? i18n.connectingToCastWithCode(castCode) : i18n.syncingCastStream,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -1171,7 +1174,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
               ),
               const SizedBox(height: 8),
               Text(
-                isStalled ? '直连通道建立耗时较长，请检查投屏方状态' : '正在与投屏方建立 P2P 加密直连通道...',
+                isStalled ? i18n.directChannelStalledHint : i18n.establishingP2pDirect,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: isStalled ? Colors.amberAccent : Colors.white70,
@@ -1188,7 +1191,7 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                       child: LiquidGlassActionButton(
                         height: 38,
                         onTap: () => Navigator.of(context).maybePop(),
-                        child: const Text('返回大厅', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        child: Text(i18n.backToLobby, style: const TextStyle(color: Colors.white70, fontSize: 13)),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -1200,12 +1203,12 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                           setState(() => _waitingSeconds = 0);
                           _service.retryViewerHandshake();
                         },
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.refresh_rounded, size: 15),
-                            SizedBox(width: 4),
-                            Text('重新直连', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                            const Icon(Icons.refresh_rounded, size: 15),
+                            const SizedBox(width: 4),
+                            Text(i18n.retryDirectConnection, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -1324,6 +1327,7 @@ class _FloatingCameraPiPCapsule extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final i18n = AppI18n.of(context);
     final isLocal = service.isCameraEnabled;
     final renderer = isLocal ? service.localCameraRenderer : service.remoteCameraRenderer;
 
@@ -1386,7 +1390,7 @@ class _FloatingCameraPiPCapsule extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        isLocal ? '本机' : '连麦',
+                        isLocal ? i18n.localDeviceTag : i18n.remoteTalkbackTag,
                         style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
                       ),
                     ],

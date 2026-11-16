@@ -101,6 +101,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     final opts = await ScreenSourcePickerDialog.show(context);
     if (opts == null || !mounted) return;
 
+    final i18n = AppI18n.of(context);
     setState(() {
       _isConnecting = true;
       _errorMessage = null;
@@ -114,7 +115,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
 
       final castCode = widget.session.roomCode;
       if (castCode == null || castCode.isEmpty) {
-        throw StateError(widget.session.lastErrorCode ?? '信令服务无法创建投屏房间，请检查网络连接');
+        throw StateError(widget.session.lastErrorCode ?? i18n.signalingCreateCastFailed);
       }
 
       final success = await _service.startBroadcasting(
@@ -127,7 +128,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
       );
 
       if (!success && mounted) {
-        setState(() => _errorMessage = _service.lastError ?? '投屏发起失败');
+        setState(() => _errorMessage = _service.lastError ?? i18n.startCastFailed);
       }
     } catch (e) {
       if (mounted) setState(() => _errorMessage = e.toString());
@@ -137,9 +138,10 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
   }
 
   Future<void> _handleJoinCast([String? explicitCode]) async {
+    final i18n = AppI18n.of(context);
     final code = (explicitCode ?? _codeController.text).trim();
     if (code.length != 6) {
-      setState(() => _errorMessage = '请输入 6 位有效投屏码');
+      setState(() => _errorMessage = i18n.invalidCastCodePrompt);
       return;
     }
 
@@ -155,12 +157,12 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
         await widget.session.joinRoomByCode(code);
       }
       if (widget.session.roomCode != code && widget.session.lastErrorCode != null) {
-        throw StateError('加入投屏房间失败: ${widget.session.lastErrorCode}');
+        throw StateError(i18n.joinCastRoomFailed(widget.session.lastErrorCode!));
       }
 
       final success = await _service.startViewing(castCode: code);
       if (!success && mounted) {
-        setState(() => _errorMessage = _service.lastError ?? '无法连接到该投屏');
+        setState(() => _errorMessage = _service.lastError ?? i18n.cannotConnectCast);
       }
     } catch (e) {
       _service.stop(reason: 'join_error');
@@ -242,7 +244,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
               Column(
                 children: [
                   Text(
-                    '端到端低延迟传输 · 智能声画分离与回声消除',
+                    i18n.screenShareFeatureSubtitle,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,
@@ -291,15 +293,15 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     return Column(
       children: [
         SizedBox(height: isShort ? 4 : 8),
-        const GlassChip(
-          icon: Icon(Icons.bolt_rounded, size: 14),
-          label: '60 FPS · 超清低延迟',
+        GlassChip(
+          icon: const Icon(Icons.bolt_rounded, size: 14),
+          label: i18n.fpsUltraClearBadge,
         ),
         SizedBox(height: isShort ? 6 : 14),
 
         // Main Title
         Text(
-          '实时投屏',
+          i18n.navScreenShare,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: isShort ? 22 : (isMobile ? 28 : 40),
@@ -315,7 +317,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 580),
           child: Text(
-            '将应用窗口或屏幕内容实时共享给好友',
+            i18n.screenShareHeroDesc,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: isShort ? 12 : (isMobile ? 13.5 : 15),
@@ -358,7 +360,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '检测到剪贴板投屏码',
+                    i18n.clipboardCastCodeDetected,
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
@@ -388,9 +390,9 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                 _codeController.text = code;
                 _handleJoinCast(code);
               },
-              child: const Text(
-                '一键观看',
-                style: TextStyle(
+              child: Text(
+                i18n.quickWatch,
+                style: const TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -434,7 +436,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
             height: 32,
             isPrimary: true,
             onTap: () => ScreenShareLiveView.launch(context, session: widget.session),
-            child: const Text('返回视窗', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            child: Text(i18n.returnToWindow, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -468,14 +470,14 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     );
   }
 
-  String _formatRelativeTime(int ms) {
+  String _formatRelativeTime(int ms, AppI18n i18n) {
     if (ms <= 0) return '';
     final diff = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ms));
-    if (diff.inMinutes < 1) return '刚刚';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
-    if (diff.inHours < 24) return '${diff.inHours}小时前';
-    if (diff.inDays < 7) return '${diff.inDays}天前';
-    return '${diff.inDays ~/ 7}周前';
+    if (diff.inMinutes < 1) return i18n.timeJustNow;
+    if (diff.inMinutes < 60) return i18n.timeMinutesAgo(diff.inMinutes);
+    if (diff.inHours < 24) return i18n.timeHoursAgo(diff.inHours);
+    if (diff.inDays < 7) return i18n.timeDaysAgo(diff.inDays);
+    return i18n.timeWeeksAgo(diff.inDays ~/ 7);
   }
 
   Widget _buildActionBox(
@@ -550,7 +552,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '我要投屏',
+                          i18n.startCastTitle,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
@@ -559,7 +561,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '实时将手机屏幕或应用窗口共享给好友',
+                          i18n.shareScreenOrWindowSubtitle,
                           style: TextStyle(
                             fontSize: 12,
                             color: tc.textSecondary,
@@ -641,7 +643,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                       const SizedBox(width: 6),
                     ],
                     Text(
-                      _isConnecting ? i18n.screenShareConnecting : '立即开启投屏',
+                      _isConnecting ? i18n.screenShareConnecting : i18n.startCastingNow,
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: isShort ? 14 : 15.5,
@@ -696,7 +698,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '观看投屏',
+                          i18n.joinScreenShare,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
@@ -705,7 +707,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '输入对方分享的 6 位投屏码，秒级同步画面',
+                          i18n.enterCastCodeDescription,
                           style: TextStyle(
                             fontSize: 12,
                             color: tc.textSecondary,
@@ -728,7 +730,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                           key: const ValueKey('cast-code-input'),
                           controller: _codeController,
                           focusNode: _codeFocusNode,
-                          placeholder: '输入 6 位投屏码',
+                          placeholder: i18n.enterCastCodeHint,
                           height: 46,
                           surfaceStyle: GlassSurfaceStyle.solid,
                           color: tc.inputBackground,
@@ -769,12 +771,12 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                     height: 46,
                     width: 88,
                     onTap: _isConnecting ? () {} : _pasteFromClipboard,
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.content_paste_rounded, size: 16),
-                        SizedBox(width: 4),
-                        Text('粘贴', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        const Icon(Icons.content_paste_rounded, size: 16),
+                        const SizedBox(width: 4),
+                        Text(i18n.paste, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -788,14 +790,14 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
             isPrimary: true,
             height: 46,
             onTap: _isConnecting ? () {} : () => _handleJoinCast(),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.arrow_forward_rounded, size: 18),
-                SizedBox(width: 6),
+                const Icon(Icons.arrow_forward_rounded, size: 18),
+                const SizedBox(width: 6),
                 Text(
-                  '进入观看',
-                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
+                  i18n.enterWatchStream,
+                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800),
                 ),
               ],
             ),
@@ -821,7 +823,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                   Icon(Icons.history_rounded, size: 15, color: tc.textSecondary),
                   const SizedBox(width: 6),
                   Text(
-                    '最近投屏历史',
+                    i18n.recentCastHistory,
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
@@ -838,7 +840,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       child: Text(
-                        '清空',
+                        i18n.clear,
                         style: TextStyle(
                           fontSize: 11.5,
                           color: tc.textTertiary,
@@ -857,7 +859,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Column(
                 children: recentRooms.take(4).map((r) {
-                  final relTime = _formatRelativeTime(r.lastVisitedMs);
+                  final relTime = _formatRelativeTime(r.lastVisitedMs, i18n);
                   return InkWell(
                     onTap: () {
                       _codeController.text = r.roomCode;

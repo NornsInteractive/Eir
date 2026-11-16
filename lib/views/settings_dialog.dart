@@ -138,9 +138,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
     if (!mounted) return;
     setState(() {
       _isSavingTurn = false;
-      _turnFeedback = AppI18n.of(context).isZh
-          ? 'TURN 配置已保存'
-          : 'TURN configuration saved';
+      _turnFeedback = AppI18n.of(context).turnConfigSaved;
     });
   }
 
@@ -148,7 +146,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
     final server = _turnServerController.text.trim();
     if (server.isEmpty) {
       setState(() {
-        _turnTestFeedback = AppI18n.of(context).isZh ? '请先输入 TURN 服务器地址' : 'Please enter TURN server';
+        _turnTestFeedback = AppI18n.of(context).turnServerEmptyHint;
         _turnTestIsError = true;
       });
       return;
@@ -167,7 +165,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
     if (!mounted) return;
     setState(() {
       _isTestingTurn = false;
-      _turnTestFeedback = res.message;
+      _turnTestFeedback = res.getLocalizedMessage(AppI18n.of(context));
       _turnTestIsError = !res.success;
     });
   }

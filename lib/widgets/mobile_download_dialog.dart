@@ -370,9 +370,9 @@ class _MobileDownloadDialogState extends State<MobileDownloadDialog> {
                   color: Colors.green.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
-                  '正式可用',
-                  style: TextStyle(
+                child: Text(
+                  i18n.releaseReadyBadge,
+                  style: const TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     color: Colors.green,
@@ -604,7 +604,7 @@ class _MobileDownloadDialogState extends State<MobileDownloadDialog> {
             ),
             child: Center(
               child: Text(
-                'TestFlight 公测筹备中',
+                i18n.iosTestFlightInPrep,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,

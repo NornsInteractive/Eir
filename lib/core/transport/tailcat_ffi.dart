@@ -100,7 +100,7 @@ class TailcatTransport implements RoomTransport {
 
   @override
   String get badgeLabel =>
-      isDirectP2p ? 'P2P (Tailcat)' : (isOpen ? 'DERP 中继 (Tailcat)' : _badgeLabel);
+      isDirectP2p ? 'P2P (Tailcat)' : (isOpen ? 'DERP Relay (Tailcat)' : _badgeLabel);
 
   @override
   Stream<String> get textStream => _textController.stream;
@@ -128,7 +128,7 @@ class TailcatTransport implements RoomTransport {
     if (id != _sessionId) return;
     if (state == 1) {
       _isOpen = true;
-      _badgeLabel = isDirectP2p ? 'P2P (Tailcat)' : 'DERP 中继 (Tailcat)';
+      _badgeLabel = isDirectP2p ? 'P2P (Tailcat)' : 'DERP Relay (Tailcat)';
       onConnected?.call();
     } else if (state == 2) {
       _isOpen = false;

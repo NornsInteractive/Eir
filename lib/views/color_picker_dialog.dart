@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../app_localization.dart';
 import '../apple_glass.dart';
 
@@ -379,7 +378,7 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
                           glowColor: tc.primary.withValues(alpha: 0.45),
                           shape: const LiquidRoundedSuperellipse(borderRadius: 10),
                           child: Text(
-                            i18n.isZh ? '应用' : 'Apply',
+                            i18n.actionApply,
                             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
                           ),
                         ),

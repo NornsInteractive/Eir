@@ -1,19 +1,44 @@
 import 'dart:async';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import '../app_localization.dart';
+
+enum TurnDiagnosticStatus {
+  emptyServer,
+  timeout,
+  success,
+  exception,
+}
 
 /// Represents the diagnostic probe result of a TURN server.
 class TurnTestResult {
   final bool success;
   final String message;
+  final TurnDiagnosticStatus status;
   final int? rttMs;
   final String? relayAddress;
+  final String? errorDetail;
 
   const TurnTestResult({
     required this.success,
     required this.message,
+    this.status = TurnDiagnosticStatus.exception,
     this.rttMs,
     this.relayAddress,
+    this.errorDetail,
   });
+
+  String getLocalizedMessage(AppI18n i18n) {
+    switch (status) {
+      case TurnDiagnosticStatus.emptyServer:
+        return i18n.turnServerAddressEmpty;
+      case TurnDiagnosticStatus.timeout:
+        return i18n.turnProbeTimeout;
+      case TurnDiagnosticStatus.success:
+        return i18n.turnConnectionSuccessWithRtt(rttMs ?? 0);
+      case TurnDiagnosticStatus.exception:
+        return i18n.turnProbeException(errorDetail ?? message);
+    }
+  }
 }
 
 /// Service to probe TURN server connectivity and relay capability across all platforms.
@@ -30,7 +55,8 @@ class TurnDiagnosticService {
     if (clean.isEmpty) {
       return const TurnTestResult(
         success: false,
-        message: 'TURN 服务器地址不能为空',
+        message: 'TURN server address cannot be empty',
+        status: TurnDiagnosticStatus.emptyServer,
       );
     }
 
@@ -66,7 +92,8 @@ class TurnDiagnosticService {
       if (!completer.isCompleted) {
         completer.complete(const TurnTestResult(
           success: false,
-          message: '探测超时 (未能分配中继候选，可能端口被阻断或凭据错误)',
+          message: 'Probe timed out (Failed to allocate relay candidate)',
+          status: TurnDiagnosticStatus.timeout,
         ));
       }
     });
@@ -81,7 +108,8 @@ class TurnDiagnosticService {
           final rtt = stopwatch.elapsedMilliseconds;
           completer.complete(TurnTestResult(
             success: true,
-            message: '连接成功 (中继就绪，耗时 ${rtt}ms)',
+            message: 'Connected successfully (Relay ready, ${rtt}ms)',
+            status: TurnDiagnosticStatus.success,
             rttMs: rtt,
             relayAddress: candStr,
           ));
@@ -109,7 +137,9 @@ class TurnDiagnosticService {
       } catch (_) {}
       return TurnTestResult(
         success: false,
-        message: '探测异常: $e',
+        message: 'Probe exception: $e',
+        status: TurnDiagnosticStatus.exception,
+        errorDetail: e.toString(),
       );
     }
   }

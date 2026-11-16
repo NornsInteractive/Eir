@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../core/room_session.dart';
 import 'draggable_cast_chat_capsule.dart';
@@ -76,6 +77,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
 
   Future<void> _handleStopCast() async {
     final tc = ThemeColors.of(context);
+    final i18n = AppI18n.of(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => Center(
@@ -102,7 +104,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      '结束投屏',
+                      i18n.endScreenShare,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
@@ -113,7 +115,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '确定要停止当前投屏并断开所有连接吗？',
+                  i18n.confirmStopScreenShareMessage,
                   style: TextStyle(fontSize: 13, color: tc.textSecondary, height: 1.4),
                 ),
                 const SizedBox(height: 20),
@@ -123,7 +125,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                       child: LiquidGlassActionButton(
                         height: 42,
                         onTap: () => Navigator.of(ctx).pop(false),
-                        child: Text('取消', style: TextStyle(color: tc.textSecondary)),
+                        child: Text(i18n.cancel, style: TextStyle(color: tc.textSecondary)),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -132,7 +134,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                         height: 42,
                         isPrimary: true,
                         onTap: () => Navigator.of(ctx).pop(true),
-                        child: const Text('结束投屏', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        child: Text(i18n.endScreenShare, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -178,6 +180,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
   @override
   Widget build(BuildContext context) {
     final tc = ThemeColors.of(context);
+    final i18n = AppI18n.of(context);
     final mediaQuery = MediaQuery.of(context);
     final screenWidth = mediaQuery.size.width;
     final isMobile = screenWidth < 768;
@@ -227,7 +230,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                             Row(
                               children: [
                                 Text(
-                                  '实时投屏控制台',
+                                  i18n.liveCastDashboard,
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
@@ -261,8 +264,8 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                             ),
                             Text(
                               _service.duration != Duration.zero
-                                  ? '已推流 ${_formatDuration(_service.duration)}'
-                                  : '正在稳定推流中...',
+                                  ? i18n.streamingDuration(_formatDuration(_service.duration))
+                                  : i18n.streamingStable,
                               style: TextStyle(fontSize: 11.5, color: tc.textSecondary),
                             ),
                           ],
@@ -275,14 +278,14 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                         onTap: _handleStopCast,
                         color: Colors.redAccent.withValues(alpha: 0.16),
                         borderColor: Colors.redAccent.withValues(alpha: 0.35),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.stop_circle_rounded, size: 18, color: Colors.redAccent),
-                            SizedBox(width: 6),
+                            const Icon(Icons.stop_circle_rounded, size: 18, color: Colors.redAccent),
+                            const SizedBox(width: 6),
                             Text(
-                              '结束投屏',
-                              style: TextStyle(
+                              i18n.endScreenShare,
+                              style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.redAccent,
@@ -319,7 +322,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                               child: Column(
                                 children: [
                                   Text(
-                                    '观众连接投屏码',
+                                    i18n.viewerCastCodeLabel,
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
@@ -370,7 +373,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
-                                    '对方在手机或电脑打开 Eir 输入投屏码，即可同步观看你的屏幕',
+                                    i18n.broadcasterCastCodePrompt,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(fontSize: 12, color: tc.textTertiary),
                                   ),
@@ -394,7 +397,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                               ),
                                               const SizedBox(width: 6),
                                               Text(
-                                                _copiedCode ? '已复制！' : '复制投屏码',
+                                                _copiedCode ? i18n.copiedBadge : i18n.copyCastCode,
                                                 style: TextStyle(
                                                   fontSize: 12.5,
                                                   fontWeight: FontWeight.w600,
@@ -422,7 +425,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                               ),
                                               const SizedBox(width: 6),
                                               Text(
-                                                _copiedLink ? '直链已复制！' : '复制网页直链',
+                                                _copiedLink ? i18n.directLinkCopiedBadge : i18n.copyWebDirectLink,
                                                 style: const TextStyle(
                                                   fontSize: 12.5,
                                                   fontWeight: FontWeight.w700,
@@ -452,7 +455,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                           ),
                                           const SizedBox(width: 6),
                                           Text(
-                                            _showQrCode ? '收起网页直连二维码' : '扫码免装观看直连',
+                                            _showQrCode ? i18n.hideWebQrCode : i18n.scanQrToWatchDirect,
                                             style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w600,
@@ -495,7 +498,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
-                                      '微信或手机浏览器扫码直接秒开',
+                                      i18n.scanQrInstantOpenHint,
                                       style: TextStyle(fontSize: 11, color: tc.textTertiary),
                                     ),
                                   ],
@@ -523,7 +526,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          '屏幕正在实时共享中',
+                                          i18n.screenSharingActive,
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w700,
@@ -532,7 +535,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                         ),
                                         const SizedBox(height: 3),
                                         Text(
-                                          '你可以切换到任意应用（如抖音、相册、游戏或浏览器），好友即可同步看到你的操作与伴音；观众发来的消息将显示在悬浮气泡中。',
+                                          i18n.screenSharingActiveDesc,
                                           style: TextStyle(
                                             fontSize: 11.5,
                                             color: tc.textSecondary,
@@ -556,9 +559,9 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                     context,
                                     tc,
                                     icon: Icons.speed_rounded,
-                                    label: '推流帧率',
+                                    label: i18n.streamingFramerate,
                                     value: '${_service.targetFps} FPS',
-                                    sub: '超清低延迟',
+                                    sub: i18n.ultraClearLowLatency,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -567,11 +570,11 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                     context,
                                     tc,
                                     icon: Icons.people_alt_rounded,
-                                    label: '观看状态',
+                                    label: i18n.viewerStatus,
                                     value: _service.hasViewer
-                                        ? '${_service.viewerCount} 位观众 (已连接)'
-                                        : '等待观众加入',
-                                    sub: 'P2P 加密直连',
+                                        ? i18n.viewersConnected(_service.viewerCount)
+                                        : i18n.waitingForViewers,
+                                    sub: i18n.p2pEncryptedDirect,
                                   ),
                                 ),
                               ],
@@ -591,7 +594,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                   Padding(
                                     padding: const EdgeInsets.only(left: 4, bottom: 12),
                                     child: Text(
-                                      '投屏控制',
+                                      i18n.castControlsTitle,
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
@@ -609,7 +612,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                           icon: _service.isMicEnabled
                                               ? Icons.mic_rounded
                                               : Icons.mic_off_rounded,
-                                          label: _service.isMicEnabled ? '麦克风开启' : '麦克风静音',
+                                          label: _service.isMicEnabled ? i18n.micOn : i18n.micMuted,
                                           isActive: _service.isMicEnabled,
                                           onTap: () => _service.toggleMic(),
                                         ),
@@ -623,7 +626,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                           icon: _service.isAudioEnabled
                                               ? Icons.volume_up_rounded
                                               : Icons.volume_off_rounded,
-                                          label: _service.isAudioEnabled ? '系统伴音开' : '伴音静音',
+                                          label: _service.isAudioEnabled ? i18n.systemAudioOn : i18n.systemAudioMuted,
                                           isActive: _service.isAudioEnabled,
                                           onTap: () => _service.toggleAudio(),
                                         ),
@@ -641,7 +644,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                           icon: _service.isCameraEnabled
                                               ? Icons.videocam_rounded
                                               : Icons.videocam_off_rounded,
-                                          label: _service.isCameraEnabled ? '悬浮头像开' : '悬浮头像关',
+                                          label: _service.isCameraEnabled ? i18n.floatingAvatarOn : i18n.floatingAvatarOff,
                                           isActive: _service.isCameraEnabled,
                                           onTap: () => _service.toggleCamera(),
                                         ),
@@ -655,7 +658,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                           icon: _service.danmakuEnabled
                                               ? Icons.subtitles_rounded
                                               : Icons.subtitles_off_rounded,
-                                          label: _service.danmakuEnabled ? '消息弹幕开' : '弹幕已隐藏',
+                                          label: _service.danmakuEnabled ? i18n.chatDanmakuOn : i18n.chatDanmakuHidden,
                                           isActive: _service.danmakuEnabled,
                                           onTap: () => _service.toggleDanmaku(),
                                         ),
@@ -686,7 +689,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          '投屏服务已在后台稳定运行',
+                                          i18n.castServiceRunningBackground,
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w700,
@@ -695,7 +698,7 @@ class _ScreenShareBroadcasterViewState extends State<ScreenShareBroadcasterView>
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          '您可以返回手机桌面打开王者荣耀、B站、文档或游戏，画面和声音都将持续实时传输。轻触屏幕上的【可拖动聊天胶囊】可随时与观众互动。',
+                                          i18n.castBackgroundGuide,
                                           style: TextStyle(
                                             fontSize: 12,
                                             height: 1.45,

@@ -744,7 +744,7 @@ class _ProfileViewState extends State<ProfileView> {
                           icon: Icons.tune_rounded,
                           iconColor: tc.primary,
                           title: i18n.preferencesAndSettings,
-                          subtitle: i18n.isZh ? '外观配色与信令' : 'Theme, Language & Signaling',
+                          subtitle: i18n.preferencesSubtitle,
                           onTap: () => SettingsDialog.show(context, session: widget.session),
                           trailing: Icon(Icons.chevron_right_rounded, color: tc.textTertiary, size: 20),
                         ),
@@ -755,7 +755,7 @@ class _ProfileViewState extends State<ProfileView> {
                           icon: Icons.cleaning_services_rounded,
                           iconColor: const Color(0xFFFF9500),
                           title: i18n.storageAndCache,
-                          subtitle: _isCleaningCache ? '正在清理...' : i18n.clearCache,
+                          subtitle: _isCleaningCache ? i18n.cleaningCache : i18n.clearCache,
                           onTap: _isCleaningCache ? null : _clearMediaCache,
                           trailing: _isCleaningCache
                               ? const SizedBox(

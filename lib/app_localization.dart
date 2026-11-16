@@ -136,6 +136,7 @@ class AppI18n {
   String get muteTooltip => isZh ? '静音' : 'Mute';
   String get unmuteTooltip => isZh ? '取消静音' : 'Unmute';
   String get fullscreenTooltip => isZh ? '全屏' : 'Fullscreen';
+  String get fullscreen => fullscreenTooltip;
   String get exitFullscreenTooltip => isZh ? '退出全屏' : 'Exit Fullscreen';
   String get volumeLabel => isZh ? '音量' : 'Volume';
   String get brightnessLabel => isZh ? '亮度' : 'Brightness';
@@ -594,6 +595,7 @@ class AppI18n {
 
   // Mobile App Download Dialog
   String get downloadAppTitle => isZh ? '下载移动端客户端' : 'Download Mobile App';
+  String get downloadApp => isZh ? '下载 App' : 'Download App';
   String get downloadAppSubtitle => isZh
       ? '手机扫码或点击链接直接安装，随时同屏观影与投屏'
       : 'Scan QR code or click link to install for on-the-go sync & casting';
@@ -611,6 +613,151 @@ class AppI18n {
   String get viewOnGithub => isZh ? '前往 GitHub Releases' : 'View on GitHub Releases';
   String get downloadMobilePrompt => isZh ? '移动端发起投屏需使用客户端 App' : 'Starting mobile screen share requires mobile app';
   String get downloadAndroidApp => isZh ? '下载 Android 客户端' : 'Download Android App';
+
+  // Broadcaster & Cast Console
+  String get endScreenShare => isZh ? '结束投屏' : 'End Cast';
+  String get confirmStopScreenShareMessage =>
+      isZh ? '确定要停止当前投屏并断开所有连接吗？' : 'Stop current screen share and disconnect all sessions?';
+  String get liveCastDashboard => isZh ? '实时投屏控制台' : 'Live Cast Dashboard';
+  String streamingDuration(String duration) => isZh ? '已推流 $duration' : 'Streaming $duration';
+  String get streamingStable => isZh ? '正在稳定推流中...' : 'Streaming stably...';
+  String get viewerCastCodeLabel => isZh ? '观众连接投屏码' : 'Viewer Cast Code';
+  String get broadcasterCastCodePrompt =>
+      isZh ? '对方在手机或电脑打开 Eir 输入投屏码，即可同步观看你的屏幕' : 'Open Eir on mobile or PC and enter this code to watch your screen in sync';
+  String get copiedBadge => isZh ? '已复制！' : 'Copied!';
+  String get copyCastCode => isZh ? '复制投屏码' : 'Copy Cast Code';
+  String get directLinkCopiedBadge => isZh ? '直链已复制！' : 'Direct Link Copied!';
+  String get copyWebDirectLink => isZh ? '复制网页直链' : 'Copy Web Direct Link';
+  String get hideWebQrCode => isZh ? '收起网页直连二维码' : 'Hide Web QR Code';
+  String get scanQrToWatchDirect => isZh ? '扫码免装观看直连' : 'Scan QR for Direct Web View';
+  String get scanQrInstantOpenHint => isZh ? '微信或手机浏览器扫码直接秒开' : 'Scan with mobile browser or WeChat to watch instantly';
+  String get screenSharingActive => isZh ? '屏幕正在实时共享中' : 'Screen is actively shared';
+  String get screenSharingActiveDesc =>
+      isZh ? '你可以切换到任意应用（如抖音、相册、游戏或浏览器），好友即可同步看到你的操作与伴音；观众发来的消息将显示在悬浮气泡中。'
+          : 'Switch to any app (TikTok, Photos, Games, Browser); friends see your screen and hear audio in sync. Viewer chats appear in the floating bubble.';
+  String get streamingFramerate => isZh ? '推流帧率' : 'Stream Framerate';
+  String get ultraClearLowLatency => isZh ? '超清低延迟' : 'Ultra HD & Low Latency';
+  String get viewerStatus => isZh ? '观看状态' : 'Viewer Status';
+  String viewersConnected(int count) => isZh ? '$count 位观众 (已连接)' : '$count viewers connected';
+  String get waitingForViewers => isZh ? '等待观众加入' : 'Waiting for viewers to join';
+  String get p2pEncryptedDirect => isZh ? 'P2P 加密直连' : 'P2P Encrypted Direct';
+  String get castControlsTitle => isZh ? '投屏控制' : 'Cast Controls';
+  String get micOn => isZh ? '麦克风开启' : 'Mic On';
+  String get micMuted => isZh ? '麦克风静音' : 'Mic Muted';
+  String get systemAudioOn => isZh ? '系统伴音开' : 'Audio On';
+  String get systemAudioMuted => isZh ? '伴音静音' : 'Audio Muted';
+  String get floatingAvatarOn => isZh ? '悬浮头像开' : 'Avatar Cam On';
+  String get floatingAvatarOff => isZh ? '悬浮头像关' : 'Avatar Cam Off';
+  String get chatDanmakuOn => isZh ? '消息弹幕开' : 'Danmaku On';
+  String get chatDanmakuHidden => isZh ? '弹幕已隐藏' : 'Danmaku Hidden';
+  String get castServiceRunningBackground =>
+      isZh ? '投屏服务已在后台稳定运行' : 'Cast service is running smoothly in the background';
+  String get castBackgroundGuide =>
+      isZh ? '您可以返回手机桌面打开王者荣耀、B站、文档或游戏，画面和声音都将持续实时传输。轻触屏幕上的【可拖动聊天胶囊】可随时与观众互动。'
+          : 'Return to home screen and open games, videos, or documents; video and audio stream continuously. Tap the draggable chat capsule to chat anytime.';
+
+  // Cast Chat Capsule
+  String get castLiveInteraction => isZh ? '投屏实时互动' : 'Live Cast Interaction';
+  String get sendingToViewers => isZh ? '正在向观看方发送消息' : 'Sending message to viewers';
+  String get sendingToHost => isZh ? '正在向投屏方发送消息' : 'Sending message to broadcaster';
+  String get castNoMessagesPrompt => isZh ? '暂无消息，发送一条打个招呼吧' : 'No messages yet, send one to say hi';
+
+  // Screen Source Picker
+  String get overlayPermissionBadgePrompt => isZh ? '需开启上层显示权限 · 点击设置' : 'Requires overlay permission · Tap to open settings';
+  String fallbackWindowName(String id) => isZh ? '窗口 $id' : 'Window $id';
+  String get browserScreenShareSupport => isZh ? '浏览器投屏支持' : 'Browser Screen Share Support';
+  String get browserScreenShareDesc =>
+      isZh ? '点击开始投屏后，浏览器将弹出系统原生的标签页、应用窗口或整屏选择器。勾选“共享音频”可同步伴奏声音。'
+          : 'After starting cast, the browser opens its native picker for tab, window, or entire screen. Check "Share Audio" to stream audio.';
+
+  // Screen Share Lobby & Live
+  String get signalingCreateCastFailed => isZh ? '信令服务无法创建投屏房间，请检查网络连接' : 'Signaling service failed to create cast room, please check your network connection';
+  String get startCastFailed => isZh ? '投屏发起失败' : 'Failed to start screen cast';
+  String get invalidCastCodePrompt => isZh ? '请输入 6 位有效投屏码' : 'Please enter a valid 6-digit cast code';
+  String joinCastRoomFailed(String code) => isZh ? '加入投屏房间失败: $code' : 'Failed to join cast room: $code';
+  String get cannotConnectCast => isZh ? '无法连接到该投屏' : 'Cannot connect to this cast session';
+  String get screenShareFeatureSubtitle => isZh ? '端到端低延迟传输 · 智能声画分离与回声消除' : 'End-to-end low latency · Audio separation & echo cancellation';
+  String get fpsUltraClearBadge => isZh ? '60 FPS · 超清低延迟' : '60 FPS · Ultra HD & Low Latency';
+  String get screenShareHeroDesc => isZh ? '将应用窗口或屏幕内容实时共享给好友' : 'Share application windows or screen in real time with friends';
+  String get clipboardCastCodeDetected => isZh ? '检测到剪贴板投屏码' : 'Cast code detected from clipboard';
+  String get quickWatch => isZh ? '一键观看' : 'Watch Now';
+  String get returnToWindow => isZh ? '返回视窗' : 'Return to Viewport';
+  String get startCastTitle => isZh ? '我要投屏' : 'Start Screen Cast';
+  String get shareScreenOrWindowSubtitle => isZh ? '实时将手机屏幕或应用窗口共享给好友' : 'Stream mobile screen or application windows to friends live';
+  String get startCastingNow => isZh ? '立即开启投屏' : 'Start Casting Now';
+  String get enterCastCodeDescription => isZh ? '输入对方分享的 6 位投屏码，秒级同步画面' : 'Enter the 6-digit cast code to sync video in seconds';
+  String get paste => isZh ? '粘贴' : 'Paste';
+  String get enterWatchStream => isZh ? '进入观看' : 'Join Stream';
+  String get recentCastHistory => isZh ? '最近投屏历史' : 'Recent Cast History';
+  String get clear => isZh ? '清空' : 'Clear';
+  String castCodeWithVal(String code) => isZh ? '投屏码: $code' : 'Cast Code: $code';
+  String get disableTalkbackTooltip => isZh ? '关闭对讲' : 'Mute Talkback';
+  String get enableTalkbackTooltip => isZh ? '开启对讲' : 'Enable Talkback';
+  String get disableCameraTooltip => isZh ? '关闭摄像头' : 'Turn off Camera';
+  String get exitWatchingCast => isZh ? '退出观看' : 'Exit Stream';
+  List<String> get quickReactionPhrases => isZh
+      ? const ['收到！', '好的', '看这里', '太赞了', '👍', '❤️', '666']
+      : const ['Got it!', 'OK', 'Look here', 'Awesome!', '👍', '❤️', 'GG'];
+  String get audioDuckingShortDesc => isZh ? '连麦说话时自动压低画面伴音40%' : 'Lowers stream audio 40% during talkback';
+  String get aspectRatioMode => isZh ? '画面比例模式' : 'Aspect Ratio Mode';
+  String connectingToCastWithCode(String code) => isZh ? '正在连接投屏 [$code]' : 'Connecting to cast [$code]';
+  String get syncingCastStream => isZh ? '正在同步投屏画面' : 'Syncing cast stream';
+  String get directChannelStalledHint =>
+      isZh ? '直连通道建立耗时较长，请检查投屏方状态' : 'Connection is taking longer than expected. Please check host status';
+  String get establishingP2pDirect =>
+      isZh ? '正在与投屏方建立 P2P 加密直连通道...' : 'Establishing encrypted P2P direct channel...';
+  String get backToLobby => isZh ? '返回大厅' : 'Back to Lobby';
+  String get retryDirectConnection => isZh ? '重新直连' : 'Retry Direct Connection';
+  String get localDeviceTag => isZh ? '本机' : 'Local';
+  String get remoteTalkbackTag => isZh ? '连麦' : 'Peer';
+
+  // Cinema View
+  String get disbandRoomConfirmMessage =>
+      isZh ? '解散房间后，所有正在一起观影的好友都将断开连接。确定解散吗？' : 'Disbanding the room will disconnect all watching members. Are you sure?';
+  String get leaveRoomConfirmMessage => isZh ? '确定要退出当前放映室吗？' : 'Are you sure you want to leave the cinema room?';
+  String get actionDisband => isZh ? '解散' : 'Disband';
+  String get actionLeave => isZh ? '退出' : 'Leave';
+  String get aspectFitContain => isZh ? '适应' : 'Contain';
+  String get aspectFitCover => isZh ? '铺满' : 'Cover';
+  String get aspectFitFill => isZh ? '拉伸' : 'Stretch';
+  String aspectRatioToast(String fit) => isZh ? '画面比例: $fit' : 'Aspect Ratio: $fit';
+  String get selectAllText => isZh ? '全选文本' : 'Select All';
+  String get waitForPeerBuffering => isZh ? '等候好友缓冲完成' : 'Wait for Peer Buffering';
+  String get waitForPeerBufferingDesc => isZh ? '当对端卡顿加载时自动暂停，就绪后恢复' : 'Auto-pause when peer is buffering, resume when ready';
+  String get peerBufferingPausedNotice => isZh ? '好友正在缓冲，已为您暂停等候...' : 'Peer is buffering, paused to wait...';
+
+  // Relative Time & History
+  String get timeJustNow => isZh ? '刚刚' : 'Just now';
+  String timeMinutesAgo(int count) => isZh ? '$count 分钟前' : '${count}m ago';
+  String timeHoursAgo(int count) => isZh ? '$count 小时前' : '${count}h ago';
+  String timeDaysAgo(int count) => isZh ? '$count 天前' : '${count}d ago';
+  String timeWeeksAgo(int count) => isZh ? '$count 周前' : '${count}w ago';
+  String get roleHostShort => isZh ? '房主' : 'Host';
+  String get roleGuestShort => isZh ? '访客' : 'Guest';
+  String lastVisited(String time) => isZh ? '最后访问: $time' : 'Visited: $time';
+  String fallbackRoomName(String code) => isZh ? '放映室 #$code' : 'Cinema #$code';
+  String get clipboardReadFailed =>
+      isZh ? '无法读取剪贴板，请直接在输入框中粘贴邀请内容' : 'Clipboard access unavailable, please paste directly into the input';
+
+  // Diagnostic & Transport
+  String get turnServerAddressEmpty => isZh ? 'TURN 服务器地址不能为空' : 'TURN server address cannot be empty';
+  String get turnProbeTimeout => isZh ? '探测超时 (未能分配中继候选，可能端口被阻断或凭据错误)' : 'Probe timed out (Failed to allocate relay candidate; port blocked or credentials invalid)';
+  String turnConnectionSuccessWithRtt(int rtt) => isZh ? '连接成功 (中继就绪，耗时 ${rtt}ms)' : 'Connected successfully (Relay ready, ${rtt}ms)';
+  String turnProbeException(String error) => isZh ? '探测异常: $error' : 'Probe exception: $error';
+  String get turnConfigSaved => isZh ? 'TURN 配置已保存' : 'TURN configuration saved';
+  String get turnServerEmptyHint => isZh ? '请先输入 TURN 服务器地址' : 'Please enter TURN server';
+  String get sourceEntireScreen => isZh ? '全屏幕' : 'Entire Screen';
+  String get sourceAppWindow => isZh ? '应用窗口' : 'Application Window';
+  String get screenSharePermissionDeniedOrCancelled =>
+      isZh ? '用户取消或未授予屏幕录制权限' : 'Screen capture permission denied or cancelled by user';
+  String get tailcatDerpRelay => isZh ? 'DERP 中继 (Tailcat)' : 'DERP Relay (Tailcat)';
+
+  // Modals & Badges
+  String get releaseReadyBadge => isZh ? '正式可用' : 'Available Now';
+  String get iosTestFlightInPrep => isZh ? 'TestFlight 公测筹备中' : 'TestFlight Beta in preparation';
+  String get actionApply => isZh ? '应用' : 'Apply';
+  String get preferencesSubtitle => isZh ? '外观配色与信令' : 'Theme, Language & Signaling';
+  String get cleaningCache => isZh ? '正在清理...' : 'Cleaning...';
 }
 
 class AppLocalizationsDelegate extends LocalizationsDelegate<AppI18n> {

@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../app_settings.dart';
 import '../apple_glass.dart';
 
 /// Dynamic App Logo component that automatically adapts to the active theme color

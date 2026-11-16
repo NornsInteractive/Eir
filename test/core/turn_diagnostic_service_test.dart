@@ -8,7 +8,8 @@ void main() {
     test('Empty server address validation', () async {
       final res = await TurnDiagnosticService.probeTurnServer(server: '   ');
       expect(res.success, false);
-      expect(res.message, contains('不能为空'));
+      expect(res.status, TurnDiagnosticStatus.emptyServer);
+      expect(res.message, 'TURN server address cannot be empty');
     });
 
     test('TurnTestResult model properties', () {

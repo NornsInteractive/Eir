@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../app_localization.dart';
 import '../apple_glass.dart';
 import '../core/room_session.dart';
 
@@ -86,6 +87,7 @@ class _DraggableCastChatCapsuleState extends State<DraggableCastChatCapsule>
     _service.markMessagesAsRead();
     final tc = ThemeColors.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final i18n = AppI18n.of(context);
 
     showModalBottomSheet<void>(
       context: context,
@@ -148,7 +150,7 @@ class _DraggableCastChatCapsuleState extends State<DraggableCastChatCapsule>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '投屏实时互动',
+                                  i18n.castLiveInteraction,
                                   style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
@@ -157,8 +159,8 @@ class _DraggableCastChatCapsuleState extends State<DraggableCastChatCapsule>
                                 ),
                                 Text(
                                   _service.isBroadcasting
-                                      ? '正在向观看方发送消息'
-                                      : '正在向投屏方发送消息',
+                                      ? i18n.sendingToViewers
+                                      : i18n.sendingToHost,
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: tc.textSecondary,
@@ -250,7 +252,7 @@ class _DraggableCastChatCapsuleState extends State<DraggableCastChatCapsule>
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      '暂无消息，发送一条打个招呼吧',
+                                      i18n.castNoMessagesPrompt,
                                       style: TextStyle(
                                         fontSize: 12.5,
                                         color: tc.textTertiary,
@@ -392,7 +394,7 @@ class _DraggableCastChatCapsuleState extends State<DraggableCastChatCapsule>
                               child: GlassTextField(
                                 controller: _textController,
                                 focusNode: _inputFocusNode,
-                                placeholder: '发送即时消息...',
+                                placeholder: i18n.sendChatMessageHint,
                                 height: 42,
                                 surfaceStyle: GlassSurfaceStyle.solid,
                                 color: tc.inputBackground,
@@ -441,6 +443,7 @@ class _DraggableCastChatCapsuleState extends State<DraggableCastChatCapsule>
   @override
   Widget build(BuildContext context) {
     final tc = ThemeColors.of(context);
+    final i18n = AppI18n.of(context);
     final screenSize = MediaQuery.of(context).size;
 
     if (!_initializedOffset) {
@@ -494,9 +497,9 @@ class _DraggableCastChatCapsuleState extends State<DraggableCastChatCapsule>
                       color: Colors.white,
                     ),
                     const SizedBox(width: 6),
-                    const Text(
-                      '聊天',
-                      style: TextStyle(
+                    Text(
+                      i18n.tabChat,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,

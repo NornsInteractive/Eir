@@ -268,8 +268,9 @@ class _CinemaViewState extends State<CinemaView> {
     Duration currentPos,
     Duration mediaDuration,
   ) {
-    if (_isLocked || _isVerticalDragging || mediaDuration.inMilliseconds <= 0)
+    if (_isLocked || _isVerticalDragging || mediaDuration.inMilliseconds <= 0) {
       return;
+    }
     _isScrubbing = true;
     _scrubStart = currentPos;
     _scrubTarget = currentPos;
@@ -285,8 +286,9 @@ class _CinemaViewState extends State<CinemaView> {
   ) {
     if (!_isScrubbing ||
         _scrubStart == null ||
-        mediaDuration.inMilliseconds <= 0)
+        mediaDuration.inMilliseconds <= 0) {
       return;
+    }
     final double scale = (mediaDuration.inSeconds > 0)
         ? (mediaDuration.inSeconds / 180.0).clamp(0.2, 1.5)
         : 0.5;
@@ -445,12 +447,8 @@ class _CinemaViewState extends State<CinemaView> {
                   const SizedBox(height: 14),
                   Text(
                     isOwner
-                        ? (i18n.isZh
-                              ? '解散房间后，所有正在一起观影的好友都将断开连接。确定解散吗？'
-                              : 'Disbanding the room will disconnect all watching members. Are you sure?')
-                        : (i18n.isZh
-                              ? '确定要退出当前放映室吗？'
-                              : 'Are you sure you want to leave the room?'),
+                        ? i18n.disbandRoomConfirmMessage
+                        : i18n.leaveRoomConfirmMessage,
                     style: TextStyle(
                       fontSize: 13.5,
                       color: tc.textSecondary,
@@ -473,9 +471,7 @@ class _CinemaViewState extends State<CinemaView> {
                         isPrimary: true,
                         onTap: () => Navigator.of(ctx).pop(true),
                         child: Text(
-                          isOwner
-                              ? (i18n.isZh ? '解散' : 'Disband')
-                              : (i18n.isZh ? '退出' : 'Leave'),
+                          isOwner ? i18n.actionDisband : i18n.actionLeave,
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
@@ -510,10 +506,11 @@ class _CinemaViewState extends State<CinemaView> {
       }
     });
     _restartControlsTimer();
+    final i18n = AppI18n.of(context);
     final fitName = _aspectFit == BoxFit.contain
-        ? '适应'
-        : (_aspectFit == BoxFit.cover ? '铺满' : '拉伸');
-    _showPlayerToast('画面比例: $fitName', Icons.aspect_ratio_rounded);
+        ? i18n.aspectFitContain
+        : (_aspectFit == BoxFit.cover ? i18n.aspectFitCover : i18n.aspectFitFill);
+    _showPlayerToast(i18n.aspectRatioToast(fitName), Icons.aspect_ratio_rounded);
   }
 
   PlaylistItem? get _currentPlaylistItem {
@@ -619,7 +616,7 @@ class _CinemaViewState extends State<CinemaView> {
                       );
                     },
                     child: Text(
-                      i18n.isZh ? '全选文本' : 'Select All',
+                      i18n.selectAllText,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -1601,7 +1598,7 @@ class _CinemaViewState extends State<CinemaView> {
                           size: 20,
                         ),
                         title: Text(
-                          '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? "适应" : (_aspectFit == BoxFit.cover ? "铺满" : "拉伸")}',
+                          '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? i18n.aspectFitContain : (_aspectFit == BoxFit.cover ? i18n.aspectFitCover : i18n.aspectFitFill)}',
                           style: TextStyle(
                             color: tc.textPrimary,
                             fontSize: 13.5,
@@ -1635,7 +1632,7 @@ class _CinemaViewState extends State<CinemaView> {
                             size: 20,
                           ),
                           title: Text(
-                            i18n.isZh ? '等候好友缓冲完成' : 'Wait for Peer Buffering',
+                            i18n.waitForPeerBuffering,
                             style: TextStyle(
                               color: tc.textPrimary,
                               fontSize: 13.5,
@@ -1643,9 +1640,7 @@ class _CinemaViewState extends State<CinemaView> {
                             ),
                           ),
                           subtitle: Text(
-                            i18n.isZh
-                                ? '当对端卡顿加载时自动暂停，就绪后恢复'
-                                : 'Auto-pause when peer is buffering',
+                            i18n.waitForPeerBufferingDesc,
                             style: TextStyle(
                               color: tc.textSecondary,
                               fontSize: 11,
@@ -3804,9 +3799,7 @@ class _CinemaViewState extends State<CinemaView> {
                         ),
                         const SizedBox(width: 10),
                         Text(
-                          i18n.isZh
-                              ? '好友正在缓冲，已为您暂停等候...'
-                              : 'Peer is buffering, paused to wait...',
+                          i18n.peerBufferingPausedNotice,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -4672,7 +4665,7 @@ class _CinemaViewState extends State<CinemaView> {
                         // Fullscreen Top Right: Aspect Ratio & Orientation Toggle
                         Tooltip(
                           message:
-                              '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? "适应" : (_aspectFit == BoxFit.cover ? "铺满" : "拉伸")}',
+                              '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? i18n.aspectFitContain : (_aspectFit == BoxFit.cover ? i18n.aspectFitCover : i18n.aspectFitFill)}',
                           child: Container(
                             decoration: const BoxDecoration(
                               color: Colors.black54,
@@ -5392,7 +5385,7 @@ class _CinemaViewState extends State<CinemaView> {
                                   // Aspect Ratio Toggle
                                   Tooltip(
                                     message:
-                                        '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? "适应" : (_aspectFit == BoxFit.cover ? "铺满" : "拉伸")}',
+                                        '${i18n.aspectRatio}: ${_aspectFit == BoxFit.contain ? i18n.aspectFitContain : (_aspectFit == BoxFit.cover ? i18n.aspectFitCover : i18n.aspectFitFill)}',
                                     child: IconButton(
                                       key: const ValueKey(
                                         'cinema-aspect-ratio-btn',

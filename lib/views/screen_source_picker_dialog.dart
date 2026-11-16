@@ -1,12 +1,9 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import '../app_localization.dart';
-import '../app_settings.dart';
 import '../apple_glass.dart';
 
 /// Configuration options selected from the dialog
@@ -415,14 +412,14 @@ class _MobileScreenSharePickerSheetState extends State<_MobileScreenSharePickerS
                                           borderRadius: BorderRadius.circular(6),
                                           border: Border.all(color: Colors.amber.withValues(alpha: 0.35)),
                                         ),
-                                        child: const Row(
+                                        child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Icon(Icons.shield_outlined, size: 12, color: Colors.amber),
-                                            SizedBox(width: 4),
+                                            const Icon(Icons.shield_outlined, size: 12, color: Colors.amber),
+                                            const SizedBox(width: 4),
                                             Text(
-                                              '需开启上层显示权限 · 点击设置',
-                                              style: TextStyle(
+                                              i18n.overlayPermissionBadgePrompt,
+                                              style: const TextStyle(
                                                 fontSize: 10.5,
                                                 fontWeight: FontWeight.w600,
                                                 color: Colors.amber,
@@ -510,7 +507,7 @@ class _MobileScreenSharePickerSheetState extends State<_MobileScreenSharePickerS
                   height: 40,
                   onTap: () => Navigator.of(context).pop(),
                   child: Text(
-                    '取消',
+                    i18n.cancel,
                     style: TextStyle(
                       fontSize: 13.5,
                       color: tc.textSecondary,
@@ -858,7 +855,7 @@ class _DesktopScreenSourcePickerDialogState extends State<_DesktopScreenSourcePi
                   itemBuilder: (ctx, index) {
                     final s = activeSources[index];
                     final isSelected = _selectedSource?.id == s.id;
-                    return _buildSourceCard(s, isSelected, tc);
+                    return _buildSourceCard(s, isSelected, tc, i18n);
                   },
                 ),
         ),
@@ -915,7 +912,12 @@ class _DesktopScreenSourcePickerDialogState extends State<_DesktopScreenSourcePi
     );
   }
 
-  Widget _buildSourceCard(DesktopCapturerSource s, bool isSelected, ThemeColors tc) {
+  Widget _buildSourceCard(
+    DesktopCapturerSource s,
+    bool isSelected,
+    ThemeColors tc,
+    AppI18n i18n,
+  ) {
     return GestureDetector(
       onTap: () => setState(() => _selectedSource = s),
       child: AnimatedContainer(
@@ -990,7 +992,7 @@ class _DesktopScreenSourcePickerDialogState extends State<_DesktopScreenSourcePi
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      s.name.isEmpty ? '窗口 ${s.id}' : s.name,
+                      s.name.isEmpty ? i18n.fallbackWindowName(s.id) : s.name,
                       style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
@@ -1025,7 +1027,7 @@ class _DesktopScreenSourcePickerDialogState extends State<_DesktopScreenSourcePi
           ),
           const SizedBox(height: 18),
           Text(
-            '浏览器投屏支持',
+            i18n.browserScreenShareSupport,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -1034,7 +1036,7 @@ class _DesktopScreenSourcePickerDialogState extends State<_DesktopScreenSourcePi
           ),
           const SizedBox(height: 10),
           Text(
-            '点击开始投屏后，浏览器将弹出系统原生的标签页、应用窗口或整屏选择器。勾选“共享音频”可同步伴奏声音。',
+            i18n.browserScreenShareDesc,
             style: TextStyle(
               fontSize: 13,
               color: tc.textSecondary,
@@ -1111,7 +1113,7 @@ class _DesktopScreenSourcePickerDialogState extends State<_DesktopScreenSourcePi
             height: 38,
             onTap: () => Navigator.of(context).pop(),
             child: Text(
-              '取消',
+              i18n.cancel,
               style: TextStyle(color: tc.textSecondary, fontSize: 13),
             ),
           ),
