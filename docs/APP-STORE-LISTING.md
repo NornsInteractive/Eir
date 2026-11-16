@@ -30,7 +30,7 @@
 | **主分类 (Primary Category)** | 影音播放 / 娱乐 | Video Players & Editors / Entertainment | 视听影音类 |
 | **次分类 (Secondary Category)** | 实用工具 / 社交 | Tools / Social | 协同联机类 |
 | **官方网站 (Website)** | https://eir.norns.cc.cd | https://eir.norns.cc.cd | 官方主页 |
-| **隐私政策链接 (Privacy Policy URL)** | https://eir.norns.cc.cd/privacy.html | https://eir.norns.cc.cd/privacy.html | **应用商店必填** |
+| **隐私政策链接 (Privacy Policy URL)** | GitHub: `https://github.com/NornsInteractive/Eir/blob/main/PRIVACY.md`<br>网页版: `https://eir.norns.cc.cd/privacy.html` | GitHub: `https://github.com/NornsInteractive/Eir/blob/main/PRIVACY.md`<br>Web: `https://eir.norns.cc.cd/privacy.html` | **应用商店必填（任选其一均可）** |
 | **技术支持链接 (Support URL)** | https://github.com/NornsInteractive/Eir/issues | https://github.com/NornsInteractive/Eir/issues | 问题反馈 |
 | **联系邮箱 (Support Email)** | support@norns.cc.cd | support@norns.cc.cd | 审核与用户联络 |
 | **版权信息 (Copyright)** | © 2026 Norns Interactive | © 2026 Norns Interactive | 版权所有 |
