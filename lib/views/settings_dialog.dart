@@ -2082,6 +2082,39 @@ class _SettingsDialogState extends State<SettingsDialog> {
                   ],
                 ),
               ),
+              const SizedBox(height: 12),
+
+              // Privacy Policy Row
+              GestureDetector(
+                onTap: () async {
+                  final uri = Uri.parse(i18n.privacyPolicyUrl);
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } catch (_) {
+                    await launchUrl(uri, mode: LaunchMode.platformDefault);
+                  }
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  children: [
+                    Text(
+                      i18n.privacyPolicyTitle,
+                      style: TextStyle(fontSize: 12.5, color: tc.textSecondary),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'privacy.html',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: tc.textSecondary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.open_in_new_rounded, size: 13, color: tc.textTertiary),
+                  ],
+                ),
+              ),
               const SizedBox(height: 16),
               Center(
                 child: Text(

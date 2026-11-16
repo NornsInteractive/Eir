@@ -409,6 +409,8 @@ class AppI18n {
   String get productWebsiteUrl => 'https://eir.norns.cc.cd';
   String get githubRepoTitle => isZh ? 'GitHub 开源主页' : 'GitHub Repository';
   String get githubRepoUrl => 'https://github.com/NornsInteractive/Eir';
+  String get privacyPolicyTitle => isZh ? '隐私政策' : 'Privacy Policy';
+  String get privacyPolicyUrl => 'https://eir.norns.cc.cd/privacy.html';
   String get copyrightText => '© 2026 Norns Interactive. All rights reserved.';
   String get poweredByNorns => 'Norns Interactive';
   String get advancedTurnSection => isZh ? '高级穿透配置 (STUN / TURN)' : 'Advanced NAT Traversal (STUN / TURN)';

@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eir - Privacy Policy / 隐私政策</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    :root {
+      --bg-color: #0b0f17;
+      --card-bg: rgba(22, 28, 42, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f1f5f9;
+      --text-sub: #94a3b8;
+      --text-dim: #64748b;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent: #38bdf8;
+      --badge-bg: rgba(99, 102, 241, 0.15);
+      --badge-border: rgba(99, 102, 241, 0.3);
+      --code-bg: rgba(15, 23, 42, 0.85);
+      --table-border: rgba(255, 255, 255, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.7;
+      padding: 40px 20px;
+      min-height: 100vh;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(56, 189, 248, 0.08) 0%, transparent 40%);
+      background-attachment: fixed;
+    }
+
+    .container {
+      max-width: 880px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--card-border);
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #6366f1 0%, #38bdf8 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 20px;
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    }
+
+    .brand-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+
+    .brand-sub {
+      font-size: 13px;
+      color: var(--text-sub);
+    }
+
+    .lang-toggle {
+      display: flex;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .lang-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-sub);
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .lang-btn.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+    }
+
+    .lang-btn:hover:not(.active) {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 36px 32px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    }
+
+    .badge-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--badge-bg);
+      border: 1px solid var(--badge-border);
+      color: #a5b4fc;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+
+    .meta-date {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 24px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-top: 36px;
+      margin-bottom: 14px;
+      color: #f8fafc;
+      border-left: 4px solid var(--primary);
+      padding-left: 12px;
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-top: 20px;
+      margin-bottom: 8px;
+      color: #e2e8f0;
+    }
+
+    p {
+      margin-bottom: 14px;
+      color: var(--text-sub);
+      font-size: 15px;
+    }
+
+    ul, ol {
+      margin-left: 20px;
+      margin-bottom: 16px;
+      color: var(--text-sub);
+      font-size: 15px;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    strong {
+      color: #fff;
+      font-weight: 600;
+    }
+
+    code {
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #38bdf8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+      background: rgba(15, 23, 42, 0.4);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--table-border);
+    }
+
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--table-border);
+    }
+
+    th {
+      background: rgba(30, 41, 59, 0.6);
+      color: #f1f5f9;
+      font-weight: 600;
+    }
+
+    td {
+      color: var(--text-sub);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .highlight-box {
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+
+    .highlight-box p {
+      margin-bottom: 0;
+      color: #e0e7ff;
+      font-size: 14.5px;
+    }
+
+    a {
+      color: #38bdf8;
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+
+    a:hover {
+      text-decoration: underline;
+      color: #7dd3fc;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid var(--card-border);
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 20px 12px;
+      }
+      .card {
+        padding: 24px 18px;
+      }
+      h1 {
+        font-size: 24px;
+      }
+      h2 {
+        font-size: 18px;
+      }
+      table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="brand-logo">E</div>
+        <div>
+          <div class="brand-title">Eir</div>
+          <div class="brand-sub">Norns Interactive</div>
+        </div>
+      </div>
+      <div class="lang-toggle">
+        <button class="lang-btn active" id="btn-zh" onclick="setLang('zh')">🇨🇳 中文</button>
+        <button class="lang-btn" id="btn-en" onclick="setLang('en')">🇬🇧 English</button>
+      </div>
+    </header>
+
+    <!-- CHINESE CONTENT -->
+    <div id="content-zh" class="card">
+      <div class="badge-bar">
+        <span class="badge">免账户体系</span>
+        <span class="badge">零云端存储</span>
+        <span class="badge">点对点 P2P 加密</span>
+        <span class="badge">无第三方广告与追踪</span>
+      </div>
+
+      <h1>Eir 隐私政策</h1>
+      <div class="meta-date">
+        <span>生效日期：2026 年 11 月 16 日</span>
+        <span>最近更新：2026 年 11 月 16 日</span>
+        <span>运营主体：Norns Interactive</span>
+      </div>
+
+      <div class="highlight-box">
+        <p><strong>核心承诺</strong>：Eir 严格遵循“数据最小化”、“零云端留存”与“端到端加密（P2P）”原则。应用无需注册账号，所有音视频内容与屏幕共享画面均在您与好友设备之间直接建立点对点通信传输，绝不在任何云端服务器转存或归档。</p>
+      </div>
+
+      <h2>一、我们如何收集与使用您的信息</h2>
+      <p>Eir 采用去中心化、免账户架构，我们不收集亦不存储您的个人身份信息：</p>
+      <ul>
+        <li><strong>本地音视频文件</strong>：当您在放映室中选择播放本地媒体时，仅通过系统文件选择器读取您指定的本地文件流。<strong>音视频文件绝不上传至任何中心化云端服务器或数据库</strong>，同屏共享时仅通过点对点加密通道直传。</li>
+        <li><strong>实时屏幕投屏数据</strong>：当您主动发起投屏时，系统捕获您的屏幕或视窗画面并在本地编码后直传给同房间好友。<strong>我们不进行任何服务端录制、截图或画面分析</strong>，投屏结束即刻销毁全部临时缓冲区。</li>
+        <li><strong>双向语音连麦</strong>：当您主动开启房间麦克风时，声音经由国际标准 DTLS-SRTP 加密协议点对点传输。我们不收集、不录制亦不转写您的语音通讯。</li>
+        <li><strong>房间临时信令</strong>：为实现设备互通，边缘信令服务（<code>wss://eir.norns.cc.cd/ws</code>）临时交换 6 位数字房间码、会话 UUID 及 WebRTC SDP/ICE 候选地址。<strong>此类数据仅存在于易失内存中，房间退出即刻物理销毁</strong>。</li>
+        <li><strong>坚决不收集的信息</strong>：绝无第三方商业广告 SDK、绝无行为追踪与画像 SDK、不读取设备 IMEI/MAC 地址、不索取 GPS 位置权限。</li>
+      </ul>
+
+      <h2>二、设备权限申请与使用目的</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>权限名称</th>
+            <th>对应平台</th>
+            <th>使用场景与业务目的</th>
+            <th>必要性</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>RECORD_AUDIO</code><br>麦克风</td>
+            <td>Android / iOS / 桌面</td>
+            <td>仅在您主动开启放映室连麦或投屏双向对讲时使用。未开启语音时绝不调用。</td>
+            <td>否（仅语音依赖）</td>
+          </tr>
+          <tr>
+            <td><code>MEDIA_PROJECTION</code><br>录屏 / 投屏</td>
+            <td>Android / 桌面 / Web</td>
+            <td>仅在您主动发起屏幕共享时由操作系统弹出系统级确认框，用于向好友实时传输屏幕。</td>
+            <td>否（仅投屏主播依赖）</td>
+          </tr>
+          <tr>
+            <td><code>READ_MEDIA_VIDEO</code><br>媒体访问</td>
+            <td>Android / 移动端</td>
+            <td>仅供系统文件选择器读取您主动选择的本地视频文件。</td>
+            <td>否（仅本地观影依赖）</td>
+          </tr>
+          <tr>
+            <td><code>INTERNET</code><br>网络通信</td>
+            <td>全平台</td>
+            <td>连接信令服务与建立 WebRTC P2P 点对点传输，同步播放进度与传输流媒体。</td>
+            <td>是（核心功能）</td>
+          </tr>
+          <tr>
+            <td><code>FOREGROUND_SERVICE</code><br>前台服务</td>
+            <td>Android</td>
+            <td>投屏过程中切换至游戏或后台应用时保持推流不中断，并在状态栏常驻提示。</td>
+            <td>否（仅后台投屏依赖）</td>
+          </tr>
+          <tr>
+            <td><code>SYSTEM_ALERT_WINDOW</code><br>悬浮窗</td>
+            <td>Android</td>
+            <td>主播全屏游戏时展示半透明弹幕聊天胶囊，方便主播查看观众反应（可在设置中关闭）。</td>
+            <td>否</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>三、第三方服务与数据共享</h2>
+      <p>1. <strong>零第三方广告与商业追踪 SDK</strong>：Eir 不包含任何第三方广告联盟或用户行为监测 SDK。</p>
+      <p>2. <strong>STUN / TURN 穿透中继集群</strong>：当复杂 NAT 网络无法直接建立 P2P 连接时，系统经由中继服务器（<code>ip.norns.cc.cd</code>）中转加密二进制包。所有数据均受 DTLS-SRTP 端到端加密保护，中继节点无法解密或留存任何视听内容。</p>
+      <p>3. <strong>严禁商业出售</strong>：我们不会将您的任何数据出售、出租或共享给任何第三方。</p>
+
+      <h2>四、数据安全与用户权利</h2>
+      <p>1. <strong>免注册使用</strong>：无需账号密码，无身份绑定风险。</p>
+      <p>2. <strong>随时撤回权限</strong>：您可随时在系统设置中关闭麦克风、存储或悬浮窗权限。</p>
+      <p>3. <strong>一键清空本地缓存</strong>：在应用内“设置 -> 存储与缓存”中，可一键清空历史房间记录与本地偏好设置。</p>
+      <p>4. <strong>彻底删除</strong>：卸载应用即可自动彻底销毁所有本地沙盒数据。</p>
+
+      <h2>五、联系我们</h2>
+      <p>如对本隐私政策有任何疑问、建议或投诉，请通过以下渠道与我们联系：</p>
+      <ul>
+        <li>开发组织：Norns Interactive</li>
+        <li>官方网址：<a href="https://norns.cc.cd" target="_blank">https://norns.cc.cd</a></li>
+        <li>开源仓库：<a href="https://github.com/NornsInteractive/Eir" target="_blank">https://github.com/NornsInteractive/Eir</a></li>
+        <li>电子邮箱：<a href="mailto:support@norns.cc.cd">support@norns.cc.cd</a></li>
+      </ul>
+    </div>
+
+    <!-- ENGLISH CONTENT -->
+    <div id="content-en" class="card" style="display: none;">
+      <div class="badge-bar">
+        <span class="badge">Account-Free</span>
+        <span class="badge">Zero Cloud Media</span>
+        <span class="badge">End-to-End P2P</span>
+        <span class="badge">No Third-Party Ads or Trackers</span>
+      </div>
+
+      <h1>Eir Privacy Policy</h1>
+      <div class="meta-date">
+        <span>Effective Date: November 16, 2026</span>
+        <span>Last Updated: November 16, 2026</span>
+        <span>Entity: Norns Interactive</span>
+      </div>
+
+      <div class="highlight-box">
+        <p><strong>Core Commitment</strong>: Eir strictly adheres to the principles of "Data Minimization", "Zero Cloud Storage of Media", and "End-to-End Peer-to-Peer Encryption". Eir requires no account registration; media playback and live screen casting streams are exchanged directly between you and your invited peers via encrypted P2P channels and are never stored or archived on cloud servers.</p>
+      </div>
+
+      <h2>1. Information We Collect and Process</h2>
+      <p>Eir is built upon an account-free, decentralized architecture. We do not collect or store your personal identity:</p>
+      <ul>
+        <li><strong>Local Media & Video Files</strong>: When choosing local videos in a co-watching room, Eir reads only the files you explicitly pick via system dialogues. <strong>Your media files are NEVER uploaded to any central cloud server or database.</strong> Streaming occurs strictly peer-to-peer between devices.</li>
+        <li><strong>Live Screen Sharing Streams</strong>: When initiating screen sharing as a broadcaster, screen capture frames are encoded on your device and transmitted directly to room members via WebRTC. <strong>We do not record, intercept, or snapshot your screen on any server.</strong></li>
+        <li><strong>Two-Way Voice Intercom</strong>: When you unmute in a room, audio is transmitted peer-to-peer using standard DTLS-SRTP encryption. We never record, transcribe, or retain your audio communications.</li>
+        <li><strong>Ephemeral Signaling Data</strong>: To negotiate direct P2P connections, our edge signaling server (<code>wss://eir.norns.cc.cd/ws</code>) routes ephemeral 6-digit room codes, session UUIDs, and WebRTC SDP/ICE candidate packets. <strong>These exist only in volatile server memory and are wiped immediately upon room exit or disconnect.</strong></li>
+        <li><strong>What We NEVER Collect</strong>: No third-party ad SDKs, no behavioral tracking/analytics SDKs, no device IMEI/MAC collection, and no GPS location requests.</li>
+      </ul>
+
+      <h2>2. Device Permissions and Purpose</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Permission</th>
+            <th>Platform</th>
+            <th>Business Purpose & Context</th>
+            <th>Required?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>RECORD_AUDIO</code><br>Microphone</td>
+            <td>Android / iOS / Desktop</td>
+            <td>Used solely when you actively unmute to talk in co-watching rooms or screen sharing sessions. Never accessed when muted.</td>
+            <td>No (Optional)</td>
+          </tr>
+          <tr>
+            <td><code>MEDIA_PROJECTION</code><br>Screen Capture</td>
+            <td>Android / Desktop / Web</td>
+            <td>Requested via OS prompt only when you choose to share your screen with peers.</td>
+            <td>No (Optional)</td>
+          </tr>
+          <tr>
+            <td><code>READ_MEDIA_VIDEO</code><br>Media Access</td>
+            <td>Android / Mobile</td>
+            <td>Used solely by the file picker when you choose a local video file from storage to watch together.</td>
+            <td>No (Optional)</td>
+          </tr>
+          <tr>
+            <td><code>INTERNET</code><br>Network Access</td>
+            <td>All Platforms</td>
+            <td>Required to connect to signaling and establish direct P2P WebRTC data channels and video streams.</td>
+            <td>Yes (Core Feature)</td>
+          </tr>
+          <tr>
+            <td><code>FOREGROUND_SERVICE</code><br>Foreground Service</td>
+            <td>Android</td>
+            <td>Maintains background screen streaming while playing games or multitasking, displaying a persistent notification.</td>
+            <td>No (Only during broadcast)</td>
+          </tr>
+          <tr>
+            <td><code>SYSTEM_ALERT_WINDOW</code><br>Overlay</td>
+            <td>Android</td>
+            <td>Displays a floating chat capsule during full-screen games so broadcasters can view peer reactions (can be toggled in Settings).</td>
+            <td>No</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>3. Third-Party Services and Data Sharing</h2>
+      <p>1. <strong>Zero Advertising / Analytics SDKs</strong>: Eir embeds no commercial ad networks or user profiling tracking SDKs.</p>
+      <p>2. <strong>STUN / TURN Relays</strong>: When direct P2P connectivity fails due to symmetric NATs, encrypted packets transit through our relay servers (<code>ip.norns.cc.cd</code>). The relay cannot decrypt, inspect, or retain the content of your media stream.</p>
+      <p>3. <strong>No Sale of Data</strong>: We never sell, monetize, or disclose your personal data to any third party.</p>
+
+      <h2>4. Data Security and User Rights</h2>
+      <p>1. <strong>Anonymous Usage</strong>: No credentials or account profiles exist.</p>
+      <p>2. <strong>Revoke Permissions</strong>: You can disable any granted permission at any time in system settings.</p>
+      <p>3. <strong>One-Click Local Cache Purge</strong>: In Settings -> Storage & Cache, you can immediately delete all room history and saved configurations.</p>
+      <p>4. <strong>Complete Removal</strong>: Uninstalling the app completely wipes all sandboxed application data from your device.</p>
+
+      <h2>5. Contact Information</h2>
+      <p>If you have any questions or feedback regarding this Privacy Policy, please contact us:</p>
+      <ul>
+        <li>Organization: Norns Interactive</li>
+        <li>Official Website: <a href="https://norns.cc.cd" target="_blank">https://norns.cc.cd</a></li>
+        <li>GitHub Repository: <a href="https://github.com/NornsInteractive/Eir" target="_blank">https://github.com/NornsInteractive/Eir</a></li>
+        <li>Email: <a href="mailto:support@norns.cc.cd">support@norns.cc.cd</a></li>
+      </ul>
+    </div>
+
+    <footer>
+      © 2026 Norns Interactive. All rights reserved. · <a href="https://eir.norns.cc.cd">Eir Web</a>
+    </footer>
+  </div>
+
+  <script>
+    function setLang(lang) {
+      const zhContent = document.getElementById('content-zh');
+      const enContent = document.getElementById('content-en');
+      const btnZh = document.getElementById('btn-zh');
+      const btnEn = document.getElementById('btn-en');
+
+      if (lang === 'en') {
+        zhContent.style.display = 'none';
+        enContent.style.display = 'block';
+        btnEn.classList.add('active');
+        btnZh.classList.remove('active');
+        document.documentElement.lang = 'en';
+      } else {
+        zhContent.style.display = 'block';
+        enContent.style.display = 'none';
+        btnZh.classList.add('active');
+        btnEn.classList.remove('active');
+        document.documentElement.lang = 'zh-CN';
+      }
+    }
+
+    // Auto-detect browser language
+    (function initLang() {
+      const userLang = navigator.language || navigator.userLanguage || '';
+      if (userLang.startsWith('en')) {
+        setLang('en');
+      } else {
+        setLang('zh');
+      }
+    })();
+  </script>
+</body>
+</html>
