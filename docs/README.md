@@ -27,6 +27,12 @@
 
 媒体准备方式按平台能力验证，桌面 FFmpeg 不能直接当作 Web/移动端方案；不得用不可播放占位实现冒充六端支持。
 
+## 分发与应用商店上架
+
+- [微软应用商店 (Partner Center) 上架提报全览指南 (中文)](MICROSOFT-STORE-SUBMISSION-ZH.md)
+- [多应用商店上架物料全览](APP-STORE-LISTING.md)
+- [隐私政策 (中文)](PRIVACY-POLICY-ZH.md) · [隐私政策 (英文)](PRIVACY-POLICY-EN.md)
+
 ## 实施记录
 
 - [当前业务修复与验收计划](CURRENT-REPAIR-PLAN.md)

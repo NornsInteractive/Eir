@@ -6,7 +6,8 @@
 Flutter 跨平台异地同步观影与 60 FPS 实时投屏应用。支持本地音视频与网络流媒体毫秒级同步、低延迟屏幕投屏、双向语音对讲与即时弹幕互动。纯端到端（P2P）直传，免注册无广告。
 
 - 📖 **[隐私政策 / Privacy Policy](PRIVACY.md)**（包含 [🇨🇳 中文版](docs/PRIVACY-POLICY-ZH.md) · [🇬🇧 English Version](docs/PRIVACY-POLICY-EN.md) · [🌐 在线网页版](https://eir.norns.cc.cd/privacy.html)）
-- 📋 **[应用商店上架物料指南 / App Store Listing](docs/APP-STORE-LISTING.md)**
+- 🪟 **[微软商店上架提报指南 (中文全览)](docs/MICROSOFT-STORE-SUBMISSION-ZH.md)**
+- 📋 **[全平台应用商店上架物料指南 / App Store Listing](docs/APP-STORE-LISTING.md)**
 - 🌐 **[Web 放映室在线体验](https://eir.norns.cc.cd)** · **[Android APK 下载](https://ygg.norns.cc.cd/d/com.norns.eir)**
 
 首版目标是两人房间，支持本地兼容 MP4 和视频 URL，包含播放列表、同步控制、房主/管理员权限，以及中文/英文和明暗主题独立配色。
