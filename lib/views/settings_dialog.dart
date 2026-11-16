@@ -848,10 +848,17 @@ class _SettingsDialogState extends State<SettingsDialog> {
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        _buildSubSectionTitle(context,
-            title: i18n.transportEngine, icon: Icons.swap_calls_rounded),
-        const SizedBox(height: 8),
+        if (!kIsWeb) ...[
+          const SizedBox(height: 16),
+          _buildSubSectionTitle(context,
+              title: i18n.transportEngine, icon: Icons.swap_calls_rounded),
+          const SizedBox(height: 8),
+        ] else ...[
+          const SizedBox(height: 16),
+          _buildSubSectionTitle(context,
+              title: i18n.advancedTurnSection, icon: Icons.vpn_lock_rounded),
+          const SizedBox(height: 8),
+        ],
         GlassContainer.card(
           surfaceStyle: GlassSurfaceStyle.solid,
           color: tc.inputBackground,
@@ -859,43 +866,16 @@ class _SettingsDialogState extends State<SettingsDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                i18n.transportEngine,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: tc.textPrimary,
+              if (!kIsWeb) ...[
+                Text(
+                  i18n.transportEngine,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: tc.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              if (kIsWeb)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: tc.glassSurfaceSubtle,
-                    border: Border.all(color: tc.glassBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline_rounded,
-                          size: 15, color: tc.textSecondary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          i18n.tailcatWebUnsupportedNote,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            color: tc.textSecondary,
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
+                const SizedBox(height: 8),
                 GlassSegmentedControl(
                   selectedIndex: settings.isTailcatEngine ? 1 : 0,
                   onSegmentSelected: (index) {
@@ -907,9 +887,10 @@ class _SettingsDialogState extends State<SettingsDialog> {
                     GlassSegment(label: i18n.transportTailcat),
                   ],
                 ),
-              const SizedBox(height: 14),
-              Divider(height: 1, color: tc.glassBorder),
-              const SizedBox(height: 10),
+                const SizedBox(height: 14),
+                Divider(height: 1, color: tc.glassBorder),
+                const SizedBox(height: 10),
+              ],
               InkWell(
                 onTap: () => setState(() => _showAdvancedTurn = !_showAdvancedTurn),
                 borderRadius: BorderRadius.circular(8),

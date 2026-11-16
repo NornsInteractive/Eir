@@ -784,52 +784,54 @@ class _ProfileViewState extends State<ProfileView> {
                             ),
                           ),
                         ),
-                        Divider(height: 1, color: tc.glassBorderSubtle),
+                        if (!kIsWeb) ...[
+                          Divider(height: 1, color: tc.glassBorderSubtle),
 
-                        // Check Update Tile
-                        _buildActionRow(
-                          icon: Icons.system_update_rounded,
-                          iconColor: const Color(0xFF007AFF),
-                          title: i18n.checkUpdate,
-                          showRedDot: settings.hasPendingUpdate,
-                          subtitle: _isCheckingUpdate
-                              ? i18n.checkingUpdate
-                              : '${i18n.currentVersion} v${UpdateService.currentVersionName} (${UpdateService.currentPlatform})',
-                          onTap: _isCheckingUpdate ? null : _handleCheckUpdate,
-                          trailing: _isCheckingUpdate
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (settings.hasPendingUpdate) ...[
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.redAccent,
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                        ),
-                                        child: const Text(
-                                          'NEW',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.bold,
+                          // Check Update Tile (Native only)
+                          _buildActionRow(
+                            icon: Icons.system_update_rounded,
+                            iconColor: const Color(0xFF007AFF),
+                            title: i18n.checkUpdate,
+                            showRedDot: settings.hasPendingUpdate,
+                            subtitle: _isCheckingUpdate
+                                ? i18n.checkingUpdate
+                                : '${i18n.currentVersion} v${UpdateService.currentVersionName} (${UpdateService.currentPlatform})',
+                            onTap: _isCheckingUpdate ? null : _handleCheckUpdate,
+                            trailing: _isCheckingUpdate
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (settings.hasPendingUpdate) ...[
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.redAccent,
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: const Text(
+                                            'NEW',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 6),
+                                        const SizedBox(width: 6),
+                                      ],
+                                      Icon(Icons.chevron_right_rounded,
+                                          color: tc.textTertiary, size: 20),
                                     ],
-                                    Icon(Icons.chevron_right_rounded,
-                                        color: tc.textTertiary, size: 20),
-                                  ],
-                                ),
-                        ),
+                                  ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

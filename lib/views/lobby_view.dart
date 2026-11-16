@@ -12,6 +12,7 @@ import 'settings_dialog.dart';
 import 'profile_view.dart';
 import 'screen_share_lobby_view.dart';
 import '../widgets/app_logo.dart';
+import '../widgets/mobile_download_dialog.dart';
 
 class LobbyView extends StatefulWidget {
   final RoomSession session;
@@ -381,46 +382,28 @@ class _LobbyViewState extends State<LobbyView> {
                 ),
               ),
               actions: [
-                // Top WebRTC / Tailcat Engine Switcher (Requirement 3)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: !kIsWeb
-                      ? SizedBox(
-                          width: screenWidth < 500 ? 140 : 170,
-                          child: GlassSegmentedControl(
-                            selectedIndex: AppSettings.instance.isTailcatEngine
-                                ? 1
-                                : 0,
-                            onSegmentSelected: (index) {
-                              AppSettings.instance.setTransportEngine(
-                                index == 1 ? 'tailcat' : 'webrtc',
-                              );
-                            },
-                            segments: const [
-                              GlassSegment(label: 'WebRTC'),
-                              GlassSegment(label: 'Tailcat'),
-                            ],
-                          ),
-                        )
-                      : Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            color: tc.inputBackground,
-                            border: Border.all(color: tc.glassBorder),
-                          ),
-                          child: const Text(
-                            'WebRTC',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                ),
+                // Top WebRTC / Tailcat Engine Switcher (Native only)
+                if (!kIsWeb)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: SizedBox(
+                      width: screenWidth < 500 ? 140 : 170,
+                      child: GlassSegmentedControl(
+                        selectedIndex: AppSettings.instance.isTailcatEngine
+                            ? 1
+                            : 0,
+                        onSegmentSelected: (index) {
+                          AppSettings.instance.setTransportEngine(
+                            index == 1 ? 'tailcat' : 'webrtc',
+                          );
+                        },
+                        segments: const [
+                          GlassSegment(label: 'WebRTC'),
+                          GlassSegment(label: 'Tailcat'),
+                        ],
+                      ),
+                    ),
+                  ),
 
                 // Client Device ID pill - hidden if screen width < 560 (Requirement 4)
                 if (screenWidth >= 560 && session.identity.deviceId.isNotEmpty)
@@ -487,6 +470,54 @@ class _LobbyViewState extends State<LobbyView> {
                         ),
                       ),
                     ),
+                  ),
+
+                // Mobile App Download Button (Web & PC Desktop)
+                if (kIsWeb ||
+                    (!kIsWeb &&
+                        (defaultTargetPlatform == TargetPlatform.windows ||
+                            defaultTargetPlatform == TargetPlatform.macOS ||
+                            defaultTargetPlatform == TargetPlatform.linux)))
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: screenWidth >= 640
+                        ? LiquidGlassActionButton(
+                            key: const ValueKey('lobby-mobile-download-btn'),
+                            height: 32,
+                            isPrimary: false,
+                            onTap: () => MobileDownloadDialog.show(context),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.smartphone_rounded,
+                                  size: 15,
+                                  color: tc.primary,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  i18n.isZh ? '下载 App' : 'Download App',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: tc.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Tooltip(
+                            message: i18n.downloadAppTitle,
+                            child: GlassIconButton(
+                              key: const ValueKey('lobby-mobile-download-btn'),
+                              icon: Icon(
+                                Icons.smartphone_rounded,
+                                size: 19,
+                                color: tc.primary,
+                              ),
+                              onPressed: () => MobileDownloadDialog.show(context),
+                            ),
+                          ),
                   ),
 
                 // Settings Button

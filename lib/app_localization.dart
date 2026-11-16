@@ -60,13 +60,11 @@ class AppI18n {
   String get confirm => isZh ? '确认' : 'Confirm';
 
   // Hero & Lobby
-  String get heroBadge =>
-      isZh ? '双人同步放映室 · 异地同屏观影' : 'Two-Peer Synchronized Cinema';
-  String get heroTitle =>
-      isZh ? '跨越距离，同频共赏' : 'Synchronized Cinema Across Distances';
+  String get heroBadge => isZh ? '同步放映室' : 'Synchronized Cinema';
+  String get heroTitle => isZh ? '双人同步观影' : 'Synchronized Watch Party';
   String get heroSubtitle => isZh
-      ? '专属私密直连，毫秒级帧同步播放。相隔千里，亦如促膝同席。'
-      : 'Private peer-to-peer connection with frame-accurate sync. Watch together, anywhere.';
+      ? '支持本地视频与网络流媒体同步播放，私密直连。'
+      : 'Synchronized playback of local videos and streaming media via private connection.';
   String get createRoom => isZh ? '创建专属放映室' : 'Create Cinema Room';
   String get inputPlaceholder =>
       isZh ? '输入 6 位房间码或粘贴邀请链接' : 'Enter 6-digit code or paste invite';
@@ -396,10 +394,10 @@ class AppI18n {
       : 'Eir · Synchronized Cinema & Live Screen Share';
 
   String get organizationTitle => isZh ? '开发组织' : 'Organization';
-  String get organizationName => isZh ? 'Norns Interactive (诺恩交互)' : 'Norns Interactive';
+  String get organizationName => 'Norns Interactive';
   String get organizationDesc => isZh
-      ? '专注于极客美学与高性能跨平台互联产品'
-      : 'Crafting aesthetic, high-performance cross-platform software';
+      ? '跨平台协同与流媒体互联'
+      : 'Cross-platform collaboration & real-time streaming';
   String get officialWebsiteTitle => isZh ? '官方网站' : 'Official Website';
   String get officialWebsiteUrl => 'https://norns.cc.cd';
   String get officialWebsiteDesc => isZh
@@ -411,7 +409,7 @@ class AppI18n {
   String get githubRepoTitle => isZh ? 'GitHub 开源主页' : 'GitHub Repository';
   String get githubRepoUrl => 'https://github.com/NornsInteractive/Eir';
   String get copyrightText => '© 2026 Norns Interactive. All rights reserved.';
-  String get poweredByNorns => isZh ? '由 Norns Interactive 倾心打造' : 'Crafted by Norns Interactive';
+  String get poweredByNorns => 'Norns Interactive';
   String get advancedTurnSection => isZh ? '高级穿透配置 (STUN / TURN)' : 'Advanced NAT Traversal (STUN / TURN)';
   String get advancedTurnDesc => isZh
       ? '系统默认已接入全球边缘穿透集群，日常使用无需修改'
@@ -479,7 +477,7 @@ class AppI18n {
 
   // Empty Cinema Playlist & Invite
   String get emptyPlaylistTitle => isZh ? '放映室屏幕静默中' : 'Cinema screen is quiet';
-  String get emptyPlaylistDesc => isZh ? '房主可添加本地视频或在线流媒体链接，所有成员画面毫秒级实时同步' : 'Host can add local files or streaming links with frame-accurate sync';
+  String get emptyPlaylistDesc => isZh ? '房主可添加本地视频或在线流媒体链接，所有成员同步播放' : 'Host can add local files or streaming links with synchronized playback';
   String get addLocalVideo => isZh ? '添加本地视频' : 'Add Local Video';
   String get addOnlineStream => isZh ? '添加在线链接' : 'Add Online URL';
   String get shareInviteTitle => isZh ? '邀请好友同看' : 'Invite Friends to Watch';
@@ -491,8 +489,8 @@ class AppI18n {
   String get navScreenShare => isZh ? '实时投屏' : 'Screen Mirror';
   String get screenShareTabTitle => isZh ? '实时投屏 · 60 FPS' : 'Screen Mirror · 60 FPS';
   String get screenShareTabSubtitle => isZh
-      ? '电脑窗口 / 手机全屏 · 伴音直传 · 异地同看抖音'
-      : 'App window or display with stereo audio';
+      ? '应用窗口与屏幕内容实时共享'
+      : 'Real-time screen and window sharing';
   String get startScreenShare => isZh ? '发起投屏' : 'Start Cast';
   String get joinScreenShare => isZh ? '观看投屏' : 'Join Cast';
   String get enterCastCodeHint => isZh ? '输入 6 位投屏码' : 'Enter 6-digit cast code';
@@ -593,6 +591,26 @@ class AppI18n {
       ? '使用投屏悬浮聊天球需要开启【在其他应用上层显示】权限。开启后，在切换到其他 App 投屏时，屏幕上仍将显示可拖动的聊天气泡。'
       : 'Drawing over other apps permission is required for the floating chat bubble. It allows you to chat while streaming other apps.';
   String get grantPermission => isZh ? '去开启' : 'Grant';
+
+  // Mobile App Download Dialog
+  String get downloadAppTitle => isZh ? '下载移动端客户端' : 'Download Mobile App';
+  String get downloadAppSubtitle => isZh
+      ? '手机扫码或点击链接直接安装，随时同屏观影与投屏'
+      : 'Scan QR code or click link to install for on-the-go sync & casting';
+  String get androidClient => isZh ? 'Android 客户端' : 'Android App';
+  String get androidDesc => isZh ? '支持 Android 7.0 及以上版本' : 'Requires Android 7.0 or later';
+  String get downloadApk => isZh ? '下载 APK 安装包' : 'Download APK';
+  String get copyDownloadLink => isZh ? '复制下载直链' : 'Copy Direct Link';
+  String get downloadLinkCopied => isZh ? '下载直链已复制到剪贴板' : 'Direct download link copied to clipboard';
+  String get iosClient => isZh ? 'iPhone / iPad' : 'iPhone / iPad';
+  String get iosComingSoon => isZh ? '即将推出' : 'Coming Soon';
+  String get iosDesc => isZh
+      ? 'iOS 客户端正在筹备中，TestFlight 即将开启公测，敬请期待。'
+      : 'iOS app is in active preparation. TestFlight public beta coming soon.';
+  String get scanQrToDownload => isZh ? '使用手机相机或浏览器扫码下载' : 'Scan with mobile camera or browser to download';
+  String get viewOnGithub => isZh ? '前往 GitHub Releases' : 'View on GitHub Releases';
+  String get downloadMobilePrompt => isZh ? '移动端发起投屏需使用客户端 App' : 'Starting mobile screen share requires mobile app';
+  String get downloadAndroidApp => isZh ? '下载 Android 客户端' : 'Download Android App';
 }
 
 class AppLocalizationsDelegate extends LocalizationsDelegate<AppI18n> {

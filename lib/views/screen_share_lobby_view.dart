@@ -2,16 +2,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../app_localization.dart';
-import '../app_settings.dart';
 import '../core/room_history_service.dart';
 import '../core/room_session.dart';
-import '../core/screen_share_service.dart';
 import '../apple_glass.dart';
 import 'screen_share_live_view.dart';
 import 'screen_source_picker_dialog.dart';
+import '../widgets/mobile_download_dialog.dart';
 
 /// Screen Share Lobby View - Focused, human-centric design mirroring LobbyView
 class ScreenShareLobbyView extends StatefulWidget {
@@ -317,7 +315,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 580),
           child: Text(
-            '捕获应用窗口或手机屏幕，系统伴音无损直传，异地双人同看',
+            '将应用窗口或屏幕内容实时共享给好友',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: isShort ? 12 : (isMobile ? 13.5 : 15),
@@ -518,6 +516,7 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
     ThemeColors tc,
     bool isShort,
   ) {
+    final isMobile = MediaQuery.of(context).size.width < 768;
     return GlassContainer.card(
       surfaceStyle: GlassSurfaceStyle.solid,
       color: tc.cardBackground,
@@ -571,43 +570,46 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              // Capability badges
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  _buildTagBadge(tc, Icons.speed_rounded, '60 FPS 高帧率'),
-                  _buildTagBadge(tc, Icons.volume_up_rounded, '伴音无损直传'),
-                  _buildTagBadge(tc, Icons.chat_bubble_outline_rounded, '悬浮互动聊天'),
-                ],
-              ),
             ],
           ),
           const SizedBox(height: 16),
-          Semantics(
-            button: true,
-            label: i18n.startScreenShare,
-            child: LiquidGlassActionButton(
-              key: const ValueKey('start-screen-share-btn'),
+          if (kIsWeb && isMobile) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: tc.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: tc.glassBorderSubtle),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, size: 16, color: tc.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      i18n.downloadMobilePrompt,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: tc.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            LiquidGlassActionButton(
+              key: const ValueKey('mobile-web-download-app-btn'),
               isPrimary: true,
               height: isShort ? 42 : 48,
-              onTap: _isConnecting ? () {} : _handleStartCast,
+              onTap: () => MobileDownloadDialog.show(context),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (_isConnecting)
-                    const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  else ...[
-                    const Icon(Icons.play_arrow_rounded, size: 22),
-                    const SizedBox(width: 6),
-                  ],
+                  const Icon(Icons.download_rounded, size: 20),
+                  const SizedBox(width: 6),
                   Text(
-                    _isConnecting ? i18n.screenShareConnecting : '立即开启投屏',
+                    i18n.downloadAndroidApp,
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: isShort ? 14 : 15.5,
@@ -616,7 +618,40 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                 ],
               ),
             ),
-          ),
+          ] else ...[
+            Semantics(
+              button: true,
+              label: i18n.startScreenShare,
+              child: LiquidGlassActionButton(
+                key: const ValueKey('start-screen-share-btn'),
+                isPrimary: true,
+                height: isShort ? 42 : 48,
+                onTap: _isConnecting ? () {} : _handleStartCast,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isConnecting)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    else ...[
+                      const Icon(Icons.play_arrow_rounded, size: 22),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      _isConnecting ? i18n.screenShareConnecting : '立即开启投屏',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: isShort ? 14 : 15.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -764,28 +799,6 @@ class _ScreenShareLobbyViewState extends State<ScreenShareLobbyView> {
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTagBadge(ThemeColors tc, IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: tc.textPrimary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: tc.glassBorderSubtle),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: tc.textSecondary),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: tc.textSecondary, fontWeight: FontWeight.w500),
           ),
         ],
       ),
