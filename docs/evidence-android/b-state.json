@@ -1,0 +1,32 @@
+{
+  "step": "B-join-app-room",
+  "inviteLen": 717,
+  "startedAt": "2026-11-18T07:30:03.131Z",
+  "events": [],
+  "inputGeom": {
+    "x": 318,
+    "y": 409,
+    "w": 414.015625,
+    "h": 52
+  },
+  "p2p": 0,
+  "texts": [
+    "80757e...b738\n80757e...b738\nMEMBER\nP2P\nP2PVoice Call\nVoice CallVideo Call\nVideo CallCinema screen is quietHost can add local files or streaming links with synchronized playbackChatPlaylistFriendsRoom InfoSend\nSend",
+    "80757e...b738\n80757e...b738\nMEMBER\nP2P\nP2PVoice Call\nVoice CallVideo Call\nVideo CallCinema screen is quietHost can add local files or streaming links with synchronized playbackChatPlaylistFriendsRoom InfoSend\nSend",
+    "80757e...b738\n80757e...b738\nMEMBER\nP2P\nP2PVoice Call\nVoice CallVideo Call\nVideo CallCinema screen is quietHost can add local files or streaming links with synchronized playbackChatPlaylistFriendsRoom InfoSend\nSend",
+    "80757e...b738\n80757e...b738\nMEMBER\nP2P\nP2PVoice Call\nVoice CallVideo Call\nVideo CallCinema screen is quietHost can add local files or streaming links with synchronized playbackChatPlaylistFriendsRoom InfoSend\nSend",
+    "80757e...b738\n80757e...b738\nMEMBER\nP2P\nP2PVoice Call\nVoice CallVideo Call\nVideo CallCinema screen is quietHost can add local files or streaming links with synchronized playbackChatPlaylistFriendsRoom InfoSend\nSend",
+    "Voice Call\nVoice Call",
+    "Video Call\nVideo Call",
+    "Cinema screen is quietHost can add local files or streaming links with synchronized playback",
+    "Cinema screen is quiet",
+    "Host can add local files or streaming links with synchronized playback",
+    "Chat",
+    "Playlist",
+    "Friends",
+    "Room Info",
+    "Send\nSend"
+  ],
+  "videos": [],
+  "result": "NOT-CONNECTED"
+}

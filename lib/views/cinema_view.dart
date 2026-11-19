@@ -359,16 +359,9 @@ class _CinemaViewState extends State<CinemaView> {
   }
 
   Future<void> _seekRelative(int seconds) async {
-    final cur = widget.session.playback.position;
-    final dur = widget.session.player.state.duration;
-    final target = cur + Duration(seconds: seconds);
-    final targetMs = target.inMilliseconds.clamp(
-      0,
-      dur.inMilliseconds > 0 ? dur.inMilliseconds : 0,
-    );
     _showGestureHud(seconds > 0 ? 'forward' : 'rewind');
     try {
-      await widget.session.seek(Duration(milliseconds: targetMs));
+      await widget.session.seekRelative(Duration(seconds: seconds));
     } catch (_) {}
     _restartControlsTimer();
   }
@@ -5895,11 +5888,13 @@ class _CinemaViewState extends State<CinemaView> {
               final isMemberAdmin = member.role == RoomRole.admin;
               final isMemberOwner = member.role == RoomRole.owner;
 
-              return Container(
-                decoration: BoxDecoration(
-                  color: tc.inputBackground,
-                  borderRadius: BorderRadius.circular(10),
-                ),
+              return Semantics(
+                container: true,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: tc.inputBackground,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 8,
@@ -6118,32 +6113,29 @@ class _CinemaViewState extends State<CinemaView> {
                     // Owner ACL controls
                     if (isOwner && !isMe && !isMemberOwner) ...[
                       const SizedBox(width: 8),
-                      Semantics(
-                        button: true,
-                        enabled: true,
-                        label: isMemberAdmin
+                      LiquidGlassActionButton(
+                        key: ValueKey('member-acl-${member.deviceId}'),
+                        semanticLabel: isMemberAdmin
                             ? '${i18n.revokeAdmin}: ${member.displayName.isNotEmpty ? member.displayName : formatDeviceId(member.deviceId)}'
                             : '${i18n.grantAdmin}: ${member.displayName.isNotEmpty ? member.displayName : formatDeviceId(member.deviceId)}',
-                        child: LiquidGlassActionButton(
-                          key: ValueKey('member-acl-${member.deviceId}'),
-                          height: 30,
-                          onTap: () {
-                            if (isMemberAdmin) {
-                              widget.session.revokeAdmin(member.deviceId);
-                            } else {
-                              widget.session.grantAdmin(member.deviceId);
-                            }
-                          },
-                          child: Text(
-                            isMemberAdmin ? i18n.revokeAdmin : i18n.grantAdmin,
-                            style: const TextStyle(fontSize: 10.5),
-                          ),
+                        height: 30,
+                        onTap: () {
+                          if (isMemberAdmin) {
+                            widget.session.revokeAdmin(member.deviceId);
+                          } else {
+                            widget.session.grantAdmin(member.deviceId);
+                          }
+                        },
+                        child: Text(
+                          isMemberAdmin ? i18n.revokeAdmin : i18n.grantAdmin,
+                          style: const TextStyle(fontSize: 10.5),
                         ),
                       ),
                     ],
                   ],
                 ),
-              );
+              ),
+            );
             },
           ),
         ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:uuid/uuid.dart';
 import 'room_session.dart';
 
 /// Call State machine enum
@@ -85,6 +86,10 @@ class CallSession extends ChangeNotifier {
   final String Function() getCurrentDeviceId;
   final String Function() getCurrentDisplayName;
   final String? Function() getCurrentAvatar;
+  final Future<RTCPeerConnection> Function(Map<String, dynamic> config)?
+      createPeerConnectionOverride;
+  final Future<MediaStream> Function(Map<String, dynamic> constraints)?
+      getUserMediaOverride;
 
   CallSession({
     required this.sendSignal,
@@ -92,7 +97,12 @@ class CallSession extends ChangeNotifier {
     required this.getCurrentDisplayName,
     required this.getCurrentAvatar,
     this.onAudioDuckingChange,
+    this.createPeerConnectionOverride,
+    this.getUserMediaOverride,
   });
+
+  int _generation = 0;
+  bool _disposed = false;
 
   CallState _state = CallState.idle;
   CallState get state => _state;
@@ -108,6 +118,13 @@ class CallSession extends ChangeNotifier {
 
   String? _peerAvatar;
   String? get peerAvatar => _peerAvatar;
+
+  // Identity of the current call, echoed on every call signal so delayed
+  // signaling from a previous call cannot mutate a newer one. Signals without
+  // a callId are still accepted (backward compatibility with older/peers that
+  // do not tag them).
+  String? _callId;
+  String _newCallId() => const Uuid().v4();
 
   Duration _duration = Duration.zero;
   Duration get duration => _duration;
@@ -151,6 +168,11 @@ class CallSession extends ChangeNotifier {
   RTCSessionDescription? _pendingRemoteDesc;
   bool _remoteDescSet = false;
 
+  bool get hasRemoteStream => _remoteStream != null;
+
+  bool _isCurrent(int generation) =>
+      !_disposed && generation == _generation;
+
   Future<void> _flushPendingCallIce() async {
     if (_callPc == null || !_remoteDescSet) return;
     for (final cand in _pendingCallIce) {
@@ -183,7 +205,10 @@ class CallSession extends ChangeNotifier {
   /// Start outgoing call to peer
   Future<void> startCall(CallType callType,
       {String? targetId, String? targetName, String? targetAvatar}) async {
-    if (_state != CallState.idle) return;
+    if (_disposed || _state != CallState.idle) return;
+    final generation = ++_generation;
+    final callId = _newCallId();
+    _callId = callId;
 
     _state = CallState.outgoing;
     _type = callType;
@@ -198,11 +223,13 @@ class CallSession extends ChangeNotifier {
     // Send call invite signal over room transport
     await sendSignal({
       'type': 'call_invite',
+      'callId': callId,
       'callType': callType.name,
       'callerId': getCurrentDeviceId(),
       'callerName': getCurrentDisplayName(),
       'callerAvatar': getCurrentAvatar(),
     });
+    if (!_isCurrent(generation)) return;
 
     // 35s Ring timeout
     _ringTimer?.cancel();
@@ -215,8 +242,10 @@ class CallSession extends ChangeNotifier {
 
   /// Accept incoming call
   Future<void> acceptCall() async {
-    if (_state != CallState.incoming) return;
+    if (_disposed || _state != CallState.incoming) return;
     _ringTimer?.cancel();
+    final generation = ++_generation;
+    _callId ??= _newCallId();
 
     _state = CallState.connected;
     _isMicMuted = false;
@@ -228,23 +257,25 @@ class CallSession extends ChangeNotifier {
 
     await sendSignal({
       'type': 'call_accept',
+      'callId': _callId,
       'calleeId': getCurrentDeviceId(),
       'calleeName': getCurrentDisplayName(),
       'calleeAvatar': getCurrentAvatar(),
     });
+    if (!_isCurrent(generation)) return;
 
     // Media setup runs in the background so accepting a call never blocks the
     // UI (or a test) on platform renderer/plugin availability.
-    unawaited(_startCalleeMedia());
+    unawaited(_startCalleeMedia(generation));
   }
 
-  Future<void> _startCalleeMedia() async {
+  Future<void> _startCalleeMedia(int generation) async {
     if (_type == CallType.video) {
       await initRenderers();
     }
-    if (_state != CallState.connected) return;
+    if (!_isCurrent(generation) || _state != CallState.connected) return;
     try {
-      await _setupPeerConnection(isCaller: false);
+      await _setupPeerConnection(isCaller: false, generation: generation);
     } catch (e) {
       debugPrint('[CallSession] Peer connection setup error: $e');
     }
@@ -254,10 +285,13 @@ class CallSession extends ChangeNotifier {
   Future<void> declineCall() async {
     if (_state != CallState.incoming) return;
     _ringTimer?.cancel();
+    final generation = ++_generation;
     await sendSignal({
       'type': 'call_reject',
+      'callId': _callId,
       'reason': 'declined',
     });
+    if (!_isCurrent(generation)) return;
     _cleanup();
   }
 
@@ -265,16 +299,21 @@ class CallSession extends ChangeNotifier {
   Future<void> hangupCall({String? reason}) async {
     if (_state == CallState.idle) return;
     _ringTimer?.cancel();
+    final generation = ++_generation;
     try {
       await sendSignal({
         'type': 'call_hangup',
+        'callId': _callId,
         'reason': reason ?? 'hangup',
       });
     } catch (_) {}
+    if (!_isCurrent(generation)) return;
     _cleanup();
   }
 
   void _cleanup() {
+    _generation++;
+    _callId = null;
     _ringTimer?.cancel();
     _durationTimer?.cancel();
     _duration = Duration.zero;
@@ -292,7 +331,7 @@ class CallSession extends ChangeNotifier {
         track.stop();
       } catch (_) {}
     });
-    _localStream?.dispose();
+    unawaited(_localStream?.dispose() ?? Future<void>.value());
     _localStream = null;
 
     _remoteStream?.getTracks().forEach((track) {
@@ -300,10 +339,10 @@ class CallSession extends ChangeNotifier {
         track.stop();
       } catch (_) {}
     });
-    _remoteStream?.dispose();
+    unawaited(_remoteStream?.dispose() ?? Future<void>.value());
     _remoteStream = null;
 
-    _callPc?.close();
+    unawaited(_closeCallPeerConnection(_callPc));
     _callPc = null;
 
     final wasConnected = _state == CallState.connected;
@@ -338,6 +377,16 @@ class CallSession extends ChangeNotifier {
     final sigType = data['type'] as String?;
     if (sigType == null) return;
 
+    // A tagged signal that belongs to a different call is stale: drop it
+    // before it can touch the current session. Untagged signals are still
+    // accepted for backward compatibility.
+    final signalCallId = data['callId'] as String?;
+    if (sigType != 'call_invite' &&
+        signalCallId != null &&
+        signalCallId != _callId) {
+      return;
+    }
+
     switch (sigType) {
       case 'call_invite':
         final callerId = data['callerId'] as String?;
@@ -351,10 +400,12 @@ class CallSession extends ChangeNotifier {
           // Already in a call or dialing with someone else, reject busy
           await sendSignal({
             'type': 'call_reject',
+            'callId': signalCallId ?? _callId,
             'reason': 'busy',
           });
           return;
         }
+        _callId = signalCallId ?? _newCallId();
         _state = CallState.incoming;
         _type = (data['callType'] == 'video') ? CallType.video : CallType.voice;
         _peerId = callerId;
@@ -375,6 +426,7 @@ class CallSession extends ChangeNotifier {
       case 'call_accept':
         if (_state == CallState.outgoing) {
           _ringTimer?.cancel();
+          final generation = ++_generation;
           _state = CallState.connected;
           _startDurationTimer();
           onAudioDuckingChange?.call(true);
@@ -384,9 +436,12 @@ class CallSession extends ChangeNotifier {
           if (_type == CallType.video) {
             await initRenderers();
           }
-          if (_state == CallState.connected) {
+          if (_isCurrent(generation) && _state == CallState.connected) {
             try {
-              await _setupPeerConnection(isCaller: true);
+              await _setupPeerConnection(
+                isCaller: true,
+                generation: generation,
+              );
             } catch (e) {
               debugPrint('[CallSession] Peer connection setup error: $e');
             }
@@ -407,24 +462,39 @@ class CallSession extends ChangeNotifier {
         break;
 
       case 'call_sdp':
+        // SDP is only meaningful inside an accepted call. Dropping it in any
+        // other state prevents a late offer/answer from an ended call being
+        // buffered and later applied to a new call.
+        if (_state != CallState.connected) return;
         final sdpMap = data['sdp'] as Map<String, dynamic>?;
         if (sdpMap != null) {
           final sdpType = sdpMap['type'] as String?;
           final sdpDesc = sdpMap['sdp'] as String?;
           if (sdpType != null && sdpDesc != null) {
             final desc = RTCSessionDescription(sdpDesc, sdpType);
+            final generation = _generation;
             if (_callPc == null) {
               _pendingRemoteDesc = desc;
             } else {
+              final pc = _callPc!;
+              bool stillCurrent() =>
+                  _isCurrent(generation) &&
+                  _state == CallState.connected &&
+                  identical(_callPc, pc);
               try {
-                await _callPc!.setRemoteDescription(desc);
+                await pc.setRemoteDescription(desc);
+                if (!stillCurrent()) return;
                 _remoteDescSet = true;
                 await _flushPendingCallIce();
+                if (!stillCurrent()) return;
                 if (sdpType == 'offer') {
-                  final answer = await _callPc!.createAnswer();
-                  await _callPc!.setLocalDescription(answer);
+                  final answer = await pc.createAnswer();
+                  if (!stillCurrent()) return;
+                  await pc.setLocalDescription(answer);
+                  if (!stillCurrent()) return;
                   await sendSignal({
                     'type': 'call_sdp',
+                    'callId': _callId,
                     'sdp': {'type': answer.type, 'sdp': answer.sdp},
                   });
                 }
@@ -437,6 +507,7 @@ class CallSession extends ChangeNotifier {
         break;
 
       case 'call_ice':
+        if (_state != CallState.connected) return;
         final iceMap = data['candidate'] as Map<String, dynamic>?;
         if (iceMap != null) {
           final candidate = RTCIceCandidate(
@@ -462,28 +533,46 @@ class CallSession extends ChangeNotifier {
     }
   }
 
-  Future<void> _setupPeerConnection({required bool isCaller}) async {
+  Future<void> _setupPeerConnection({
+    required bool isCaller,
+    required int generation,
+  }) async {
     final Map<String, dynamic> config = {
       'iceServers': RoomSession.effectiveIceServers,
       'sdpSemantics': 'unified-plan',
     };
 
-    final pc = await createPeerConnection(config);
+    final pc = await (createPeerConnectionOverride ?? createPeerConnection)(
+      config,
+    );
+    if (!_isCurrent(generation) || _state != CallState.connected) {
+      await _closeCallPeerConnection(pc);
+      return;
+    }
     _callPc = pc;
+    bool stillCurrent() =>
+        _isCurrent(generation) &&
+        _state == CallState.connected &&
+        identical(_callPc, pc);
 
     pc.onIceCandidate = (candidate) {
+      if (!stillCurrent()) return;
       if (candidate.candidate != null && candidate.candidate!.isNotEmpty) {
         sendSignal({
           'type': 'call_ice',
+          'callId': _callId,
           'candidate': candidate.toMap(),
         });
       }
     };
 
     pc.onTrack = (event) {
+      if (!stillCurrent()) return;
       if (event.streams.isNotEmpty) {
         _remoteStream = event.streams[0];
-        remoteRenderer.srcObject = _remoteStream;
+        if (_renderersInitialized) {
+          remoteRenderer.srcObject = _remoteStream;
+        }
         notifyListeners();
       }
     };
@@ -505,42 +594,69 @@ class CallSession extends ChangeNotifier {
             }
           : false,
     };
+    final getMedia = getUserMediaOverride ??
+        (Map<String, dynamic> constraints) =>
+            navigator.mediaDevices.getUserMedia(constraints);
 
     try {
-      final stream =
-          await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      final stream = await getMedia(mediaConstraints);
+      if (!stillCurrent()) {
+        await _disposeCallStream(stream);
+        return;
+      }
       _localStream = stream;
-      localRenderer.srcObject = _localStream;
+      if (_renderersInitialized) localRenderer.srcObject = _localStream;
 
       for (final track in stream.getTracks()) {
+        if (!stillCurrent()) {
+          await _disposeCallStream(stream);
+          return;
+        }
         await pc.addTrack(track, stream);
       }
+      if (!stillCurrent()) return;
       notifyListeners();
     } catch (e) {
+      if (!stillCurrent()) return;
       debugPrint('[CallSession] getUserMedia error: $e');
       // If camera failed, fallback to audio only
       if (_type == CallType.video) {
         try {
-          final audioStream = await navigator.mediaDevices.getUserMedia({
+          final audioStream = await getMedia({
             'audio': true,
             'video': false,
           });
+          if (!stillCurrent()) {
+            await _disposeCallStream(audioStream);
+            return;
+          }
           _localStream = audioStream;
-          localRenderer.srcObject = _localStream;
+          if (_renderersInitialized) {
+            localRenderer.srcObject = _localStream;
+          }
           for (final track in audioStream.getTracks()) {
+            if (!stillCurrent()) {
+              await _disposeCallStream(audioStream);
+              return;
+            }
             await pc.addTrack(track, audioStream);
           }
+          if (!stillCurrent()) return;
           _isCameraOff = true;
           notifyListeners();
         } catch (_) {}
       }
     }
 
+    if (!stillCurrent()) return;
     if (isCaller) {
       final offer = await pc.createOffer();
+      if (!stillCurrent()) return;
       await pc.setLocalDescription(offer);
+      if (!stillCurrent()) return;
       await sendSignal({
         'type': 'call_sdp',
+        'callId': _callId,
         'sdp': {'type': offer.type, 'sdp': offer.sdp},
       });
     } else if (_pendingRemoteDesc != null) {
@@ -548,19 +664,49 @@ class CallSession extends ChangeNotifier {
       _pendingRemoteDesc = null;
       try {
         await pc.setRemoteDescription(desc);
+        if (!stillCurrent()) return;
         _remoteDescSet = true;
         await _flushPendingCallIce();
+        if (!stillCurrent()) return;
         if (desc.type == 'offer') {
           final answer = await pc.createAnswer();
+          if (!stillCurrent()) return;
           await pc.setLocalDescription(answer);
+          if (!stillCurrent()) return;
           await sendSignal({
             'type': 'call_sdp',
+            'callId': _callId,
             'sdp': {'type': answer.type, 'sdp': answer.sdp},
           });
         }
       } catch (e) {
         debugPrint('[CallSession] setRemoteDescription on setup error: $e');
       }
+    }
+  }
+
+  Future<void> _disposeCallStream(MediaStream? stream) async {
+    if (stream == null) return;
+    for (final track in stream.getTracks()) {
+      try {
+        await track.stop();
+      } catch (e) {
+        debugPrint('[CallSession] track stop error: $e');
+      }
+    }
+    try {
+      await stream.dispose();
+    } catch (e) {
+      debugPrint('[CallSession] stream dispose error: $e');
+    }
+  }
+
+  Future<void> _closeCallPeerConnection(RTCPeerConnection? pc) async {
+    if (pc == null) return;
+    try {
+      await pc.close();
+    } catch (e) {
+      debugPrint('[CallSession] peer connection close error: $e');
     }
   }
 
@@ -572,6 +718,7 @@ class CallSession extends ChangeNotifier {
     });
     sendSignal({
       'type': 'call_track_state',
+      'callId': _callId,
       'micMuted': _isMicMuted,
       'cameraOff': _isCameraOff,
     });
@@ -587,6 +734,7 @@ class CallSession extends ChangeNotifier {
     });
     sendSignal({
       'type': 'call_track_state',
+      'callId': _callId,
       'micMuted': _isMicMuted,
       'cameraOff': _isCameraOff,
     });
@@ -619,9 +767,11 @@ class CallSession extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     _cleanup();
-    localRenderer.dispose();
-    remoteRenderer.dispose();
+    unawaited(localRenderer.dispose());
+    unawaited(remoteRenderer.dispose());
     super.dispose();
   }
 }

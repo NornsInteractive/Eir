@@ -378,24 +378,49 @@ class SignalingServer {
   }
 
   void _handleJoinRoom(_PeerConnection conn, Map<String, Object?> msg) {
-    var roomId = msg['roomId'] as String?;
-    if ((roomId == null || roomId.isEmpty) && msg['roomCode'] is String) {
-      final code = (msg['roomCode'] as String).trim();
-      roomId = _codeToRoomId[code];
+    final rawRoomId = msg['roomId'];
+    final hasRoomId = rawRoomId is String && rawRoomId.isNotEmpty;
+    final rawRoomCode = msg['roomCode'];
+    final hasRoomCode = rawRoomCode is String && rawRoomCode.trim().isNotEmpty;
+    if (!hasRoomId && !hasRoomCode) {
+      conn.sendError('invalid_message');
+      return;
     }
-    var token = msg['token'] as String?;
-    if (token == null && roomId != null && _rooms.containsKey(roomId)) {
-      token = _rooms[roomId]?.rawToken;
+    late final String roomId;
+    if (hasRoomCode) {
+      final code = rawRoomCode.trim();
+      final codeRoomId = _codeToRoomId[code];
+      if (codeRoomId == null) {
+        conn.sendError('room_not_found');
+        return;
+      }
+      if (hasRoomId && codeRoomId != rawRoomId) {
+        conn.sendError('invalid_message');
+        return;
+      }
+      roomId = codeRoomId;
+    } else {
+      roomId = rawRoomId as String;
+    }
+
+    final tokenValue = msg['token'];
+    final hasExplicitToken = msg.containsKey('token') && tokenValue != null;
+    String? token = tokenValue is String ? tokenValue : null;
+    final room = _rooms[roomId];
+    if (!hasExplicitToken && hasRoomCode) {
+      // A validated room-code lookup may resolve the room's credential. A
+      // roomId alone never authorizes a missing token.
+      token = room?.rawToken;
     }
     final deviceId = msg['deviceId'] as String?;
     final publicKey = msg['publicKey'] as String?;
-    final epoch = (msg['inviteEpoch'] as int?) ?? (roomId != null ? _rooms[roomId]?.inviteEpoch : 1);
+    final epoch = (msg['inviteEpoch'] as int?) ?? (room?.inviteEpoch ?? 1);
     final protocolVersion = msg['protocolVersion'] as int?;
     if (protocolVersion != kProtocolVersion) {
       conn.sendError('protocol_version');
       return;
     }
-    if (roomId == null || !_uuidV4.hasMatch(roomId)) {
+    if (!_uuidV4.hasMatch(roomId)) {
       conn.sendError('invalid_message');
       return;
     }
@@ -411,7 +436,6 @@ class SignalingServer {
       conn.sendError('invalid_message');
       return;
     }
-    final room = _rooms[roomId];
     if (room == null) {
       conn.sendError('room_not_found');
       return;
@@ -465,6 +489,7 @@ class SignalingServer {
       return;
     }
     // Atomically consume the invite for this identity.
+    final wasConsumedBySelf = room.inviteConsumedBy == deviceId;
     room.inviteConsumedBy ??= deviceId;
     final displayName = _cleanDisplayName(msg['displayName']);
     final avatar = _cleanAvatar(msg['avatar']);
@@ -476,7 +501,6 @@ class SignalingServer {
     conn.displayName = displayName;
     conn.avatar = avatar;
     conn.joinedAt = DateTime.now().millisecondsSinceEpoch;
-    final wasConsumedBySelf = room.inviteConsumedBy == deviceId;
     conn.send(<String, Object?>{
       'type': 'join_accepted',
       'roomId': roomId,
@@ -489,13 +513,13 @@ class SignalingServer {
     });
     room.broadcast(<String, Object?>{
       'type': 'member_joined',
-      'roomId': roomId,
+      'roomId': room.roomId,
       'deviceId': deviceId,
       'publicKey': conn.publicKey,
       'displayName': conn.displayName ?? '',
       'avatar': conn.avatar ?? '',
       'joinedAt': conn.joinedAt,
-      'rejoined': false,
+      'rejoined': wasConsumedBySelf,
     }, exceptDeviceId: deviceId);
   }
 

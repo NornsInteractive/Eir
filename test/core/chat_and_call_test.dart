@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:eir/models.dart';
 import 'package:eir/core/call_session.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
+
+import 'fake_webrtc.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -163,7 +166,7 @@ void main() {
       session.dispose();
     });
 
-    test('CallSession buffers SDP and ICE candidates before PC is initialized', () async {
+    test('CallSession ignores SDP and ICE candidates while no call is connected', () async {
       final signals = <Map<String, dynamic>>[];
       final session = CallSession(
         sendSignal: (sig) async => signals.add(sig),
@@ -196,6 +199,182 @@ void main() {
       expect(session.state, CallState.idle);
     });
 
+    test('CallSession ignores stale SDP and ICE after hangup', () async {
+      final signals = <Map<String, dynamic>>[];
+      final pc = FakePeerConnection();
+      final remoteStream =
+          FakeMediaStream(tracks: [FakeMediaTrack('video')], id: 'old-remote');
+      final session = CallSession(
+        sendSignal: (sig) async => signals.add(sig),
+        getCurrentDeviceId: () => 'my-dev-id',
+        getCurrentDisplayName: () => 'Alice',
+        getCurrentAvatar: () => null,
+        createPeerConnectionOverride: (_) async => pc,
+        getUserMediaOverride: (_) async => FakeMediaStream(
+          tracks: [FakeMediaTrack('audio'), FakeMediaTrack('video')],
+        ),
+      );
+
+      await session.startCall(CallType.video, targetId: 'bob-dev-id');
+      await session.handleCallSignal({'type': 'call_accept'});
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(session.state, CallState.connected);
+
+      await session.hangupCall();
+      expect(session.state, CallState.idle);
+      expect(pc.closed, isTrue);
+      signals.clear();
+
+      await session.handleCallSignal({
+        'type': 'call_sdp',
+        'sdp': {'type': 'offer', 'sdp': 'v=0 old'},
+      });
+      await session.handleCallSignal({
+        'type': 'call_ice',
+        'candidate': {
+          'candidate': 'candidate:old 1 UDP 1 127.0.0.1 9 typ host',
+          'sdpMid': '0',
+          'sdpMLineIndex': 0,
+        },
+      });
+      pc.onTrack?.call(RTCTrackEvent(
+        streams: [remoteStream],
+        track: FakeMediaTrack('video'),
+      ));
+      pc.onIceCandidate?.call(RTCIceCandidate(
+        'candidate:late 1 UDP 1 127.0.0.1 9 typ host',
+        '0',
+        0,
+      ));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(session.state, CallState.idle);
+      expect(session.hasRemoteStream, isFalse);
+      expect(pc.setRemoteDescriptionCalls, 0);
+      expect(pc.addedCandidates, isEmpty);
+      expect(signals.where((s) => s['type'] == 'call_ice'), isEmpty);
+
+      session.dispose();
+    });
+
+    test('startCall hangup during invite send keeps the session idle', () async {
+      final inviteSignal = Completer<void>();
+      final signals = <Map<String, dynamic>>[];
+      var pcCreates = 0;
+      final session = CallSession(
+        sendSignal: (sig) async {
+          signals.add(sig);
+          if (sig['type'] == 'call_invite') await inviteSignal.future;
+        },
+        getCurrentDeviceId: () => 'my-dev-id',
+        getCurrentDisplayName: () => 'Alice',
+        getCurrentAvatar: () => null,
+        createPeerConnectionOverride: (_) async {
+          pcCreates++;
+          return FakePeerConnection();
+        },
+      );
+
+      final starting = session.startCall(
+        CallType.voice,
+        targetId: 'bob-dev-id',
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(session.state, CallState.outgoing);
+
+      await session.hangupCall(reason: 'cancelled');
+      expect(session.state, CallState.idle);
+
+      inviteSignal.complete();
+      await starting;
+
+      expect(session.state, CallState.idle);
+      expect(pcCreates, 0);
+      expect(signals.last['type'], 'call_hangup');
+
+      session.dispose();
+    });
+
+    test('hangup during datachannel media acquisition disposes the late stream',
+        () async {
+      final mediaRequested = Completer<void>();
+      final media = Completer<MediaStream>();
+      final lateTrack = FakeMediaTrack('video');
+      final lateStream = FakeMediaStream(tracks: [lateTrack]);
+      final pc = FakePeerConnection();
+      final session = CallSession(
+        sendSignal: (_) async {},
+        getCurrentDeviceId: () => 'my-dev-id',
+        getCurrentDisplayName: () => 'Alice',
+        getCurrentAvatar: () => null,
+        createPeerConnectionOverride: (_) async => pc,
+        getUserMediaOverride: (_) {
+          if (!mediaRequested.isCompleted) mediaRequested.complete();
+          return media.future;
+        },
+      );
+
+      await session.startCall(CallType.video, targetId: 'bob-dev-id');
+      final accepting = session.handleCallSignal({'type': 'call_accept'});
+      await mediaRequested.future;
+
+      await session.hangupCall();
+      expect(session.state, CallState.idle);
+      expect(pc.closed, isTrue);
+
+      media.complete(lateStream);
+      await accepting;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(session.state, CallState.idle);
+      expect(session.hasRemoteStream, isFalse);
+      expect(lateTrack.stopped, isTrue);
+      expect(lateStream.disposed, isTrue);
+      expect(pc.addedTracks, isEmpty);
+
+      session.dispose();
+    });
+
+    test('acceptCall hangup during accept send never starts callee media',
+        () async {
+      final acceptSignal = Completer<void>();
+      var pcCreates = 0;
+      final session = CallSession(
+        sendSignal: (sig) async {
+          if (sig['type'] == 'call_accept') await acceptSignal.future;
+        },
+        getCurrentDeviceId: () => 'my-dev-id',
+        getCurrentDisplayName: () => 'Alice',
+        getCurrentAvatar: () => null,
+        createPeerConnectionOverride: (_) async {
+          pcCreates++;
+          return FakePeerConnection();
+        },
+      );
+
+      await session.handleCallSignal({
+        'type': 'call_invite',
+        'callType': 'video',
+        'callerId': 'bob-dev-id',
+        'callerName': 'Bob',
+      });
+      final accepting = session.acceptCall();
+      await Future<void>.delayed(Duration.zero);
+      expect(session.state, CallState.connected);
+
+      await session.hangupCall(reason: 'cancelled');
+      expect(session.state, CallState.idle);
+
+      acceptSignal.complete();
+      await accepting;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(session.state, CallState.idle);
+      expect(pcCreates, 0);
+
+      session.dispose();
+    });
+
     test('CallSession deduplicates duplicate call_invite from the same caller without busy rejection', () async {
       final signals = <Map<String, dynamic>>[];
       final session = CallSession(
@@ -226,6 +405,99 @@ void main() {
       // Must remain in incoming state and NOT emit call_reject(busy)
       expect(session.state, CallState.incoming);
       expect(signals.any((s) => s['type'] == 'call_reject'), isFalse);
+
+      session.dispose();
+    });
+
+    test('late SDP, ICE and hangup from a previous call cannot mutate a new call',
+        () async {
+      final signals = <Map<String, dynamic>>[];
+      final pcs = <FakePeerConnection>[];
+      final session = CallSession(
+        sendSignal: (sig) async => signals.add(sig),
+        getCurrentDeviceId: () => 'my-dev-id',
+        getCurrentDisplayName: () => 'Alice',
+        getCurrentAvatar: () => null,
+        createPeerConnectionOverride: (_) async {
+          final pc = FakePeerConnection();
+          pcs.add(pc);
+          return pc;
+        },
+        getUserMediaOverride: (_) async =>
+            FakeMediaStream(tracks: [FakeMediaTrack('audio')]),
+      );
+
+      // First call, driven entirely through the public seam so the callIds are
+      // the real ones emitted by the session (not invented by the test).
+      await session.startCall(CallType.voice, targetId: 'bob');
+      final oldCallId = signals
+          .firstWhere((s) => s['type'] == 'call_invite')['callId'] as String;
+      await session.handleCallSignal({
+        'type': 'call_accept',
+        'callId': oldCallId,
+      });
+      await Future<void>.delayed(Duration.zero);
+      expect(session.state, CallState.connected);
+      final oldPc = pcs.single;
+
+      await session.hangupCall();
+      expect(session.state, CallState.idle);
+      expect(oldPc.closed, isTrue);
+
+      // Second call with a distinct callId and a fresh peer connection.
+      signals.clear();
+      await session.startCall(CallType.voice, targetId: 'bob');
+      final newCallId = signals
+          .firstWhere((s) => s['type'] == 'call_invite')['callId'] as String;
+      expect(newCallId, isNot(oldCallId));
+      await session.handleCallSignal({
+        'type': 'call_accept',
+        'callId': newCallId,
+      });
+      await Future<void>.delayed(Duration.zero);
+      expect(session.state, CallState.connected);
+      final newPc = pcs.last;
+      expect(identical(oldPc, newPc), isFalse);
+
+      // Delayed signaling from the prior call must be ignored.
+      await session.handleCallSignal({
+        'type': 'call_sdp',
+        'callId': oldCallId,
+        'sdp': {'type': 'offer', 'sdp': 'v=0 old'},
+      });
+      await session.handleCallSignal({
+        'type': 'call_ice',
+        'callId': oldCallId,
+        'candidate': {
+          'candidate': 'candidate:old 1 UDP 1 127.0.0.1 9 typ host',
+          'sdpMid': '0',
+          'sdpMLineIndex': 0,
+        },
+      });
+      await session.handleCallSignal({
+        'type': 'call_hangup',
+        'callId': oldCallId,
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(session.state, CallState.connected);
+      expect(newPc.setRemoteDescriptionCalls, 0);
+      expect(newPc.addedCandidates, isEmpty);
+      expect(signals.where((s) => s['type'] == 'call_hangup'), isEmpty);
+
+      // Signaling for the current call still works.
+      await session.handleCallSignal({
+        'type': 'call_hangup',
+        'callId': newCallId,
+      });
+      expect(session.state, CallState.idle);
+
+      // Once idle, another late hangup is a harmless no-op.
+      await session.handleCallSignal({
+        'type': 'call_hangup',
+        'callId': oldCallId,
+      });
+      expect(session.state, CallState.idle);
 
       session.dispose();
     });

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +35,7 @@ class AppSettings extends ChangeNotifier {
   static const String _kServerDomainKey = 'eir_setting_server_domain';
   static const String _kLastConfigSyncTimeKey = 'eir_last_config_sync_time';
   static const String _kEnableCastFloatingChatKey = 'eir_setting_enable_cast_floating_chat';
+  static const String _kNetworkConfigRecordKey = 'eir_setting_network_config';
 
   static const List<String> _adjectives = [
     'Starlight', 'Velvet', 'Neon', 'Cosmic', 'Solar', 'Lunar', 'Silent',
@@ -234,21 +236,9 @@ class AppSettings extends ChangeNotifier {
       try {
         final sigUrl = prefs.getString(_kSignalingUrlKey);
         if (sigUrl != null && sigUrl.trim().isNotEmpty) {
-          final trimmed = sigUrl.trim();
-          // Auto-migrate legacy standalone 8765 / local 8080 to global high-availability signaling URL
-          if (trimmed == 'ws://127.0.0.1:8765' ||
-              trimmed == 'ws://localhost:8765' ||
-              trimmed == 'ws://127.0.0.1:8765/' ||
-              trimmed == 'ws://localhost:8765/' ||
-              trimmed == 'ws://127.0.0.1:8080/ws' ||
-              trimmed == 'ws://localhost:8080/ws' ||
-              trimmed == 'ws://127.0.0.1:8080' ||
-              trimmed == 'ws://localhost:8080') {
-            _signalingUrl = effectiveDefaultSignalingUrl;
-            _saveString(_kSignalingUrlKey, _signalingUrl).catchError((_) => null);
-          } else {
-            _signalingUrl = trimmed;
-          }
+          // A saved address is the user's explicit choice, including local
+          // development endpoints. Never rewrite it to a built-in default.
+          _signalingUrl = sigUrl.trim();
         } else {
           _signalingUrl = effectiveDefaultSignalingUrl;
         }
@@ -380,6 +370,19 @@ class AppSettings extends ChangeNotifier {
         _enableCastFloatingChat = true;
         debugPrint('[AppSettings] Reset corrupted enable cast floating chat setting: $e');
       }
+
+      // 17. Authoritative network configuration record. The canonical record
+      // overrides legacy scalar values when present. When absent, the scalar
+      // values loaded above remain the compatibility source.
+      final record = _readNetworkConfigRecord(prefs);
+      if (record != null) {
+        _serverDomain = record.serverDomain;
+        _signalingUrl = record.signalingUrl;
+        _turnServer = record.turnServer;
+        _turnUsername = record.turnUsername;
+        _turnCredential = record.turnCredential;
+        _lastConfigSyncTime = record.lastConfigSyncTime;
+      }
     }
 
     _isInitialized = true;
@@ -422,43 +425,105 @@ class AppSettings extends ChangeNotifier {
     required String username,
     required String credential,
   }) async {
-    _turnServer = server.trim();
-    _turnUsername = username.trim();
-    _turnCredential = credential.trim();
-    notifyListeners();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kTurnServerKey, _turnServer);
-      await prefs.setString(_kTurnUsernameKey, _turnUsername);
-      await prefs.setString(_kTurnCredentialKey, _turnCredential);
-    } catch (e) {
-      debugPrint('[AppSettings] Failed to persist TURN config: $e');
+    final targetServer = server.trim();
+    final targetUsername = username.trim();
+    final targetCredential = credential.trim();
+    if (_turnServer == targetServer &&
+        _turnUsername == targetUsername &&
+        _turnCredential == targetCredential) {
+      return;
     }
+
+    final target = _currentNetworkConfig().copyWith(
+      turnServer: targetServer,
+      turnUsername: targetUsername,
+      turnCredential: targetCredential,
+    );
+    _validateNetworkConfig(target);
+    await _persistNetworkConfig(target);
+
+    _turnServer = targetServer;
+    _turnUsername = targetUsername;
+    _turnCredential = targetCredential;
+    notifyListeners();
+    await _mirrorLegacyNetworkKeys(target);
   }
 
   Future<void> setServerDomain(String domain) async {
     final trimmed = domain.trim();
     final target = trimmed.isNotEmpty ? trimmed : defaultServerDomain;
     if (_serverDomain == target) return;
+
+    final config = _currentNetworkConfig().copyWith(serverDomain: target);
+    _validateNetworkConfig(config);
+    await _persistNetworkConfig(config);
+
     _serverDomain = target;
     notifyListeners();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kServerDomainKey, _serverDomain);
-    } catch (e) {
-      debugPrint('[AppSettings] Failed to persist Server Domain: $e');
-    }
+    await _mirrorLegacyNetworkKeys(config);
   }
 
   Future<void> setLastConfigSyncTime(int timestamp) async {
+    if (_lastConfigSyncTime == timestamp) return;
+
+    final config = _currentNetworkConfig().copyWith(
+      lastConfigSyncTime: timestamp,
+    );
+    await _persistNetworkConfig(config);
+
     _lastConfigSyncTime = timestamp;
     notifyListeners();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_kLastConfigSyncTimeKey, timestamp);
-    } catch (e) {
-      debugPrint('[AppSettings] Failed to persist Last Config Sync Time: $e');
+    await _mirrorLegacyNetworkKeys(config);
+  }
+
+  /// Applies a validated remote-config payload as one coherent record.
+  /// All six networking fields are serialized into one authoritative
+  /// preference entry and saved with a single confirmed operation. In-memory
+  /// values are only changed after that write succeeds. Keys not supplied
+  /// here (theme, language, room state, etc.) are left untouched.
+  Future<void> applyRemoteConfig({
+    String? serverDomain,
+    String? signalingUrl,
+    String? turnServer,
+    String? turnUsername,
+    String? turnCredential,
+    int? lastConfigSyncTime,
+  }) async {
+    var next = _currentNetworkConfig();
+
+    if (serverDomain != null) {
+      final trimmed = serverDomain.trim();
+      next = next.copyWith(
+        serverDomain: trimmed.isNotEmpty ? trimmed : defaultServerDomain,
+      );
     }
+    if (signalingUrl != null) {
+      next = next.copyWith(signalingUrl: signalingUrl.trim());
+    }
+    if (turnServer != null) {
+      next = next.copyWith(
+        turnServer: turnServer.trim(),
+        turnUsername: (turnUsername ?? '').trim(),
+        turnCredential: (turnCredential ?? '').trim(),
+      );
+    }
+    if (lastConfigSyncTime != null) {
+      next = next.copyWith(lastConfigSyncTime: lastConfigSyncTime);
+    }
+
+    if (next == _currentNetworkConfig()) return;
+
+    _validateNetworkConfig(next);
+    await _persistNetworkConfig(next);
+
+    _serverDomain = next.serverDomain;
+    _signalingUrl = next.signalingUrl;
+    _turnServer = next.turnServer;
+    _turnUsername = next.turnUsername;
+    _turnCredential = next.turnCredential;
+    _lastConfigSyncTime = next.lastConfigSyncTime;
+    notifyListeners();
+    await _mirrorLegacyNetworkKeys(next);
   }
 
   Future<void> setTransportEngine(String engine) async {
@@ -537,9 +602,11 @@ class AppSettings extends ChangeNotifier {
       throw ArgumentError('signaling URL must be ws:// or wss://');
     }
     if (_signalingUrl != clean) {
-      await _saveString(_kSignalingUrlKey, clean);
+      final config = _currentNetworkConfig().copyWith(signalingUrl: clean);
+      await _persistNetworkConfig(config);
       _signalingUrl = clean;
       notifyListeners();
+      await _mirrorLegacyNetworkKeys(config);
     }
   }
 
@@ -655,6 +722,163 @@ class AppSettings extends ChangeNotifier {
     } catch (_) {}
   }
 
+  _NetworkConfig _currentNetworkConfig() => _NetworkConfig(
+    serverDomain: _serverDomain,
+    signalingUrl: _signalingUrl,
+    turnServer: _turnServer,
+    turnUsername: _turnUsername,
+    turnCredential: _turnCredential,
+    lastConfigSyncTime: _lastConfigSyncTime,
+  );
+
+  static _NetworkConfig? _readNetworkConfigRecord(SharedPreferences prefs) {
+    try {
+      final raw = prefs.getString(_kNetworkConfigRecordKey);
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      final serverDomain = decoded['serverDomain'];
+      final signalingUrl = decoded['signalingUrl'];
+      final turnServer = decoded['turnServer'];
+      final turnUsername = decoded['turnUsername'];
+      final turnCredential = decoded['turnCredential'];
+      final lastConfigSyncTime = decoded['lastConfigSyncTime'];
+      if (serverDomain is! String ||
+          signalingUrl is! String ||
+          turnServer is! String ||
+          turnUsername is! String ||
+          turnCredential is! String ||
+          lastConfigSyncTime is! int) {
+        return null;
+      }
+      final config = _NetworkConfig(
+        serverDomain: serverDomain,
+        signalingUrl: signalingUrl,
+        turnServer: turnServer,
+        turnUsername: turnUsername,
+        turnCredential: turnCredential,
+        lastConfigSyncTime: lastConfigSyncTime,
+      );
+      if (!_isValidServerDomain(config.serverDomain) ||
+          !_isValidSignalingUrl(config.signalingUrl) ||
+          !_isValidTurnServer(config.turnServer)) {
+        return null;
+      }
+      return config;
+    } catch (e) {
+      debugPrint('[AppSettings] Ignoring corrupted network config record: $e');
+      return null;
+    }
+  }
+
+  /// Saves the whole networking configuration as one preference value.
+  /// If the platform reports failure, the legacy scalar keys and memory are
+  /// left untouched and the previous saved record is authoritative again.
+  Future<void> _persistNetworkConfig(_NetworkConfig config) async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = jsonEncode(config.toJson());
+    bool ok;
+    try {
+      ok = await prefs.setString(_kNetworkConfigRecordKey, encoded);
+    } catch (_) {
+      await _reloadAfterFailedWrite(prefs);
+      rethrow;
+    }
+    if (!ok) {
+      await _reloadAfterFailedWrite(prefs);
+      throw StateError('could not persist network configuration');
+    }
+  }
+
+  /// SharedPreferences updates its in-memory cache before the platform write.
+  /// Reload it after a failed write so callers do not observe an unconfirmed
+  /// value. A reload failure is reported but cannot be repaired further here.
+  Future<void> _reloadAfterFailedWrite(SharedPreferences prefs) async {
+    try {
+      await prefs.reload();
+    } catch (e) {
+      debugPrint('[AppSettings] Failed to reload preferences after write failure: $e');
+    }
+  }
+
+  /// Best-effort compatibility mirror for older readers. The canonical record
+  /// above remains authoritative; failures here never change the result.
+  Future<void> _mirrorLegacyNetworkKeys(_NetworkConfig config) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final writes = <String, Object>{
+        _kServerDomainKey: config.serverDomain,
+        _kSignalingUrlKey: config.signalingUrl,
+        _kTurnServerKey: config.turnServer,
+        _kTurnUsernameKey: config.turnUsername,
+        _kTurnCredentialKey: config.turnCredential,
+        _kLastConfigSyncTimeKey: config.lastConfigSyncTime,
+      };
+      for (final entry in writes.entries) {
+        try {
+          final value = entry.value;
+          if (value is int) {
+            await prefs.setInt(entry.key, value);
+          } else {
+            await prefs.setString(entry.key, value as String);
+          }
+        } catch (e) {
+          debugPrint('[AppSettings] Legacy mirror write failed for ${entry.key}: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('[AppSettings] Legacy mirror unavailable: $e');
+    }
+  }
+
+  static bool _isValidServerDomain(String value) {
+    if (value.isEmpty || RegExp(r'\s').hasMatch(value)) return false;
+    final candidate = value.contains('://') ? value : 'https://$value';
+    final uri = Uri.tryParse(candidate);
+    return uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty &&
+        uri.userInfo.isEmpty;
+  }
+
+  static bool _isValidSignalingUrl(String value) {
+    final uri = Uri.tryParse(value);
+    return uri != null &&
+        (uri.scheme == 'ws' || uri.scheme == 'wss') &&
+        uri.host.isNotEmpty;
+  }
+
+  static bool _isValidTurnServer(String value) {
+    if (value.isEmpty) return true;
+    if (RegExp(r'\s').hasMatch(value)) return false;
+    final cleaned = value.replaceFirst(
+      RegExp(r'^turns?:', caseSensitive: false),
+      '',
+    );
+    if (cleaned.isEmpty) return false;
+    try {
+      final uri = Uri.parse('turn://$cleaned');
+      if (uri.host.isEmpty || uri.userInfo.isNotEmpty) return false;
+      if (uri.path.isNotEmpty && uri.path != '/') return false;
+      final port = uri.hasPort ? uri.port : 3478;
+      return port >= 1 && port <= 65535;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static void _validateNetworkConfig(_NetworkConfig config) {
+    if (!_isValidServerDomain(config.serverDomain)) {
+      throw ArgumentError('server domain must be an http(s) URL or hostname');
+    }
+    if (!_isValidSignalingUrl(config.signalingUrl)) {
+      throw ArgumentError('signaling URL must be ws:// or wss://');
+    }
+    if (!_isValidTurnServer(config.turnServer)) {
+      throw ArgumentError('TURN server must be a valid host[:port]');
+    }
+  }
+
   Future<void> _saveString(String key, String val) async {
     final prefs = await SharedPreferences.getInstance();
     if (!await prefs.setString(key, val)) {
@@ -668,4 +892,70 @@ class AppSettings extends ChangeNotifier {
       await prefs.setBool(key, val);
     } catch (_) {}
   }
+}
+
+class _NetworkConfig {
+  const _NetworkConfig({
+    required this.serverDomain,
+    required this.signalingUrl,
+    required this.turnServer,
+    required this.turnUsername,
+    required this.turnCredential,
+    required this.lastConfigSyncTime,
+  });
+
+  final String serverDomain;
+  final String signalingUrl;
+  final String turnServer;
+  final String turnUsername;
+  final String turnCredential;
+  final int lastConfigSyncTime;
+
+  _NetworkConfig copyWith({
+    String? serverDomain,
+    String? signalingUrl,
+    String? turnServer,
+    String? turnUsername,
+    String? turnCredential,
+    int? lastConfigSyncTime,
+  }) {
+    return _NetworkConfig(
+      serverDomain: serverDomain ?? this.serverDomain,
+      signalingUrl: signalingUrl ?? this.signalingUrl,
+      turnServer: turnServer ?? this.turnServer,
+      turnUsername: turnUsername ?? this.turnUsername,
+      turnCredential: turnCredential ?? this.turnCredential,
+      lastConfigSyncTime: lastConfigSyncTime ?? this.lastConfigSyncTime,
+    );
+  }
+
+  Map<String, Object> toJson() => <String, Object>{
+    'serverDomain': serverDomain,
+    'signalingUrl': signalingUrl,
+    'turnServer': turnServer,
+    'turnUsername': turnUsername,
+    'turnCredential': turnCredential,
+    'lastConfigSyncTime': lastConfigSyncTime,
+  };
+
+  @override
+  bool operator ==(Object other) {
+    return other is _NetworkConfig &&
+        other.serverDomain == serverDomain &&
+        other.signalingUrl == signalingUrl &&
+        other.turnServer == turnServer &&
+        other.turnUsername == turnUsername &&
+        other.turnCredential == turnCredential &&
+        other.lastConfigSyncTime == lastConfigSyncTime;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    serverDomain,
+    signalingUrl,
+    turnServer,
+    turnUsername,
+    turnCredential,
+    lastConfigSyncTime,
+  );
 }

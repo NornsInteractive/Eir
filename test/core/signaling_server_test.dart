@@ -131,6 +131,26 @@ Map<String, Object?> joinRoomMsg({
   };
 }
 
+Map<String, Object?> joinByCodeMsg({
+  required String roomCode,
+  required TestIdentity identity,
+  String? roomId,
+  String? token,
+  int? inviteEpoch,
+  int protocolVersion = 1,
+}) {
+  return {
+    'type': 'join_room',
+    'protocolVersion': protocolVersion,
+    'roomCode': roomCode,
+    if (roomId != null) 'roomId': roomId,
+    if (token != null) 'token': token,
+    'deviceId': identity.deviceId,
+    'publicKey': identity.publicKeyBase64,
+    if (inviteEpoch != null) 'inviteEpoch': inviteEpoch,
+  };
+}
+
 const roomId = 'cccccccc-2222-3333-4444-555555555555';
 const token = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq'; // exactly 43 chars
 
@@ -304,6 +324,145 @@ void main() {
     expect((await g.waitFor('error'))['code'], 'invalid_invite');
     await ownerClient.close();
     await g.close();
+  });
+
+  test('room-code join without a token resolves the room credential', () async {
+    final owner = await newTestIdentity();
+    final guest = await newTestIdentity();
+    final ownerClient = await WsClient.connect(port);
+    await ownerClient.send(
+        createRoomMsg(roomId: roomId, token: token, identity: owner));
+    final created = await ownerClient.waitFor('room_created');
+    final roomCode = created['roomCode'] as String;
+
+    final g = await WsClient.connect(port);
+    await g.send(joinByCodeMsg(roomCode: roomCode, identity: guest));
+    final accepted = await g.waitFor('join_accepted');
+    expect(accepted['roomId'], roomId);
+    expect(accepted['members'], isA<List>());
+
+    await ownerClient.close();
+    await g.close();
+  });
+
+  test('roomId-only join without a token is never authorized', () async {
+    final owner = await newTestIdentity();
+    final guest = await newTestIdentity();
+    final ownerClient = await WsClient.connect(port);
+    await ownerClient.send(
+        createRoomMsg(roomId: roomId, token: token, identity: owner));
+    await ownerClient.waitFor('room_created');
+
+    final g = await WsClient.connect(port);
+    await g.send({
+      'type': 'join_room',
+      'protocolVersion': 1,
+      'roomId': roomId,
+      'deviceId': guest.deviceId,
+      'publicKey': guest.publicKeyBase64,
+      'inviteEpoch': 1,
+    });
+    expect((await g.waitFor('error'))['code'], 'invalid_invite');
+
+    // The rejected request must not have consumed the invite either.
+    await g.send(joinRoomMsg(
+      roomId: roomId,
+      token: token,
+      identity: guest,
+    ));
+    expect((await g.waitFor('join_accepted'))['roomId'], roomId);
+    await ownerClient.close();
+    await g.close();
+  });
+
+  test('explicit token is validated even when a valid roomCode is supplied',
+      () async {
+    final owner = await newTestIdentity();
+    final guest = await newTestIdentity();
+    final ownerClient = await WsClient.connect(port);
+    await ownerClient.send(
+        createRoomMsg(roomId: roomId, token: token, identity: owner));
+    final created = await ownerClient.waitFor('room_created');
+    final roomCode = created['roomCode'] as String;
+
+    final g = await WsClient.connect(port);
+    await g.send(joinByCodeMsg(
+      roomCode: roomCode,
+      token: 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz',
+      identity: guest,
+    ));
+    expect((await g.waitFor('error'))['code'], 'invalid_invite');
+    expect(server.roomCount, 1);
+
+    await ownerClient.close();
+    await g.close();
+  });
+
+  test('conflicting roomCode and roomId are rejected', () async {
+    final owner = await newTestIdentity();
+    final otherOwner = await newTestIdentity();
+    final guest = await newTestIdentity();
+    const otherRoomId = 'abababab-2222-3333-4444-555555555555';
+    const otherToken = 'ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ';
+    final ownerClient = await WsClient.connect(port);
+    await ownerClient.send(
+        createRoomMsg(roomId: roomId, token: token, identity: owner));
+    final created = await ownerClient.waitFor('room_created');
+    final roomCode = created['roomCode'] as String;
+    final otherClient = await WsClient.connect(port);
+    await otherClient.send(createRoomMsg(
+      roomId: otherRoomId,
+      token: otherToken,
+      identity: otherOwner,
+    ));
+    await otherClient.waitFor('room_created');
+
+    final g = await WsClient.connect(port);
+    await g.send(joinByCodeMsg(
+      roomCode: roomCode,
+      roomId: otherRoomId,
+      token: otherToken,
+      identity: guest,
+    ));
+    expect((await g.waitFor('error'))['code'], 'invalid_message');
+
+    await ownerClient.close();
+    await otherClient.close();
+    await g.close();
+  });
+
+  test('room-code join keeps protocol and epoch validation', () async {
+    final owner = await newTestIdentity();
+    final guest = await newTestIdentity();
+    final ownerClient = await WsClient.connect(port);
+    await ownerClient.send(createRoomMsg(
+      roomId: roomId,
+      token: token,
+      identity: owner,
+      inviteEpoch: 2,
+    ));
+    final created = await ownerClient.waitFor('room_created');
+    final roomCode = created['roomCode'] as String;
+
+    final wrongVersion = await WsClient.connect(port);
+    await wrongVersion.send(joinByCodeMsg(
+      roomCode: roomCode,
+      identity: guest,
+      protocolVersion: 2,
+    ));
+    expect((await wrongVersion.waitFor('error'))['code'], 'protocol_version');
+
+    final staleEpoch = await WsClient.connect(port);
+    await staleEpoch.send(joinByCodeMsg(
+      roomCode: roomCode,
+      identity: guest,
+      inviteEpoch: 1,
+    ));
+    expect((await staleEpoch.waitFor('error'))['code'], 'invite_stale');
+
+    await ownerClient.close();
+    await wrongVersion.close();
+    await staleEpoch.close();
   });
 
   test('join with stale invite epoch is rejected', () async {

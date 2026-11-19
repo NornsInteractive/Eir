@@ -9,7 +9,9 @@ import 'dart:io'
         File,
         Directory,
         IOSink,
-        Process;
+        Process,
+        ProcessResult;
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MethodChannel;
@@ -18,6 +20,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app_localization.dart';
+import '../platform/http_fetch.dart';
 import '../apple_glass.dart';
 import '../models.dart' show formatBytes;
 
@@ -135,12 +138,14 @@ class UpdateService {
   }) async {
     try {
       final endpoint = customEndpoint ?? defaultEndpoint;
-      final uri = Uri.parse(endpoint).replace(queryParameters: {
-        'app_id': appId,
-        'version_code': currentVersionCode.toString(),
-        'platform': currentPlatform,
-        'channel': channel ?? 'default',
-      });
+      final uri = Uri.parse(endpoint).replace(
+        queryParameters: {
+          'app_id': appId,
+          'version_code': currentVersionCode.toString(),
+          'platform': currentPlatform,
+          'channel': channel ?? 'default',
+        },
+      );
 
       final jsonMap = await _fetchJson(uri);
       if (jsonMap == null) return null;
@@ -218,75 +223,253 @@ class UpdateService {
     }
   }
 
-  static const MethodChannel _mediaPickerChannel =
-      MethodChannel('com.norns.eir/media_picker');
+  static const MethodChannel _mediaPickerChannel = MethodChannel(
+    'com.norns.eir/media_picker',
+  );
+
+  /// Directory under the platform temp directory that this service owns.
+  static const String updateTempDirectoryName = 'eir_updates';
+
+  static const int _maxDownloadRedirects = 5;
+  static const Duration _downloadTimeout = Duration(seconds: 15);
+  static const Duration _downloadReadTimeout = Duration(seconds: 30);
+
+  /// Process launcher used by desktop installers; injectable for tests.
+  @visibleForTesting
+  static Future<ProcessResult> Function(
+    String executable,
+    List<String> arguments,
+  ) processRunner = Process.run;
+
+  /// Forces the Windows installer branch on non-Windows test hosts.
+  @visibleForTesting
+  static bool? debugWindowsPlatformOverride;
+
+  static bool get _isWindowsPlatform =>
+      debugWindowsPlatformOverride ?? Platform.isWindows;
+
+  /// Package types Windows can start through the shell. The shell opener only
+  /// reports whether the package was handed off, so installers that run for
+  /// minutes do not block the caller. Archives such as `.zip` are excluded on
+  /// purpose and must never be launched.
+  static const Set<String> _windowsShellPackageExtensions = <String>{
+    '.msix',
+    '.msixbundle',
+    '.appx',
+    '.appxbundle',
+    '.msi',
+    '.exe',
+  };
+
+  static String _lowercaseFileExtension(String filePath) {
+    final name = filePath.split(RegExp(r'[\\/]')).last;
+    final dot = name.lastIndexOf('.');
+    if (dot <= 0 || dot == name.length - 1) return '';
+    return name.substring(dot).toLowerCase();
+  }
+
+  static bool _isLoopbackHost(String host) {
+    final value = host.toLowerCase();
+    return value == 'localhost' ||
+        value == '127.0.0.1' ||
+        value == '::1' ||
+        value == '0:0:0:0:0:0:0:1' ||
+        value.endsWith('.localhost');
+  }
+
+  /// HTTPS is always allowed. Plain HTTP is limited to loopback fixtures and
+  /// payloads that carry an expected checksum, so remote HTTP updates are not
+  /// accepted silently without integrity verification.
+  static bool _isAllowedDownloadUri(Uri uri, {required bool hasChecksum}) {
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme == 'https') return uri.host.isNotEmpty;
+    if (scheme != 'http' || uri.host.isEmpty) return false;
+    return _isLoopbackHost(uri.host) || hasChecksum;
+  }
+
+  /// Returns a safe single-component basename, or null when the supplied name
+  /// could escape the owned directory or is invalid on a supported platform.
+  static String? _sanitizeUpdateFileName(String? raw) {
+    if (raw == null) return null;
+    final name = raw.trim();
+    if (name.isEmpty || name == '.' || name == '..') return null;
+    if (RegExp(r'^\.+$').hasMatch(name)) return null;
+    if (name.contains('/') || name.contains(r'\')) return null;
+    if (RegExp(r'[<>:"|?*\x00-\x1F]').hasMatch(name)) return null;
+    if (name.endsWith('.') || name.endsWith(' ')) return null;
+    final stem = name.split('.').first.toLowerCase();
+    const reserved = <String>{
+      'con',
+      'prn',
+      'aux',
+      'nul',
+      'com1',
+      'com2',
+      'com3',
+      'com4',
+      'com5',
+      'com6',
+      'com7',
+      'com8',
+      'com9',
+      'lpt1',
+      'lpt2',
+      'lpt3',
+      'lpt4',
+      'lpt5',
+      'lpt6',
+      'lpt7',
+      'lpt8',
+      'lpt9',
+    };
+    if (reserved.contains(stem)) return null;
+    return name;
+  }
+
+  static String? _normalizeSha256(String? raw) {
+    if (raw == null) return null;
+    var value = raw.trim().toLowerCase();
+    if (value.startsWith('sha256:')) value = value.substring(7);
+    if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(value)) return null;
+    return value;
+  }
+
+  static bool _isInsideDirectory(Directory directory, String path) {
+    final root = directory.absolute.path.endsWith(Platform.pathSeparator)
+        ? directory.absolute.path
+        : '${directory.absolute.path}${Platform.pathSeparator}';
+    return File(path).absolute.path.startsWith(root);
+  }
+
+  static Future<Directory> _ownedUpdateDirectory() async {
+    Directory base;
+    try {
+      base = await getTemporaryDirectory();
+    } catch (_) {
+      base = Directory.systemTemp;
+    }
+    final dir = Directory(
+      '${base.path}${Platform.pathSeparator}$updateTempDirectoryName',
+    );
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return dir;
+  }
 
   /// Downloads the update file with real-time streaming progress and speed.
+  ///
+  /// [expectedSha256] and [expectedSize] are verified before the finished file
+  /// is returned. The download is written to a `.part` file in the owned update
+  /// directory and only renamed after every available check passes.
   static Future<File?> downloadUpdateFile(
     String url, {
     String? preferredFileName,
+    String? expectedSha256,
+    int expectedSize = 0,
     required void Function(int received, int total, double bytesPerSec)
         onProgress,
   }) async {
     if (kIsWeb) return null;
 
+    final uri = Uri.tryParse(url);
+    if (uri == null) return null;
+
+    final normalizedHash = _normalizeSha256(expectedSha256);
+    if (expectedSha256 != null && normalizedHash == null) {
+      debugPrint('[UpdateService] invalid expected SHA-256');
+      return null;
+    }
+    if (!_isAllowedDownloadUri(uri, hasChecksum: normalizedHash != null)) {
+      debugPrint('[UpdateService] rejected download scheme or host: $uri');
+      return null;
+    }
+
     HttpClient? client;
     IOSink? sink;
+    File? partFile;
+    Directory? ownedDir;
     try {
-      Directory dir;
-      try {
-        dir = await getTemporaryDirectory();
-      } catch (_) {
-        dir = Directory.systemTemp;
-      }
+      ownedDir = await _ownedUpdateDirectory();
 
       final ext = currentPlatform == 'android' ? '.apk' : '';
-      final rawName = preferredFileName?.trim();
-      final safeName = (rawName != null && rawName.isNotEmpty)
-          ? rawName
-          : 'eir_update_${DateTime.now().millisecondsSinceEpoch}$ext';
-      final file = File('${dir.path}/$safeName');
-      if (await file.exists()) {
-        try {
-          await file.delete();
-        } catch (_) {}
-      }
+      final providedName = _sanitizeUpdateFileName(preferredFileName);
+      final safeName = providedName ??
+          'eir_update_${DateTime.now().millisecondsSinceEpoch}$ext';
+      final finalFile = File(
+        '${ownedDir.path}${Platform.pathSeparator}$safeName',
+      );
+      final nonce = DateTime.now().microsecondsSinceEpoch;
+      partFile = File(
+        '${ownedDir.path}${Platform.pathSeparator}$safeName.$nonce.part',
+      );
 
       client = HttpClient();
-      client.connectionTimeout = const Duration(seconds: 15);
+      client.connectionTimeout = _downloadTimeout;
 
-      var currentUri = Uri.parse(url);
+      var currentUri = uri;
       HttpClientResponse? response;
-      for (int i = 0; i < 5; i++) {
-        final request = await client.getUrl(currentUri);
+      for (var redirects = 0;; redirects++) {
+        if (redirects > _maxDownloadRedirects) {
+          await response?.drain<void>().timeout(_downloadTimeout);
+          return null;
+        }
+
+        final request =
+            await client.getUrl(currentUri).timeout(_downloadTimeout);
         request.headers.set(
-            'User-Agent', 'Eir-Client/$currentVersionName ($currentPlatform)');
+          'User-Agent',
+          'Eir-Client/$currentVersionName ($currentPlatform)',
+        );
+        request.headers.set('Accept', 'application/octet-stream');
         request.followRedirects = false;
-        response = await request.close();
+        response = await request.close().timeout(_downloadTimeout);
+
         if (response.isRedirect) {
           final location = response.headers.value(HttpHeaders.locationHeader);
-          if (location != null) {
-            currentUri = currentUri.resolve(location);
-            await response.drain<void>();
-            continue;
+          if (location == null) {
+            await response.drain<void>().timeout(_downloadTimeout);
+            return null;
           }
+          final nextUri = currentUri.resolve(location);
+          await response.drain<void>().timeout(_downloadTimeout);
+          if (!_isAllowedDownloadUri(
+            nextUri,
+            hasChecksum: normalizedHash != null,
+          )) {
+            debugPrint('[UpdateService] rejected redirect target: $nextUri');
+            return null;
+          }
+          currentUri = nextUri;
+          continue;
         }
         break;
       }
 
-      if (response == null || response.statusCode != 200) {
-        await response?.drain<void>();
+      if (response.statusCode != 200) {
+        await response.drain<void>().timeout(_downloadTimeout);
         return null;
       }
 
-      final totalBytes = response.contentLength;
+      final declaredLength = response.contentLength;
+      if (expectedSize > 0 &&
+          declaredLength >= 0 &&
+          declaredLength != expectedSize) {
+        debugPrint(
+          '[UpdateService] declared size does not match expected size',
+        );
+        await response.drain<void>().timeout(_downloadTimeout);
+        return null;
+      }
+      final totalBytes = expectedSize > 0 ? expectedSize : declaredLength;
+
       var receivedBytes = 0;
       var lastSampleTime = DateTime.now().millisecondsSinceEpoch;
       var lastSampleBytes = 0;
       var speedBps = 0.0;
 
-      sink = file.openWrite();
-      await for (final chunk in response) {
+      sink = partFile.openWrite();
+      await for (final chunk in response.timeout(_downloadReadTimeout)) {
         sink.add(chunk);
         receivedBytes += chunk.length;
 
@@ -301,17 +484,47 @@ class UpdateService {
         }
       }
 
-      await sink.flush();
-      await sink.close();
+      await sink.flush().timeout(_downloadTimeout);
+      await sink.close().timeout(_downloadTimeout);
       sink = null;
 
+      if (expectedSize > 0 && receivedBytes != expectedSize) {
+        throw StateError('downloaded size mismatch');
+      }
+      if (declaredLength >= 0 && receivedBytes != declaredLength) {
+        throw StateError('content-length mismatch');
+      }
+
+      if (normalizedHash != null) {
+        final digest = await crypto.sha256
+            .bind(partFile.openRead())
+            .first
+            .timeout(_downloadReadTimeout);
+        if (digest.toString().toLowerCase() != normalizedHash) {
+          throw StateError('sha256 mismatch');
+        }
+      }
+
+      if (await finalFile.exists()) {
+        await finalFile.delete();
+      }
+      await partFile.rename(finalFile.path);
+      partFile = null;
+
       onProgress(receivedBytes, totalBytes, 0);
-      return file;
+      return finalFile;
     } catch (e) {
       debugPrint('[UpdateService] download error: $e');
       if (sink != null) {
         try {
           await sink.close();
+        } catch (_) {}
+      }
+      if (partFile != null &&
+          ownedDir != null &&
+          _isInsideDirectory(ownedDir, partFile.path)) {
+        try {
+          if (await partFile.exists()) await partFile.delete();
         } catch (_) {}
       }
       return null;
@@ -331,35 +544,33 @@ class UpdateService {
 
     if (Platform.isAndroid) {
       try {
-        final res = await _mediaPickerChannel.invokeMethod<bool>(
-          'installApk',
-          {'filePath': filePath, 'path': filePath},
-        );
+        final res = await _mediaPickerChannel.invokeMethod<bool>('installApk', {
+          'filePath': filePath,
+          'path': filePath,
+        });
         return res ?? true;
       } catch (e) {
         debugPrint('[UpdateService] installApk MethodChannel failed: $e');
         return false;
       }
-    } else if (Platform.isWindows) {
-      try {
-        await Process.start(filePath, <String>[], runInShell: true);
-        return true;
-      } catch (e) {
-        debugPrint('[UpdateService] run windows installer failed: $e');
-        return false;
-      }
+    } else if (_isWindowsPlatform) {
+      return _installWindowsPackage(filePath);
     } else if (Platform.isMacOS) {
       try {
-        await Process.run('open', <String>[filePath]);
-        return true;
+        return _openerSucceeded(
+          await processRunner('open', <String>[filePath]),
+          'open',
+        );
       } catch (e) {
         debugPrint('[UpdateService] run macos installer failed: $e');
         return false;
       }
     } else if (Platform.isLinux) {
       try {
-        await Process.run('xdg-open', <String>[filePath]);
-        return true;
+        return _openerSucceeded(
+          await processRunner('xdg-open', <String>[filePath]),
+          'xdg-open',
+        );
       } catch (e) {
         debugPrint('[UpdateService] run linux installer failed: $e');
         return false;
@@ -368,9 +579,51 @@ class UpdateService {
     return false;
   }
 
+  /// Starts the native Windows package through the system shell opener.
+  ///
+  /// A true result means the opener accepted the package; it does not mean the
+  /// installer finished or the package was installed. The file path is passed
+  /// as one argument so it is never re-parsed by a command shell. Archive files
+  /// cannot be auto-installed and are rejected without launching anything.
+  static Future<bool> _installWindowsPackage(String filePath) async {
+    final extension = _lowercaseFileExtension(filePath);
+    if (!_windowsShellPackageExtensions.contains(extension)) {
+      debugPrint(
+        '[UpdateService] unsupported Windows update package: $extension',
+      );
+      return false;
+    }
+    try {
+      return _openerSucceeded(
+        await processRunner('explorer.exe', <String>[filePath]),
+        'explorer.exe',
+      );
+    } catch (e) {
+      debugPrint('[UpdateService] run windows installer failed: $e');
+      return false;
+    }
+  }
+
+  static bool _openerSucceeded(ProcessResult result, String name) {
+    if (result.exitCode != 0) {
+      debugPrint('[UpdateService] $name exited with ${result.exitCode}');
+      return false;
+    }
+    return true;
+  }
+
   static Future<Map<String, dynamic>?> _fetchJson(Uri uri) async {
     if (kIsWeb) {
-      // In web builds, CORS or browser fetch
+      final body = await httpGetText(
+        uri.toString(),
+        timeout: const Duration(seconds: 10),
+      );
+      if (body == null || body.isEmpty) return null;
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      } catch (_) {}
       return null;
     }
 
@@ -380,20 +633,29 @@ class UpdateService {
       final request =
           await client.getUrl(uri).timeout(const Duration(seconds: 8));
       request.headers.set(
-          'User-Agent', 'Eir-Client/$currentVersionName ($currentPlatform)');
+        'User-Agent',
+        'Eir-Client/$currentVersionName ($currentPlatform)',
+      );
       request.headers.set('Accept', 'application/json');
 
-      final response =
-          await request.close().timeout(const Duration(seconds: 10));
+      final response = await request.close().timeout(
+            const Duration(seconds: 10),
+          );
       if (response.statusCode != 200) {
         await response.drain<void>();
         return null;
       }
 
-      final body = await response.transform(utf8.decoder).join();
+      final body = await response
+          .transform(utf8.decoder)
+          .join()
+          .timeout(const Duration(seconds: 15));
       final decoded = jsonDecode(body);
       if (decoded is Map<String, dynamic>) {
         return decoded;
+      }
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
       }
       return null;
     } finally {
@@ -447,6 +709,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
       preferredFileName: widget.updateInfo.fileName.isNotEmpty
           ? widget.updateInfo.fileName
           : null,
+      expectedSha256: widget.updateInfo.fileSha256,
+      expectedSize: widget.updateInfo.fileSize,
       onProgress: (received, total, speedBps) {
         if (!mounted) return;
         setState(() {

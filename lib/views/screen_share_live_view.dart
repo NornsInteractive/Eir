@@ -1056,15 +1056,16 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                     children: [
                       Icon(Icons.monitor_heart_rounded, size: 20, color: tc.primary),
                       const SizedBox(width: 8),
-                      Text(
-                        i18n.streamHealthTitle,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: tc.textPrimary,
+                      Expanded(
+                        child: Text(
+                          i18n.streamHealthTitle,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: tc.textPrimary,
+                          ),
                         ),
                       ),
-                      const Spacer(),
                       IconButton(
                         icon: Icon(Icons.close_rounded, size: 20, color: tc.textSecondary),
                         onPressed: () => Navigator.of(ctx).pop(),
@@ -1074,11 +1075,30 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
                   const SizedBox(height: 16),
                   _buildMetricRow(i18n.fpsMetric, '${_service.targetFps} FPS', Colors.greenAccent, tc),
                   const Divider(height: 16),
-                  _buildMetricRow(i18n.rttMetric, '${_service.rttMs} ms', tc.primary, tc),
+                  _buildMetricRow(
+                    i18n.rttMetric,
+                    _service.rttMs != null ? '${_service.rttMs} ms' : i18n.metricNoData,
+                    _service.rttMs != null ? tc.primary : tc.textSecondary,
+                    tc,
+                  ),
                   const Divider(height: 16),
-                  _buildMetricRow(i18n.bitrateMetric, '${_service.bitrateMbps.toStringAsFixed(1)} Mbps', tc.textPrimary, tc),
+                  _buildMetricRow(
+                    i18n.bitrateMetric,
+                    _service.bitrateMbps != null
+                        ? '${_service.bitrateMbps!.toStringAsFixed(1)} Mbps'
+                        : i18n.metricNoData,
+                    _service.bitrateMbps != null ? tc.textPrimary : tc.textSecondary,
+                    tc,
+                  ),
                   const Divider(height: 16),
-                  _buildMetricRow(i18n.packetLossMetric, '${(_service.packetLoss * 100).toStringAsFixed(1)}%', tc.success, tc),
+                  _buildMetricRow(
+                    i18n.packetLossMetric,
+                    _service.packetLoss != null
+                        ? '${(_service.packetLoss! * 100).toStringAsFixed(1)}%'
+                        : i18n.metricNoData,
+                    _service.packetLoss != null ? tc.success : tc.textSecondary,
+                    tc,
+                  ),
                   const Divider(height: 16),
                   _buildMetricRow(i18n.aspectRatioMode, _service.isCoverMode ? i18n.aspectRatioCover : i18n.aspectRatioContain, tc.textSecondary, tc),
                 ],
@@ -1094,14 +1114,17 @@ class _ScreenShareLiveViewState extends State<ScreenShareLiveView> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13.5,
-            color: tc.textSecondary,
-            fontWeight: FontWeight.w500,
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13.5,
+              color: tc.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
+        const SizedBox(width: 8),
         Text(
           value,
           style: TextStyle(

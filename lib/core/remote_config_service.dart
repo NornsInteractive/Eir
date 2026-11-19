@@ -60,7 +60,57 @@ class RemoteConfigService {
     return '$raw/api/config';
   }
 
-  /// Fetches encrypted remote config from server, decrypts it, and applies it to AppSettings.
+  static String? _trimmedString(Object? value) {
+    return value is String ? value.trim() : null;
+  }
+
+  /// Validates and normalizes an HTTP(S) server domain. Scheme-less domains
+  /// such as `eir.norns.cc.cd` are accepted, matching resolveConfigUrl().
+  static String? _validatedDomain(String value) {
+    if (value.isEmpty || RegExp(r'\s').hasMatch(value)) return null;
+    final candidate = value.contains('://') ? value : 'https://$value';
+    final uri = Uri.tryParse(candidate);
+    if (uri == null ||
+        (uri.scheme != 'http' && uri.scheme != 'https') ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty) {
+      return null;
+    }
+    return value;
+  }
+
+  static String? _validatedSignaling(String value) {
+    if (value.isEmpty) return null;
+    final uri = Uri.tryParse(value);
+    if (uri == null ||
+        (uri.scheme != 'ws' && uri.scheme != 'wss') ||
+        uri.host.isEmpty) {
+      return null;
+    }
+    return value;
+  }
+
+  static String? _validatedTurnServer(String value) {
+    if (value.isEmpty || RegExp(r'\s').hasMatch(value)) return null;
+    final cleaned = value.replaceFirst(
+      RegExp(r'^turns?:', caseSensitive: false),
+      '',
+    );
+    if (cleaned.isEmpty) return null;
+    try {
+      final uri = Uri.parse('turn://$cleaned');
+      if (uri.host.isEmpty || uri.userInfo.isNotEmpty) return null;
+      if (uri.path.isNotEmpty && uri.path != '/') return null;
+      final port = uri.hasPort ? uri.port : 3478;
+      if (port < 1 || port > 65535) return null;
+    } catch (_) {
+      return null;
+    }
+    return value;
+  }
+
+  /// Fetches encrypted remote config from server, decrypts and validates the
+  /// whole payload, then applies it as one coherent AppSettings batch.
   static Future<RemoteConfigResult> fetchAndApply({
     String? serverDomain,
     String secret = defaultConfigSecret,
@@ -99,35 +149,60 @@ class RemoteConfigService {
         );
       }
 
-      // 1. If server_domain is present in response, update server domain
-      final remoteDomain =
-          config['server_domain'] as String? ?? config['domain'] as String?;
-      if (remoteDomain != null && remoteDomain.trim().isNotEmpty) {
-        await settings.setServerDomain(remoteDomain.trim());
-      }
-
-      // 2. Update signaling server (ws_server)
-      final signaling =
-          config['signaling_server'] as String? ?? config['ws_server'] as String?;
-      if (signaling != null && signaling.trim().isNotEmpty) {
-        await settings.setSignalingUrl(signaling.trim());
-      }
-
-      // 3. Update TURN server
-      final turnServer = config['turn_server'] as String?;
-      final turnUser = config['turn_username'] as String?;
+      final remoteDomainRaw =
+          _trimmedString(config['server_domain']) ??
+          _trimmedString(config['domain']);
+      final signalingRaw =
+          _trimmedString(config['signaling_server']) ??
+          _trimmedString(config['ws_server']);
+      final turnServerRaw = _trimmedString(config['turn_server']);
+      final turnUser = _trimmedString(config['turn_username']) ?? '';
       final turnCred =
-          config['turn_credential'] as String? ?? config['turn_password'] as String?;
-      if (turnServer != null && turnServer.trim().isNotEmpty) {
-        await settings.setTurnConfig(
-          server: turnServer.trim(),
-          username: turnUser?.trim() ?? '',
-          credential: turnCred?.trim() ?? '',
-        );
+          _trimmedString(config['turn_credential']) ??
+          _trimmedString(config['turn_password']) ??
+          '';
+
+      String? remoteDomain;
+      if (remoteDomainRaw != null && remoteDomainRaw.isNotEmpty) {
+        remoteDomain = _validatedDomain(remoteDomainRaw);
+        if (remoteDomain == null) {
+          return const RemoteConfigResult(
+            success: false,
+            message: 'Invalid server domain in remote configuration',
+          );
+        }
       }
 
-      // 4. Record sync timestamp
-      await settings.setLastConfigSyncTime(DateTime.now().millisecondsSinceEpoch);
+      String? signaling;
+      if (signalingRaw != null && signalingRaw.isNotEmpty) {
+        signaling = _validatedSignaling(signalingRaw);
+        if (signaling == null) {
+          return const RemoteConfigResult(
+            success: false,
+            message: 'Invalid signaling server in remote configuration',
+          );
+        }
+      }
+
+      String? turnServer;
+      if (turnServerRaw != null && turnServerRaw.isNotEmpty) {
+        turnServer = _validatedTurnServer(turnServerRaw);
+        if (turnServer == null) {
+          return const RemoteConfigResult(
+            success: false,
+            message: 'Invalid TURN server in remote configuration',
+          );
+        }
+      }
+
+      await settings.applyRemoteConfig(
+        serverDomain: remoteDomain,
+        signalingUrl: signaling,
+        turnServer: turnServer,
+        turnUsername: turnServer != null ? turnUser : null,
+        turnCredential: turnServer != null ? turnCred : null,
+        lastConfigSyncTime: DateTime.now().millisecondsSinceEpoch,
+      );
 
       return RemoteConfigResult(success: true, data: config);
     } catch (e) {

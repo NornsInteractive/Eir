@@ -384,20 +384,35 @@ export class SignalingCoordinator {
   }
 
   async handleJoinRoom(conn, msg) {
-    let roomId = msg.roomId;
-    if ((!roomId || !UUID_V4.test(roomId)) && typeof msg.roomCode === 'string') {
+    const hasRoomId = typeof msg.roomId === 'string' && msg.roomId.length > 0;
+    const hasRoomCode = typeof msg.roomCode === 'string' && msg.roomCode.trim().length > 0;
+    if (!hasRoomId && !hasRoomCode) return conn.sendError('invalid_message');
+
+    let roomId;
+    if (hasRoomCode) {
       const code = msg.roomCode.trim();
-      roomId = this.codeToRoomId.get(code);
+      const codeRoomId = this.codeToRoomId.get(code);
+      if (!codeRoomId) return conn.sendError('room_not_found');
+      if (hasRoomId && codeRoomId !== msg.roomId) return conn.sendError('invalid_message');
+      roomId = codeRoomId;
+    } else {
+      roomId = msg.roomId;
     }
-    let token = msg.token;
-    if (!token && roomId && this.rooms.has(roomId)) {
-      token = this.rooms.get(roomId).rawToken;
+
+    const tokenProvided = Object.prototype.hasOwnProperty.call(msg, 'token') &&
+      msg.token !== undefined && msg.token !== null;
+    let token = tokenProvided ? msg.token : undefined;
+    const roomIdToken = this.rooms.get(roomId);
+    if (!tokenProvided && hasRoomCode) {
+      // A validated room-code lookup may resolve the room's credential. A
+      // roomId alone never authorizes a missing token.
+      token = roomIdToken ? roomIdToken.rawToken : undefined;
     }
     const { deviceId, publicKey, protocolVersion } = msg;
-    const inviteEpoch = typeof msg.inviteEpoch === 'number' ? msg.inviteEpoch : (roomId && this.rooms.has(roomId) ? this.rooms.get(roomId).inviteEpoch : 1);
+    const inviteEpoch = typeof msg.inviteEpoch === 'number' ? msg.inviteEpoch : (roomIdToken ? roomIdToken.inviteEpoch : 1);
     if (protocolVersion !== kProtocolVersion) return conn.sendError('protocol_version');
     if (!roomId || !UUID_V4.test(roomId)) return conn.sendError('invalid_message');
-    if (!token || !TOKEN_PATTERN.test(token)) return conn.sendError('invalid_invite');
+    if (!token || typeof token !== 'string' || !TOKEN_PATTERN.test(token)) return conn.sendError('invalid_invite');
     if (!deviceId || !DEVICE_ID_PATTERN.test(deviceId)) return conn.sendError('invalid_message');
     if (!publicKey || typeof publicKey !== 'string') return conn.sendError('invalid_message');
 
@@ -453,6 +468,7 @@ export class SignalingCoordinator {
       return conn.sendError('room_full');
     }
 
+    const rejoined = room.inviteConsumedBy === deviceId;
     room.inviteConsumedBy = deviceId;
     room.attach(conn, deviceId);
     conn.roomId = roomId;
@@ -470,7 +486,7 @@ export class SignalingCoordinator {
       genesisHash: room.genesisHash,
       ownerPublicKey: room.ownerPublicKey,
       inviteEpoch: room.inviteEpoch,
-      rejoined: false,
+      rejoined,
       members: getMembers(),
     });
     room.broadcast({
@@ -481,7 +497,7 @@ export class SignalingCoordinator {
       displayName: conn.displayName || '',
       avatar: conn.avatar || '',
       joinedAt: conn.joinedAt || Date.now(),
-      rejoined: false,
+      rejoined,
     }, deviceId);
   }
 

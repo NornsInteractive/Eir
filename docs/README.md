@@ -35,6 +35,14 @@
 
 ## 实施记录
 
+- [Eir Android 与 Windows 正式打包与全渠道发布交付报告](DELIVERY-REPORT-V1-0-40.md)
+- [供片离线 pause 修复与 16KB 页对齐验收环境准备报告](OFFLINE-FIX-ACCEPTANCE-ENV.md)
+- [Android Tailcat 原生库 16KB 页对齐与构建配置交接报告](TAILCAT-ANDROID-16KB-HANDOFF.md)
+- [最新修复双端业务验收环境就绪报告](CURRENT-FIXED-ACCEPTANCE-ENV.md)
+- [成员列表可访问语义最小修复交接说明](MEMBER-SEMANTICS-UI-HANDOFF.md)
+- [Android 与 Web 双端业务验收环境准备报告](DUAL-PLATFORM-ACCEPTANCE-ENV.md)
+- [屏幕共享实时网络看板 UI 适配交接](SCREEN-STATS-UI-HANDOFF.md)
+- [1.0.40 后续缺陷修复与代理分工](BUGFIX-2026-11.md)
 - [当前业务修复与验收计划](CURRENT-REPAIR-PLAN.md)
 - [实施进度与约束](IMPLEMENTATION.md)
 - [平台能力验证矩阵](PLATFORM-VALIDATION.md)

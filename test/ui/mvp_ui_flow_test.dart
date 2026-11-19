@@ -198,6 +198,7 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
   int playCalls = 0;
   int pauseCalls = 0;
   Duration? lastSeekPosition;
+  Duration? lastRelativeSeekOffset;
   double? lastRate;
   int addUrlCalls = 0;
   String? lastAddedUrl;
@@ -312,6 +313,12 @@ class FakeRoomSession extends ChangeNotifier implements RoomSession {
       rate: playback.rate,
       seq: playback.seq + 1,
     );
+    notifyListeners();
+  }
+
+  @override
+  Future<void> seekRelative(Duration offset) async {
+    lastRelativeSeekOffset = offset;
     notifyListeners();
   }
 

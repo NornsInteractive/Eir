@@ -149,6 +149,7 @@ class LiquidGlassActionButton extends StatelessWidget {
   final Color? customColor;
   final Color? color;
   final Color? borderColor;
+  final String? semanticLabel;
 
   const LiquidGlassActionButton({
     super.key,
@@ -161,6 +162,7 @@ class LiquidGlassActionButton extends StatelessWidget {
     this.customColor,
     this.color,
     this.borderColor,
+    this.semanticLabel,
   });
 
   @override
@@ -170,6 +172,7 @@ class LiquidGlassActionButton extends StatelessWidget {
 
     return GlassButton.custom(
       onTap: onTap,
+      label: semanticLabel ?? '',
       width: width,
       height: height,
       useOwnLayer: true,

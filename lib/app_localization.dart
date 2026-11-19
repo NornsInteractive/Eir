@@ -556,6 +556,7 @@ class AppI18n {
   String get rttMetric => isZh ? '往返延迟' : 'RTT Latency';
   String get bitrateMetric => isZh ? '实时码率' : 'Bitrate';
   String get packetLossMetric => isZh ? '丢包率' : 'Packet Loss';
+  String get metricNoData => isZh ? '暂无数据' : 'No data';
   String get echoFreeNotice => isZh
       ? '已启用 Android 媒体与通话音轨隔离及 WebRTC 硬件级回声消除，双方开麦畅聊绝无回声困扰。'
       : 'Hardware AEC & OS audio sandboxing enabled. Zero echo loops during voice chat.';

@@ -42,6 +42,11 @@ type TailcatSession struct {
 	dataCb   C.DataCallback
 	stateCb  C.StateCallback
 	closed   atomic.Bool
+	wg       sync.WaitGroup
+	sendMu   sync.Mutex
+	connMu   sync.Mutex
+	cbMu     sync.RWMutex
+	cbClosed bool
 }
 
 var (
@@ -49,18 +54,77 @@ var (
 	nextID     uintptr
 )
 
-func notifyState(sess *TailcatSession, state int32, info string) {
-	if sess.stateCb != nil {
-		cInfo := C.CString(info)
-		defer C.free(unsafe.Pointer(cInfo))
-		C.invoke_state_cb(sess.stateCb, C.uintptr_t(sess.id), C.int32_t(state), cInfo)
+// TailcatFree releases a buffer that this library allocated with C.CString or
+// C.CBytes (state/data callback payloads and the TailcatStartServer address).
+// Dart must free those buffers through this entry point so allocation and
+// deallocation happen in the same C runtime heap. On Windows a Dart-side
+// calloc.free would use a different heap and corrupt memory.
+//
+//export TailcatFree
+func TailcatFree(ptr unsafe.Pointer) {
+	C.free(ptr)
+}
+
+func (sess *TailcatSession) invokeState(state int32, info string) {
+	sess.cbMu.RLock()
+	defer sess.cbMu.RUnlock()
+	if sess.cbClosed || sess.stateCb == nil || sess.closed.Load() {
+		return
 	}
+	cInfo := C.CString(info)
+	if cInfo == nil {
+		return
+	}
+	C.invoke_state_cb(sess.stateCb, C.uintptr_t(sess.id), C.int32_t(state), cInfo)
+}
+
+func (sess *TailcatSession) invokeData(isBinary int32, data []byte) {
+	if len(data) == 0 {
+		return
+	}
+	sess.cbMu.RLock()
+	defer sess.cbMu.RUnlock()
+	if sess.cbClosed || sess.dataCb == nil || sess.closed.Load() {
+		return
+	}
+	cBuf := C.CBytes(data)
+	if cBuf == nil {
+		return
+	}
+	C.invoke_data_cb(sess.dataCb, C.uintptr_t(sess.id), C.int32_t(isBinary), (*C.uint8_t)(cBuf), C.int32_t(len(data)))
+}
+
+func (sess *TailcatSession) setConn(conn net.Conn) bool {
+	sess.connMu.Lock()
+	defer sess.connMu.Unlock()
+	if sess.closed.Load() {
+		_ = conn.Close()
+		return false
+	}
+	sess.conn = conn
+	return true
+}
+
+func writeFull(w io.Writer, p []byte) error {
+	for len(p) > 0 {
+		n, err := w.Write(p)
+		if n > 0 {
+			p = p[n:]
+		}
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return io.ErrShortWrite
+		}
+	}
+	return nil
 }
 
 func readLoop(sess *TailcatSession, conn net.Conn) {
 	defer func() {
 		if !sess.closed.Load() {
-			notifyState(sess, 2, "disconnected")
+			sess.invokeState(2, "disconnected")
 		}
 	}()
 
@@ -84,9 +148,7 @@ func readLoop(sess *TailcatSession, conn net.Conn) {
 			return
 		}
 
-		if sess.dataCb != nil && len(buf) > 0 {
-			C.invoke_data_cb(sess.dataCb, C.uintptr_t(sess.id), C.int32_t(isBinary), (*C.uint8_t)(unsafe.Pointer(&buf[0])), C.int32_t(len(buf)))
-		}
+		sess.invokeData(isBinary, buf)
 	}
 }
 
@@ -112,15 +174,19 @@ func TailcatStartServer(dataCb C.DataCallback, stateCb C.StateCallback) (*C.char
 		stateCb:  stateCb,
 	}
 	sessionMap.Store(id, sess)
-	notifyState(sess, 0, "listening")
+	sess.invokeState(0, "listening")
 
+	sess.wg.Add(1)
 	go func() {
+		defer sess.wg.Done()
 		conn, err := ln.Accept()
 		if err != nil {
 			return
 		}
-		sess.conn = conn
-		notifyState(sess, 1, "connected")
+		if !sess.setConn(conn) {
+			return
+		}
+		sess.invokeState(1, "connected")
 		readLoop(sess, conn)
 	}()
 
@@ -143,18 +209,22 @@ func TailcatStartClient(serverAddr *C.char, dataCb C.DataCallback, stateCb C.Sta
 		stateCb:  stateCb,
 	}
 	sessionMap.Store(id, sess)
-	notifyState(sess, 0, "dialing")
+	sess.invokeState(0, "dialing")
 
+	sess.wg.Add(1)
 	go func() {
+		defer sess.wg.Done()
 		dialCtx, dialCancel := context.WithTimeout(ctx, 20*time.Second)
 		defer dialCancel()
 		conn, err := client.Dial(dialCtx, "tcp", ":0")
 		if err != nil {
-			notifyState(sess, 2, "dial_failed: "+err.Error())
+			sess.invokeState(2, "dial_failed: "+err.Error())
 			return
 		}
-		sess.conn = conn
-		notifyState(sess, 1, "connected")
+		if !sess.setConn(conn) {
+			return
+		}
+		sess.invokeState(1, "connected")
 		readLoop(sess, conn)
 	}()
 
@@ -168,20 +238,31 @@ func TailcatSend(id C.uintptr_t, isBinary int32, data *C.uint8_t, length int32) 
 		return -1
 	}
 	sess := v.(*TailcatSession)
+	if length < 0 {
+		return -1
+	}
+	payload := C.GoBytes(unsafe.Pointer(data), C.int(length))
+
+	sess.sendMu.Lock()
+	defer sess.sendMu.Unlock()
+	if sess.closed.Load() {
+		return -2
+	}
+	sess.connMu.Lock()
 	conn := sess.conn
+	sess.connMu.Unlock()
 	if conn == nil {
 		return -2
 	}
 
-	payload := C.GoBytes(unsafe.Pointer(data), C.int(length))
 	hdr := make([]byte, 5)
 	binary.BigEndian.PutUint32(hdr[0:4], uint32(length))
 	hdr[4] = byte(isBinary)
 
-	if _, err := conn.Write(hdr); err != nil {
+	if err := writeFull(conn, hdr); err != nil {
 		return -1
 	}
-	if _, err := conn.Write(payload); err != nil {
+	if err := writeFull(conn, payload); err != nil {
 		return -1
 	}
 	return 0
@@ -218,9 +299,15 @@ func TailcatClose(id C.uintptr_t) {
 	if sess.cancel != nil {
 		sess.cancel()
 	}
-	if sess.conn != nil {
-		_ = sess.conn.Close()
+
+	sess.connMu.Lock()
+	conn := sess.conn
+	sess.conn = nil
+	sess.connMu.Unlock()
+	if conn != nil {
+		_ = conn.Close()
 	}
+
 	if sess.listener != nil {
 		_ = sess.listener.Close()
 	}
@@ -230,6 +317,11 @@ func TailcatClose(id C.uintptr_t) {
 	if sess.client != nil {
 		_ = sess.client.Close()
 	}
+
+	sess.wg.Wait()
+	sess.cbMu.Lock()
+	sess.cbClosed = true
+	sess.cbMu.Unlock()
 }
 
 func main() {}

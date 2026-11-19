@@ -246,6 +246,25 @@ class DanmakuMessage {
   final String? colorHex;
 }
 
+/// Target position for a relative seek, computed from the live playback
+/// position [base] (never the commit anchor).
+///
+/// A known positive [duration] is the upper bound; an unknown duration leaves
+/// the upper side unbounded so a relative seek does not collapse to 0. The
+/// result is always non-negative.
+Duration relativeSeekTarget({
+  required Duration base,
+  required Duration offset,
+  Duration? duration,
+}) {
+  final target = base + offset;
+  if (target < Duration.zero) return Duration.zero;
+  if (duration != null && duration > Duration.zero && target > duration) {
+    return duration;
+  }
+  return target;
+}
+
 class RoomSession extends ChangeNotifier {
   RoomSession({
     DeviceIdentityStore? identityStore,
@@ -1762,6 +1781,7 @@ class RoomSession extends ChangeNotifier {
               requestId: _uuid.v4(),
               action: 'pause',
               params: <String, Object?>{
+                'itemId': currentItemId,
                 'positionMs': 0,
               },
             ));
@@ -5002,6 +5022,33 @@ class RoomSession extends ChangeNotifier {
     await _requestControl('seek', <String, Object?>{
       'positionMs': position.inMilliseconds,
     });
+  }
+
+  /// Seeks [offset] from the live playback position.
+  ///
+  /// [playback.position] is only the position at the last commit anchor, so a
+  /// relative seek must not use it as the base: once live playback has passed
+  /// the anchor, `anchor + offset` jumps backwards. The base is the player's
+  /// current position; the result is clamped to the known duration (player
+  /// state, then the item's declared duration) and never below zero. An
+  /// unknown duration only lower-bounds the target instead of collapsing it
+  /// to 0. The existing [seek] path is reused, so permissions and the sync
+  /// commit path stay unchanged.
+  Future<void> seekRelative(Duration offset) async {
+    final state = _player?.state;
+    final base = state?.position ?? _expectedPositionNow();
+    final playerDuration = state?.duration;
+    final currentItemId = _currentItemId;
+    final duration = playerDuration != null && playerDuration > Duration.zero
+        ? playerDuration
+        : currentItemId == null
+            ? null
+            : _itemById(currentItemId)?.duration;
+    await seek(relativeSeekTarget(
+      base: base,
+      offset: offset,
+      duration: duration,
+    ));
   }
 
   Future<void> setRate(double rate) async {
