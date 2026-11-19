@@ -35,7 +35,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.1'
+          flutter-version: '3.44.2'
           channel: stable
           architecture: x64
           cache: true
@@ -79,14 +79,31 @@ jobs:
 
       - name: Package Portable ZIP
         run: |
+          . .\tool\windows_packaging.ps1
+          $versionInfo = Get-EirWindowsVersionInfo -Project .
+          $names = Get-EirWindowsArtifactNames -VersionInfo $versionInfo
           $bundle = 'build\windows\x64\runner\Release'
           $output = 'build\windows-artifacts'
           New-Item -ItemType Directory -Path $output -Force | Out-Null
-          $zip = Join-Path $output "eir-windows-x64-release.zip"
+          $zip = Join-Path $output $names.PortableZip
           Compress-Archive -Path "$bundle\*" -DestinationPath $zip -CompressionLevel Optimal
           $digest = Get-FileHash $zip -Algorithm SHA256
           "$($digest.Hash.ToLower())  $([IO.Path]::GetFileName($zip))" | Set-Content "$zip.sha256" -Encoding ascii
-          Write-Host "Portable ZIP created: $zip"
+          Write-Host "Portable ZIP created: $zip ($($digest.Hash.ToLower()))"
+
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          . .\tool\windows_packaging.ps1
+          $versionInfo = Get-EirWindowsVersionInfo -Project .
+          $names = Get-EirWindowsArtifactNames -VersionInfo $versionInfo
+          $output = 'build\windows-artifacts'
+          $msix = Join-Path $output $names.StoreMsix
+          $zip = Join-Path $output $names.PortableZip
+          $tag = "v$($versionInfo.Version)"
+          Write-Host "Uploading $msix and $zip to GitHub release $tag..."
+          gh release upload $tag $msix $zip --clobber
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
