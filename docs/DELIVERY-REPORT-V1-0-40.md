@@ -33,7 +33,7 @@
 | :--- | :--- | :--- | :--- |
 | **Android 正式签名 APK**<br>[eir-v1.0.40.apk](file:///workspace/projects/Eir/eir-v1.0.40.apk) | 183,346,056 B (~174.85 MB) | `02831dedfbddef9a93a33f8ea4583627e021f2717be1b0981f3f975853eece89` | 官方私钥签名，16KB 页对齐，单份本地保留规则 |
 | **Windows 微软商店 MSIX**<br>[eir-1.0.40.0-windows-x64-store.msix](file:///workspace/projects/Eir/eir-1.0.40.0-windows-x64-store.msix) | 51,271,959 B (~48.90 MB) | `d8378c14dce31feb66e5a7b36ebfe3bbfa5b5c54188022ce3205ebc55d310f2f` | 微软合作伙伴中心专属安装包，含 `runFullTrust` 声明 |
-| **Windows 绿色便携版 ZIP**<br>[eir-v1.0.40-windows-x64.zip](file:///workspace/projects/Eir/eir-v1.0.40-windows-x64.zip) | 49,608,411 B (~47.31 MB) | `0824685e68514d0b68ef20600c9c0f94b7cd0a33199a5132a1cd0c8dda28de49` | 免安装便携版，内置完整 VC++ 运行时与音视频 DLL |
+| **Windows 绿色便携版 ZIP**<br>[eir-v1.0.40-windows-x64.zip](file:///workspace/projects/Eir/eir-v1.0.40-windows-x64.zip) | 49,608,411 B (~47.31 MB) | `6044b712fa5a6a33e79f8b6822504df9f91aaecdc8e7fc9fbd54f023a180fd4e` | 免安装便携版，内置完整 VC++ 运行时与音视频 DLL |
 
 ---
 
