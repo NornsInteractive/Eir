@@ -32,8 +32,8 @@
 | 平台 / 产物名称 | 文件大小 | SHA-256 校验哈希 | 交付说明 |
 | :--- | :--- | :--- | :--- |
 | **Android 正式签名 APK**<br>[eir-v1.0.40.apk](file:///workspace/projects/Eir/eir-v1.0.40.apk) | 183,346,056 B (~174.85 MB) | `02831dedfbddef9a93a33f8ea4583627e021f2717be1b0981f3f975853eece89` | 官方私钥签名，16KB 页对齐，单份本地保留规则 |
-| **Windows 微软商店 MSIX**<br>[eir-1.0.40.0-windows-x64-store.msix](file:///workspace/projects/Eir/eir-1.0.40.0-windows-x64-store.msix) | 51,271,959 B (~48.90 MB) | `d8378c14dce31feb66e5a7b36ebfe3bbfa5b5c54188022ce3205ebc55d310f2f` | 微软合作伙伴中心专属安装包，含 `runFullTrust` 声明 |
-| **Windows 绿色便携版 ZIP**<br>[eir-v1.0.40-windows-x64.zip](file:///workspace/projects/Eir/eir-v1.0.40-windows-x64.zip) | 49,608,411 B (~47.31 MB) | `6044b712fa5a6a33e79f8b6822504df9f91aaecdc8e7fc9fbd54f023a180fd4e` | 免安装便携版，内置完整 VC++ 运行时与音视频 DLL |
+| **Windows 微软商店 MSIX**<br>[eir-1.0.40.0-windows-x64-store.msix](https://github.com/NornsInteractive/Eir/releases/download/v1.0.40/eir-1.0.40.0-windows-x64-store.msix) | 51,314,754 B (~48.94 MB) | `405633deb9f6e2b3870e8fd73ab63ff4dc14f9fa5efa17354ca2ee34257ae2bd` | GitHub CI 真实编译 (Run 44476294614)，含微软商店清单与全量修复 |
+| **Windows 绿色便携版 ZIP**<br>[eir-v1.0.40-windows-x64.zip](https://github.com/NornsInteractive/Eir/releases/download/v1.0.40/eir-v1.0.40-windows-x64.zip) | 51,037,923 B (~48.67 MB) | `795b008d7535317a3dcf14503314d56b94a19bab244a39b12d1f754ded95ca12` | GitHub CI 真实编译 (Run 44476294614)，免安装绿色版，内置全套运行时 |
 
 ---
 
@@ -53,6 +53,9 @@
    - APK 内 `lib/arm64-v8a/libtailcat.so`：4 个 LOAD 段全部 `p_align = 0x4000` (16KB)；
    - APK 内 `lib/x86_64/libtailcat.so`：4 个 LOAD 段全部 `p_align = 0x4000` (16KB)；
    - Zip 16KB 对齐：`zipalign -c -P 16 -v 4 eir-v1.0.40.apk` -> `Verification succesful`。
+5. **Windows CI 自动化构建与封装**：
+   - GitHub Actions Workflow `windows-build.yml` (Run ID: `44476294614`，Job ID: `135397556624`)；
+   - 基于 Flutter 3.44.2 编译原生 Release 二进制、注入 VC++ Redist 依赖，并分别打包 MSIX 与 ZIP。
 
 ---
 
@@ -60,7 +63,7 @@
 
 | 分发渠道 | 部署状态 | 目标地址 / 对应资源 |
 | :--- | :--- | :--- |
-| **GitHub Releases** | ✅ 已发布固化 | [v1.0.40 Release](https://github.com/NornsInteractive/Eir/releases/tag/v1.0.40)<br>（包含最新 174.85 MB APK、MSIX 商店包与便携 ZIP） |
-| **Yggdrasil CDN** | ✅ 已同步上线 | [com.norns.eir 分发页面](https://ygg.norns.cc.cd/d/com.norns.eir)<br>- Android: `eir-v1.0.40.apk`<br>- Windows MSIX: `pkg_mwn65oxqukby`<br>- Windows ZIP: `pkg_mwn65wgjz56w` |
-| **Norns 全局项目** | ✅ 已登记生效 | Project ID `e9ff6697-b751-4433-8a39-febb12cad058` (Version 48) |
+| **GitHub Releases** | ✅ 已发布固化 | [v1.0.40 Release](https://github.com/NornsInteractive/Eir/releases/tag/v1.0.40)<br>（包含最新 174.85 MB APK、MSIX 商店包与便携 ZIP，全部通过自动化 CI 签发与上传） |
+| **Yggdrasil CDN** | ✅ 已同步上线 | [com.norns.eir 分发页面](https://ygg.norns.cc.cd/d/com.norns.eir)<br>- Android: `pkg_mwn6bff5t2uh`<br>- Windows MSIX: `pkg_mwn7px743my8`<br>- Windows ZIP: `pkg_mwn7q9iiu3x4` |
+| **Norns 全局项目** | ✅ 已登记生效 | Project ID `e9ff6697-b751-4433-8a39-febb12cad058` (Version 49) |
 | **本地直接交付** | ✅ 就绪 | 本地根目录单份保留 [eir-v1.0.40.apk](file:///workspace/projects/Eir/eir-v1.0.40.apk) |
